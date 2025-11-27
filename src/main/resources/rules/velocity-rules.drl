@@ -1,0 +1,35 @@
+package com.twenty9ine.frauddetection.rules;
+import com.twenty9ine.frauddetection.domain.model.VelocityMetrics;
+import com.twenty9ine.frauddetection.domain.model.Transaction;
+import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult;
+import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
+import com.twenty9ine.frauddetection.domain.model.RiskImpact;
+global RuleEvaluationResult result;
+rule "High Velocity - 5 Minute Window"
+when
+$velocity : VelocityMetrics(fiveMinuteCount > 5)
+$tx : Transaction()
+then
+RuleTrigger trigger = new RuleTrigger(
+"VELOCITY_5MIN",
+"High Velocity 5min",
+RiskImpact.HIGH,
+"More than 5 transactions in 5 minutes",
+$velocity.fiveMinuteCount()
+);
+result.addTrigger(trigger);
+end
+rule "Extreme Velocity - 1 Hour Window"
+when
+$velocity : VelocityMetrics(oneHourCount > 20)
+$tx : Transaction()
+then
+RuleTrigger trigger = new RuleTrigger(
+"VELOCITY_1HOUR",
+"Extreme Velocity 1hr",
+RiskImpact.CRITICAL,
+"More than 20 transactions in 1 hour",
+$velocity.oneHourCount()
+);
+result.addTrigger(trigger);
+end

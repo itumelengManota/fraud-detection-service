@@ -1,0 +1,162 @@
+spring:
+  application:
+    name: fraud-detection-service
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: fraud-detection-service
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      max-poll-records: 1000
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
+    producer:
+      acks: all
+      enable-idempotence: true
+      transactional-id: fraud-detection-tx
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
+    properties:
+      max.poll.interval.ms: 300000
+      isolation.level: read_committed
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:frauddetection}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 3000ms
+    jdbc:
+      repositories:
+        enabled: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080/realms/fraud-detection}
+
+apicurio:
+  registry:
+    url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
+
+kafka:
+  topics:
+    transactions: transactions.normalized
+    fraud-alerts-critical: fraud.alerts.critical
+    fraud-alerts-high: fraud.alerts.high
+    fraud-alerts-medium: fraud.alerts.medium
+    domain-events: fraud-detection.domain-events
+
+fraud-detection:
+  ml:
+    service:
+      url: ${ML_SERVICE_URL:http://ml-service:8080}
+      timeout-ms: 100
+
+  scoring:
+    ml-weight: 0.6
+    rule-weight: 0.4
+
+  thresholds:
+    critical: 90
+    high: 70
+    medium: 40
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      mlService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 100ms
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  retry:
+    instances:
+      mlService:
+        max-attempts: 3
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+
+  timelimiter:
+    instances:
+      mlService:
+        timeout-duration: 100ms
+
+  bulkhead:
+    instances:
+      mlService:
+        max-concurrent-calls: 25
+        max-wait-duration: 50ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${ENVIRONMENT:dev}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://tempo:4318/v1/traces}
+
+logging:
+  pattern:
+    level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]'
+  level:
+    com.twenty9ine.frauddetection: ${LOG_LEVEL:INFO}
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha

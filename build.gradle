@@ -1,0 +1,136 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.0.0'
+    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.graalvm.buildtools.native' version '0.11.3'
+}
+
+group = 'com.twenty9ine'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://packages.confluent.io/maven/' }
+}
+
+ext {
+    mapstructVersion = '1.6.3'
+    lombokVersion = '1.18.36'
+    lombokMapstructBindingVersion = '0.2.0'
+    droolsVersion = '8.44.0.Final'
+    kieVersion = '7.74.1.Final'
+    resilience4jVersion = '2.2.0'
+    caffeineVersion = '3.1.8'
+    redissonVersion = '3.36.0'
+    apicurioVersion = '2.6.13.Final'
+    springdocVersion = '2.7.0'
+    logstashVersion = '8.0'
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.springframework.boot:spring-boot-starter-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    implementation 'commons-logging:commons-logging:1.3.4'
+
+
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+    runtimeOnly 'org.postgresql:postgresql'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+
+
+    implementation "io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion"
+    implementation "io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion"
+    implementation "io.github.resilience4j:resilience4j-retry:$resilience4jVersion"
+    implementation "io.github.resilience4j:resilience4j-bulkhead:$resilience4jVersion"
+    implementation "io.github.resilience4j:resilience4j-timelimiter:$resilience4jVersion"
+
+    implementation "com.github.ben-manes.caffeine:caffeine:$caffeineVersion"
+    implementation "org.redisson:redisson-spring-boot-starter:$redissonVersion"
+
+    implementation "org.drools:drools-core:$droolsVersion"
+    implementation "org.drools:drools-compiler:$droolsVersion"
+    implementation "org.kie:kie-spring:$kieVersion"
+
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
+
+
+    implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
+
+    implementation "org.mapstruct:mapstruct:$mapstructVersion"
+    annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
+
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
+
+    implementation "net.logstash.logback:logstash-logback-encoder:$logstashVersion"
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-kafka'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+//    testImplementation 'io.rest-assured:rest-assured'
+//    testImplementation 'org.awaitility:awaitility'
+
+    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+    testAnnotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+}
+
+//enable preview features to use primitive patterns
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ["--enable-preview"]
+}
+
+//enable preview features to use primitive patterns
+tasks.withType(Test).configureEach {
+    jvmArgs += ["--enable-preview"]
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+tasks.named("bootBuildImage") {
+    imageName = "${project.name}"
+    environment = ["BP_LIVE_RELOAD_ENABLED": "true",
+                   "BP_JVM_VERSION"        : "25.*"]
+    imagePlatform = "linux/arm64"
+}
+
