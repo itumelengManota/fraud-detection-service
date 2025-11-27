@@ -37,7 +37,7 @@ public class FraudDetectionApplicationService {
     }
 
     public RiskAssessmentDto assessRisk(Transaction transaction) {
-        log.info("Starting risk assessment for transaction: {}", transaction.getId());
+        log.info("Starting risk assessment for transaction: {}", transaction.id());
 
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
 
@@ -50,7 +50,7 @@ public class FraudDetectionApplicationService {
         assessment.clearDomainEvents();
 
         log.info("Completed risk assessment for transaction: {} with decision: {}",
-                transaction.getId(), decision);
+                transaction.id(), decision);
 
         return RiskAssessmentDto.from(assessment);
     }

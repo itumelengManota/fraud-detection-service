@@ -1,33 +1,32 @@
 package com.twenty9ine.frauddetection.rules;
+
 import com.twenty9ine.frauddetection.domain.model.Transaction;
+import com.twenty9ine.frauddetection.domain.model.Money;
 import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult;
 import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
 import com.twenty9ine.frauddetection.domain.model.RiskImpact;
 import java.math.BigDecimal;
-global RuleEvaluationResult result;
+
+global RuleEvaluationResult ruleEvaluationResult;
+
 rule "Large Amount Transaction"
-when
-$tx : Transaction(amount.amount().compareTo(new BigDecimal("10000")) > 0)
-then
-RuleTrigger trigger = new RuleTrigger(
-"LARGE_AMOUNT",
-"Large Amount",
-RiskImpact.MEDIUM,
-"Transaction amount exceeds $10,000",
-$tx.getAmount().amount().doubleValue()
-);
-result.addTrigger(trigger);
-end
+    when
+        $tx : Transaction($money : amount)
+        eval($money.amount().doubleValue() > 10000.0)
+    then
+        RuleTrigger trigger = new RuleTrigger("LARGE_AMOUNT", "Large Amount", RiskImpact.MEDIUM,
+        "Transaction amount exceeds $10,000", $money.amount().doubleValue());
+
+        ruleEvaluationResult.addTrigger(trigger);
+    end
+
 rule "Very Large Amount Transaction"
-when
-$tx : Transaction(amount.amount().compareTo(new BigDecimal("50000")) > 0)
-then
-RuleTrigger trigger = new RuleTrigger(
-"VERY_LARGE_AMOUNT",
-"Very Large Amount",
-RiskImpact.HIGH,
-"Transaction amount exceeds $50,000",
-$tx.getAmount().amount().doubleValue()
-);
-result.addTrigger(trigger);
-end
+    when
+        $tx : Transaction($money : amount)
+        eval($money.amount().doubleValue() > 50000.0)
+    then
+        RuleTrigger trigger = new RuleTrigger("VERY_LARGE_AMOUNT", "Very Large Amount", RiskImpact.HIGH,
+        "Transaction amount exceeds $50,000", $money.amount().doubleValue());
+
+        ruleEvaluationResult.addTrigger(trigger);
+    end

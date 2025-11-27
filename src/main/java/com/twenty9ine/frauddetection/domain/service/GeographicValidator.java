@@ -21,11 +21,11 @@ public class GeographicValidator {
     }
 
     public GeographicContext validate(Transaction transaction) {
-        Location currentLocation = transaction.getLocation();
-        String accountId = transaction.getAccountId();
+        Location currentLocation = transaction.location();
+        String accountId = transaction.accountId();
 
         Optional<Location> previousLocation =
-            locationHistoryPort.findMostRecent(accountId, transaction.getTimestamp());
+            locationHistoryPort.findMostRecent(accountId, transaction.timestamp());
 
         if (previousLocation.isEmpty()) {
             return GeographicContext.normal();
@@ -34,7 +34,7 @@ public class GeographicValidator {
         double distanceKm = currentLocation.distanceFrom(previousLocation.get());
         Duration timeBetween = Duration.between(
             previousLocation.get().timestamp(),
-            transaction.getTimestamp()
+            transaction.timestamp()
         );
 
         double requiredSpeedKmh = distanceKm / (timeBetween.toMinutes() / 60.0);

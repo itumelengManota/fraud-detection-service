@@ -31,7 +31,7 @@ public class RuleEngineService {
 
             int rulesFired = kieSession.fireAllRules();
             log.debug("Fired {} rules for transaction {}",
-                     rulesFired, transaction.getId());
+                     rulesFired, transaction.id());
 
             return result;
 

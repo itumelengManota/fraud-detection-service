@@ -1,18 +1,56 @@
 services:
-  mongodb:
-    image: 'mongo:latest'
-    environment:
-      - 'MONGO_INITDB_DATABASE=brainstorm_agent'
-      - 'MONGO_INITDB_ROOT_USERNAME=myuser'
-      - 'MONGO_INITDB_ROOT_PASSWORD=secret'
-    ports:
-      - '27017:27017'
-    volumes:
-      - 'mongodb_data:/data/db'
-  cassandra:
-    image: cassandra:latest
-    ports:
-      - '9042:9042'
+        postgres:
+          image: 'postgres:latest'
+          restart: unless-stopped
+          environment:
+            - 'POSTGRES_DB=mydatabase'
+            - 'POSTGRES_PASSWORD=secret'
+            - 'POSTGRES_USER=myuser'
+          ports:
+            - '5432'
 
-volumes:
-  mongodb_data:
+        redis:
+          image: 'redis:latest'
+          restart: unless-stopped
+          ports:
+            - '6379'
+
+        kafka:
+          image: 'apache/kafka:latest'
+          ports:
+            - '9092:9092'
+          restart: unless-stopped
+          environment:
+            KAFKA_NODE_ID: 1
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+            KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092'
+            KAFKA_PROCESS_ROLES: 'broker,controller'
+            KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
+            KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
+            KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+            KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+            KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+            KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+            CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+
+        apicurio-registry:
+          image: 'apicurio/apicurio-registry:latest'
+          ports:
+            - '8081:8080'
+          restart: unless-stopped
+          environment:
+            REGISTRY_STORAGE_KIND: 'inmemory'
+          depends_on:
+            - kafka
+
+        apicurio-registry-ui:
+          image: 'apicurio/apicurio-registry-ui:latest'
+          ports:
+            - '8082:8080'
+          restart: unless-stopped
+          environment:
+            REGISTRY_API_URL: 'http://apicurio-registry:8080/apis/registry/v2'
+          depends_on:
+            - apicurio-registry

@@ -32,7 +32,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     public VelocityMetrics getVelocity(String accountId) {
         Cache cache = cacheManager.getCache("velocityMetrics");
         VelocityMetrics cached = cache != null ?
-            cache.get(accountId, VelocityMetrics.class) : null;
+                cache.get(accountId, VelocityMetrics.class) : null;
 
         if (cached != null) {
             return cached;
@@ -49,53 +49,53 @@ public class VelocityCounterAdapter implements VelocityServicePort {
 
     private VelocityMetrics fetchFromRedis(String accountId) {
         RAtomicLong counter5min = redissonClient.getAtomicLong(
-            "velocity:5min:" + accountId
+                "velocity:5min:" + accountId
         );
 
         RAtomicLong counter1hour = redissonClient.getAtomicLong(
-            "velocity:1hour:" + accountId
+                "velocity:1hour:" + accountId
         );
 
         RAtomicLong counter24hour = redissonClient.getAtomicLong(
-            "velocity:24hour:" + accountId
+                "velocity:24hour:" + accountId
         );
 
         RHyperLogLog<String> locationLog = redissonClient.getHyperLogLog(
-            "velocity:locations:" + accountId
+                "velocity:locations:" + accountId
         );
 
         return VelocityMetrics.builder()
-            .fiveMinuteCount(counter5min.get())
-            .oneHourCount(counter1hour.get())
-            .twentyFourHourCount(counter24hour.get())
-            .totalAmount(BigDecimal.ZERO)
-            .uniqueMerchants(0)
-            .uniqueLocations(locationLog.count())
-            .build();
+                .fiveMinuteCount(counter5min.get())
+                .oneHourCount(counter1hour.get())
+                .twentyFourHourCount(counter24hour.get())
+                .totalAmount(BigDecimal.ZERO)
+                .uniqueMerchants(0)
+                .uniqueLocations(locationLog.count())
+                .build();
     }
 
     @Override
     public void incrementCounters(String accountId, Location location) {
         RAtomicLong counter5min = redissonClient.getAtomicLong(
-            "velocity:5min:" + accountId
+                "velocity:5min:" + accountId
         );
         counter5min.incrementAndGet();
         counter5min.expire(Duration.ofMinutes(5));
 
         RAtomicLong counter1hour = redissonClient.getAtomicLong(
-            "velocity:1hour:" + accountId
+                "velocity:1hour:" + accountId
         );
         counter1hour.incrementAndGet();
         counter1hour.expire(Duration.ofHours(1));
 
         RAtomicLong counter24hour = redissonClient.getAtomicLong(
-            "velocity:24hour:" + accountId
+                "velocity:24hour:" + accountId
         );
         counter24hour.incrementAndGet();
         counter24hour.expire(Duration.ofDays(1));
 
         RHyperLogLog<String> locationLog = redissonClient.getHyperLogLog(
-            "velocity:locations:" + accountId
+                "velocity:locations:" + accountId
         );
         locationLog.add(location.toString());
         locationLog.expire(Duration.ofDays(1));

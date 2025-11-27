@@ -1,9 +1,9 @@
 spring:
   application:
     name: fraud-detection-service
-
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
+  threads:
+    virtual:
+      enabled: true
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -14,12 +14,16 @@ spring:
       max-poll-records: 1000
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
+      properties:
+        apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
     producer:
       acks: all
       enable-idempotence: true
       transactional-id: fraud-detection-tx
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
+      properties:
+        apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
     properties:
       max.poll.interval.ms: 300000
       isolation.level: read_committed
@@ -130,9 +134,9 @@ management:
       probes:
         enabled: true
   health:
-    livenessstate:
+    liveness state:
       enabled: true
-    readinessstate:
+    readiness state:
       enabled: true
   metrics:
     tags:

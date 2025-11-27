@@ -42,7 +42,7 @@ public class RiskScoringService {
 
         CompletableFuture<VelocityMetrics> velocityFuture =
             CompletableFuture.supplyAsync(() ->
-                velocityService.getVelocity(transaction.getAccountId())
+                velocityService.getVelocity(transaction.accountId())
             );
 
         CompletableFuture<GeographicContext> geographicFuture =
@@ -63,7 +63,7 @@ public class RiskScoringService {
 
         RiskAssessment assessment = new RiskAssessment(
             UUID.randomUUID(),
-            transaction.getId()
+            transaction.id()
         );
 
         assessment.setMlPrediction(mlPrediction);

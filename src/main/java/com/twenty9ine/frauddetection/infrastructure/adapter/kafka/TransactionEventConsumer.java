@@ -47,11 +47,11 @@ public class TransactionEventConsumer {
         try {
             var transaction = mapper.toDomain(payload);
 
-            log.debug("Received transaction event: {}", transaction.getId());
+            log.debug("Received transaction event: {}", transaction.id());
 
             velocityService.incrementCounters(
-                transaction.getAccountId(),
-                transaction.getLocation()
+                transaction.accountId(),
+                transaction.location()
             );
 
             fraudDetectionService.assessRisk(transaction);
