@@ -1,4 +1,4 @@
-package com.twenty9ine.frauddetection.api.rest.dto;
+package com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto;
 import lombok.Builder;
 import java.time.Instant;
 import java.util.List;

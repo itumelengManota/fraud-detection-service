@@ -1,6 +1,6 @@
-package com.twenty9ine.frauddetection.api.rest;
+package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
-import com.twenty9ine.frauddetection.application.FraudDetectionApplicationService;
+import com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationService;
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.dto.TransactionDto;
 import io.micrometer.core.instrument.MeterRegistry;

@@ -1,6 +1,6 @@
-package com.twenty9ine.frauddetection.api.rest;
+package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
-import com.twenty9ine.frauddetection.api.rest.dto.ErrorResponse;
+import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.ErrorResponse;
 import com.twenty9ine.frauddetection.domain.exception.InvariantViolationException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;

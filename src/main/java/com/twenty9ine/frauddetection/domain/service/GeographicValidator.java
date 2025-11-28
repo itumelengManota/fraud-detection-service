@@ -3,7 +3,7 @@ package com.twenty9ine.frauddetection.domain.service;
 import com.twenty9ine.frauddetection.domain.valueobject.GeographicContext;
 import com.twenty9ine.frauddetection.domain.valueobject.Location;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.domain.port.LocationHistoryPort;
+import com.twenty9ine.frauddetection.application.port.LocationHistoryPort;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;

@@ -1,11 +1,11 @@
-package com.twenty9ine.frauddetection.application;
+package com.twenty9ine.frauddetection.application.service;
 
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.domain.valueobject.Decision;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.domain.port.EventPublisherPort;
-import com.twenty9ine.frauddetection.domain.port.RiskAssessmentRepository;
+import com.twenty9ine.frauddetection.application.port.EventPublisherPort;
+import com.twenty9ine.frauddetection.application.port.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;
 import com.twenty9ine.frauddetection.domain.service.RiskScoringService;
 import lombok.extern.slf4j.Slf4j;

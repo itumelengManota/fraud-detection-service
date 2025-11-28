@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.cache;
 
 import com.twenty9ine.frauddetection.domain.valueobject.Location;
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics;
-import com.twenty9ine.frauddetection.domain.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.application.port.VelocityServicePort;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RHyperLogLog;

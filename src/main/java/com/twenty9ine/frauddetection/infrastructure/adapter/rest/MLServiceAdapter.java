@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
 import com.twenty9ine.frauddetection.domain.valueobject.MLPrediction;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.domain.port.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.MLServicePort;
 import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.FeatureVector;
 import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.MLPredictionResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
