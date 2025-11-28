@@ -19,7 +19,7 @@ public record RiskAssessmentDto(
 ) {
     public static RiskAssessmentDto from(RiskAssessment assessment) {
         return RiskAssessmentDto.builder()
-            .assessmentId(assessment.getAssessmentId())
+            .assessmentId(assessment.getAssessmentId().toUUID())
             .transactionId(assessment.getTransactionId().toUUID())
             .riskScore(assessment.getRiskScore().value())
             .riskLevel(assessment.getRiskLevel())

@@ -5,8 +5,8 @@ import java.util.Map;
 public record MLPrediction(
     String modelId,
     String modelVersion,
-    double fraudProbability,
-    double confidence,
+    double fraudProbability, //TODO: constrain between 0 and 1
+    double confidence, //TODO: constrain between 0 and 1
     Map<String, Double> featureImportance
 ) {
     public static MLPrediction unavailable() {

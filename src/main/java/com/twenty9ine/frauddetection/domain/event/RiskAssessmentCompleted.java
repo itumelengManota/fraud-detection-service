@@ -1,42 +1,30 @@
 package com.twenty9ine.frauddetection.domain.event;
 
-import com.twenty9ine.frauddetection.domain.valueobject.Decision;
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
-import com.twenty9ine.frauddetection.domain.valueobject.RiskScore;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 
 import java.time.Instant;
-import java.util.UUID;
 
-public record RiskAssessmentCompleted(
-    UUID eventId,
-    UUID assessmentId,
-    TransactionId transactionId,
-    RiskScore finalScore,
-    RiskLevel riskLevel,
-    Decision decision,
-    Instant occurredAt
-) implements DomainEvent {
+public record RiskAssessmentCompleted(EventId eventId, AssessmentId assessmentId, TransactionId transactionId,
+                                      RiskScore finalScore, RiskLevel riskLevel, Decision decision,
+                                      Instant occurredAt) implements DomainEvent {
 
-    public RiskAssessmentCompleted(UUID assessmentId,
-                                  TransactionId transactionId,
-                                  RiskScore finalScore,
-                                  RiskLevel riskLevel,
-                                  Decision decision,
-                                  Instant occurredAt) {
-        this(
-            UUID.randomUUID(),
-            assessmentId,
-            transactionId,
-            finalScore,
-            riskLevel,
-            decision,
-            occurredAt
-        );
+    public RiskAssessmentCompleted(AssessmentId assessmentId, TransactionId transactionId, RiskScore finalScore,
+                                   RiskLevel riskLevel, Decision decision) {
+        this(assessmentId, transactionId, finalScore, riskLevel, decision, Instant.now());
+    }
+
+    public RiskAssessmentCompleted(AssessmentId assessmentId, TransactionId transactionId, RiskScore finalScore,
+                                   RiskLevel riskLevel, Decision decision, Instant occurredAt) {
+        this(EventId.generate(), assessmentId, transactionId, finalScore, riskLevel, decision, occurredAt);
+    }
+
+    public static RiskAssessmentCompleted of(AssessmentId assessmentId, TransactionId transactionId,
+                                             RiskScore finalScore, RiskLevel riskLevel, Decision decision) {
+        return new RiskAssessmentCompleted(assessmentId, transactionId, finalScore, riskLevel, decision);
     }
 
     @Override
-    public UUID getEventId() {
+    public EventId getEventId() {
         return eventId;
     }
 
@@ -47,6 +35,6 @@ public record RiskAssessmentCompleted(
 
     @Override
     public String getEventType() {
-        return "RiskAssessmentCompleted";
+        return RiskAssessmentCompleted.class.getSimpleName();
     }
 }

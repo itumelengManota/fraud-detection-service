@@ -22,11 +22,11 @@ public class RiskScoringService {
     private final double ruleWeight;
 
     public RiskScoringService(RuleEngineService ruleEngine,
-                             MLServicePort mlService,
-                             VelocityServicePort velocityService,
-                             GeographicValidator geographicValidator,
-                             double mlWeight,
-                             double ruleWeight) {
+                              MLServicePort mlService,
+                              VelocityServicePort velocityService,
+                              GeographicValidator geographicValidator,
+                              double mlWeight,
+                              double ruleWeight) {
         this.ruleEngine = ruleEngine;
         this.mlService = mlService;
         this.velocityService = velocityService;
@@ -37,19 +37,19 @@ public class RiskScoringService {
 
     public RiskAssessment assessRisk(Transaction transaction) {
         CompletableFuture<MLPrediction> mlFuture =
-            CompletableFuture.supplyAsync(() ->
-                mlService.predict(transaction)
-            );
+                CompletableFuture.supplyAsync(() ->
+                        mlService.predict(transaction)
+                );
 
         CompletableFuture<VelocityMetrics> velocityFuture =
-            CompletableFuture.supplyAsync(() ->
-                velocityService.getVelocity(transaction.accountId())
-            );
+                CompletableFuture.supplyAsync(() ->
+                        velocityService.getVelocity(transaction.accountId())
+                );
 
         CompletableFuture<GeographicContext> geographicFuture =
-            CompletableFuture.supplyAsync(() ->
-                geographicValidator.validate(transaction)
-            );
+                CompletableFuture.supplyAsync(() ->
+                        geographicValidator.validate(transaction)
+                );
 
         CompletableFuture.allOf(mlFuture, velocityFuture, geographicFuture).join();
 
@@ -58,25 +58,22 @@ public class RiskScoringService {
         GeographicContext geographic = geographicFuture.join();
 
         RuleEvaluationResult ruleResults =
-            ruleEngine.evaluateRules(transaction, velocity, geographic);
+                ruleEngine.evaluateRules(transaction, velocity, geographic);
 
         RiskScore score = calculateCompositeScore(mlPrediction, ruleResults);
 
-        RiskAssessment assessment = new RiskAssessment(
-            UUID.randomUUID(),
-            transaction.id()
-        );
+        RiskAssessment assessment = new RiskAssessment(transaction.id());
 
         assessment.setMlPrediction(mlPrediction);
         ruleResults.getTriggers().forEach(t ->
-            assessment.addRuleEvaluation(new RuleEvaluation(
-                t.ruleId(),
-                t.ruleName(),
-                RuleType.VELOCITY,
-                true,
-                (int) t.triggeredValue(),
-                t.description()
-            ))
+                assessment.addRuleEvaluation(new RuleEvaluation(
+                        t.ruleId(),
+                        t.ruleName(),
+                        RuleType.VELOCITY,
+                        true,
+                        (int) t.triggeredValue(),
+                        t.description()
+                ))
         );
 
         return assessment;
@@ -85,12 +82,12 @@ public class RiskScoringService {
     private RiskScore calculateCompositeScore(MLPrediction ml,
                                               RuleEvaluationResult rules) {
         BigDecimal mlScore = BigDecimal.valueOf(ml.fraudProbability())
-            .multiply(BigDecimal.valueOf(100));
+                .multiply(BigDecimal.valueOf(100));
 
         BigDecimal ruleScore = BigDecimal.valueOf(rules.aggregateScore());
 
         BigDecimal finalScore = mlScore.multiply(BigDecimal.valueOf(mlWeight))
-            .add(ruleScore.multiply(BigDecimal.valueOf(ruleWeight)));
+                .add(ruleScore.multiply(BigDecimal.valueOf(ruleWeight)));
 
         int roundedScore = finalScore.setScale(0, RoundingMode.HALF_UP).intValue();
 

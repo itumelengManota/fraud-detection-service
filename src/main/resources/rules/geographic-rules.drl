@@ -1,12 +1,8 @@
-package com.twenty9ine.frauddetection.rules;
-
-import com.twenty9ine.frauddetection.domain.model.GeographicContext;
-import com.twenty9ine.frauddetection.domain.model.Transaction;
-import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult;
-import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
-import com.twenty9ine.frauddetection.domain.model.RiskImpact
+import com.twenty9ine.frauddetection.domain.valueobject.GeographicContext
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction
+import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult
+import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger
 import com.twenty9ine.frauddetection.domain.valueobject.RiskImpact
-import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger;
 
 global RuleEvaluationResult ruleEvaluationResult;
 
@@ -15,8 +11,12 @@ rule "Impossible Travel Detection"
         $geographic : GeographicContext(impossibleTravel == true, $speed : travelSpeed)
         $tx : Transaction()
     then
-        RuleTrigger trigger = new RuleTrigger("IMPOSSIBLE_TRAVEL", "Impossible Travel", RiskImpact.CRITICAL,
-        "Geographic impossibility detected", $speed);
-
+        RuleTrigger trigger = new RuleTrigger(
+            "IMPOSSIBLE_TRAVEL",
+            "Impossible Travel",
+            RiskImpact.CRITICAL,
+            "Geographic impossibility detected",
+            $speed
+        );
         ruleEvaluationResult.addTrigger(trigger);
-    end
+end

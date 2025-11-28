@@ -14,11 +14,7 @@ public class DecisionService {
     private final Map<RiskLevel, DecisionStrategy> strategies;
 
     public DecisionService(List<DecisionStrategy> strategies) {
-        this.strategies = strategies.stream()
-            .collect(Collectors.toMap(
-                DecisionStrategy::getRiskLevel,
-                Function.identity()
-            ));
+        this.strategies = initialise(strategies);
     }
 
     public Decision makeDecision(RiskAssessment assessment) {
@@ -26,9 +22,14 @@ public class DecisionService {
         DecisionStrategy strategy = strategies.get(level);
 
         if (strategy == null) {
-            throw new IllegalStateException("No strategy for risk level: " + level);
+            throw new IllegalStateException("No strategy for risk level: %s".formatted(level));
         }
 
         return strategy.decide(assessment);
+    }
+
+    private static Map<RiskLevel, DecisionStrategy> initialise(List<DecisionStrategy> strategies) {
+        return strategies.stream()
+                .collect(Collectors.toMap(DecisionStrategy::getRiskLevel, Function.identity()));
     }
 }

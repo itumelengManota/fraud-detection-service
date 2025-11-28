@@ -129,57 +129,63 @@ class RiskScoreTest {
         assertEquals(RiskLevel.CRITICAL, riskLevel);
     }
 
-    @Test
-    void testIsHighRisk_LowRisk_ReturnsFalse() {
-        RiskScore riskScore = new RiskScore(30);
+    @ParameterizedTest
+    @ValueSource(ints = {30, 60, 70})
+    void testHasHighRisk_LowOrMediumRisk_ReturnsFalse(int value) {
+        RiskScore riskScore = new RiskScore(value);
 
-        boolean isHighRisk = riskScore.isHighRisk();
-
-        assertFalse(isHighRisk);
-    }
-
-    @Test
-    void testIsHighRisk_MediumRisk_ReturnsFalse() {
-        RiskScore riskScore = new RiskScore(60);
-
-        boolean isHighRisk = riskScore.isHighRisk();
+        boolean isHighRisk = riskScore.hasHighRisk();
 
         assertFalse(isHighRisk);
     }
 
-    @Test
-    void testIsHighRisk_HighRisk_ReturnsTrue() {
-        RiskScore riskScore = new RiskScore(80);
+    @ParameterizedTest
+    @ValueSource(ints = {71, 80, 95})
+    void testHasHighRisk_HighOrCriticalRisk_ReturnsTrue(int value) {
+        RiskScore riskScore = new RiskScore(value);
 
-        boolean isHighRisk = riskScore.isHighRisk();
-
-        assertTrue(isHighRisk);
-    }
-
-    @Test
-    void testIsHighRisk_CriticalRisk_ReturnsTrue() {
-        RiskScore riskScore = new RiskScore(95);
-
-        boolean isHighRisk = riskScore.isHighRisk();
+        boolean isHighRisk = riskScore.hasHighRisk();
 
         assertTrue(isHighRisk);
     }
 
-    @Test
-    void testIsHighRisk_BoundaryValue71_ReturnsTrue() {
-        RiskScore riskScore = new RiskScore(71);
+    @ParameterizedTest
+    @ValueSource(ints = {0, 20, 40})
+    void testHasLowRisk_LowRiskValues_ReturnsTrue(int value) {
+        RiskScore riskScore = new RiskScore(value);
 
-        boolean isHighRisk = riskScore.isHighRisk();
+        boolean isLowRisk = riskScore.hasLowRisk();
 
-        assertTrue(isHighRisk);
+        assertTrue(isLowRisk);
     }
 
-    @Test
-    void testIsHighRisk_BoundaryValue70_ReturnsFalse() {
-        RiskScore riskScore = new RiskScore(70);
+    @ParameterizedTest
+    @ValueSource(ints = {41, 60, 80, 95})
+    void testHasLowRisk_MediumHighOrCriticalRisk_ReturnsFalse(int value) {
+        RiskScore riskScore = new RiskScore(value);
 
-        boolean isHighRisk = riskScore.isHighRisk();
+        boolean isLowRisk = riskScore.hasLowRisk();
 
-        assertFalse(isHighRisk);
+        assertFalse(isLowRisk);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {91, 95, 100})
+    void testHasCriticalRisk_CriticalRiskValues_ReturnsTrue(int value) {
+        RiskScore riskScore = new RiskScore(value);
+
+        boolean isCriticalRisk = riskScore.hasCriticalRisk();
+
+        assertTrue(isCriticalRisk);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 40, 60, 80, 90})
+    void testHasCriticalRisk_NonCriticalRisk_ReturnsFalse(int value) {
+        RiskScore riskScore = new RiskScore(value);
+
+        boolean isCriticalRisk = riskScore.hasCriticalRisk();
+
+        assertFalse(isCriticalRisk);
     }
 }

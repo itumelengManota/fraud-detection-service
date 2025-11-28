@@ -12,11 +12,11 @@ public record TransactionId(UUID transactionId) {
         return new TransactionId(UUID.randomUUID());
     }
 
-    public static TransactionId of(String brainstormId) {
-        return new TransactionId(UUID.fromString(brainstormId));
+    public static TransactionId of(String transactionId) {
+        return new TransactionId(UUID.fromString(transactionId));
     }
 
-    public static TransactionId of(UUID brainstormId) {
-        return new TransactionId(brainstormId);
+    public static TransactionId of(UUID transactionId) {
+        return new TransactionId(transactionId);
     }
 }

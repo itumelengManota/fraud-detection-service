@@ -50,6 +50,7 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.kafka:spring-kafka'
+    implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
 
     implementation "io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion"
@@ -64,19 +65,17 @@ dependencies {
     implementation "org.drools:drools-compiler:$droolsVersion"
     implementation "org.drools:drools-verifier:$droolsVersion"
     implementation "org.drools:drools-mvel:$droolsVersion"
+    testImplementation "org.drools:drools-xml-support:$droolsVersion"
     implementation "org.kie:kie-spring:$kieVersion"
 
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'io.micrometer:micrometer-tracing-bridge-otel'
     implementation 'io.opentelemetry:opentelemetry-exporter-zipkin'
 
-
-    implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
-
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
 
-    implementation "net.logstash.logback:logstash-logback-encoder:$logstashVersion"
+//    implementation "net.logstash.logback:logstash-logback-encoder:$logstashVersion"
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -100,20 +99,23 @@ dependencies {
 //    testImplementation 'io.rest-assured:rest-assured'
 //    testImplementation 'org.awaitility:awaitility'
 
-//    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
-//    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
     testAnnotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 }
 
-////enable preview features to use primitive patterns
-//tasks.withType(JavaCompile).configureEach {
-//    options.compilerArgs += ["--enable-preview"]
-//}
-//
-////enable preview features to use primitive patterns
-//tasks.withType(Test).configureEach {
-//    jvmArgs += ["--enable-preview"]
-//}
+tasks.register('generateDroolsMetadata') {
+    doLast {
+        def metaInfDir = file("${buildDir}/resources/main/META-INF/maven/${project.group}/${project.name}")
+        metaInfDir.mkdirs()
+
+        def propsFile = new File(metaInfDir, "pom.properties")
+        propsFile.text = """groupId=${project.group}
+                            artifactId=${project.name}
+                            version=${project.version}
+                        """
+    }
+}
+
+processResources.finalizedBy generateDroolsMetadata
 
 tasks.named('test') {
     useJUnitPlatform()

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -47,32 +48,46 @@ public class VelocityCounterAdapter implements VelocityServicePort {
         return metrics;
     }
 
-    private VelocityMetrics fetchFromRedis(String accountId) {
-        RAtomicLong counter5min = redissonClient.getAtomicLong(
-                "velocity:5min:" + accountId
-        );
+private VelocityMetrics fetchFromRedis(String accountId) {
+    RAtomicLong counter5min = redissonClient.getAtomicLong(
+            "velocity:5min:" + accountId
+    );
 
-        RAtomicLong counter1hour = redissonClient.getAtomicLong(
-                "velocity:1hour:" + accountId
-        );
+    RAtomicLong counter1hour = redissonClient.getAtomicLong(
+            "velocity:1hour:" + accountId
+    );
 
-        RAtomicLong counter24hour = redissonClient.getAtomicLong(
-                "velocity:24hour:" + accountId
-        );
+    RAtomicLong counter24hour = redissonClient.getAtomicLong(
+            "velocity:24hour:" + accountId
+    );
 
-        RHyperLogLog<String> locationLog = redissonClient.getHyperLogLog(
-                "velocity:locations:" + accountId
-        );
+    RHyperLogLog<String> locationLog = redissonClient.getHyperLogLog(
+            "velocity:locations:" + accountId
+    );
 
-        return VelocityMetrics.builder()
-                .fiveMinuteCount(counter5min.get())
-                .oneHourCount(counter1hour.get())
-                .twentyFourHourCount(counter24hour.get())
-                .totalAmount(BigDecimal.ZERO)
-                .uniqueMerchants(0)
-                .uniqueLocations(locationLog.count())
-                .build();
-    }
+    return VelocityMetrics.builder()
+            .transactionCounts(Map.of(
+                VelocityMetrics.FIVE_MINUTES, counter5min.get(),
+                VelocityMetrics.ONE_HOUR, counter1hour.get(),
+                VelocityMetrics.TWENTY_FOUR_HOURS, counter24hour.get()
+            ))
+            .totalAmounts(Map.of(
+                VelocityMetrics.FIVE_MINUTES, BigDecimal.ZERO,
+                VelocityMetrics.ONE_HOUR, BigDecimal.ZERO,
+                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.ZERO
+            ))
+            .uniqueMerchants(Map.of(
+                VelocityMetrics.FIVE_MINUTES, 0,
+                VelocityMetrics.ONE_HOUR, 0,
+                VelocityMetrics.TWENTY_FOUR_HOURS, 0
+            ))
+            .uniqueLocations(Map.of(
+                VelocityMetrics.FIVE_MINUTES, locationLog.count(),
+                VelocityMetrics.ONE_HOUR, locationLog.count(),
+                VelocityMetrics.TWENTY_FOUR_HOURS, locationLog.count()
+            ))
+            .build();
+}
 
     @Override
     public void incrementCounters(String accountId, Location location) {

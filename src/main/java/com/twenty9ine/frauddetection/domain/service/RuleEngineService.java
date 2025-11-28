@@ -16,27 +16,20 @@ public class RuleEngineService {
         this.kieContainer = kieContainer;
     }
 
-    public RuleEvaluationResult evaluateRules(Transaction transaction,
-                                             VelocityMetrics velocity,
-                                             GeographicContext geographic) {
-        KieSession kieSession = kieContainer.newKieSession();
+    public RuleEvaluationResult evaluateRules(Transaction transaction, VelocityMetrics velocity, GeographicContext geographic) {
+        try (KieSession kieSession = kieContainer.newKieSession()) {
 
-        try {
             kieSession.insert(transaction);
             kieSession.insert(velocity);
             kieSession.insert(geographic);
 
-            RuleEvaluationResult result = new RuleEvaluationResult();
-            kieSession.setGlobal("result", result);
+            RuleEvaluationResult ruleEvaluationResult = new RuleEvaluationResult();
+            kieSession.setGlobal("ruleEvaluationResult", ruleEvaluationResult);
 
             int rulesFired = kieSession.fireAllRules();
-            log.debug("Fired {} rules for transaction {}",
-                     rulesFired, transaction.id());
+            log.debug("Fired {} rules for transaction {}", rulesFired, transaction.id());
 
-            return result;
-
-        } finally {
-            kieSession.dispose();
+            return ruleEvaluationResult;
         }
     }
 }

@@ -26,35 +26,22 @@ public class DomainServiceConfig {
     }
 
     @Bean
-    public GeographicValidator geographicValidator(
-            LocationHistoryPort locationHistoryPort) {
+    public GeographicValidator geographicValidator(LocationHistoryPort locationHistoryPort) {
         return new GeographicValidator(locationHistoryPort);
     }
 
     @Bean
-    public RiskScoringService riskScoringService(
-            RuleEngineService ruleEngine,
-            MLServicePort mlService,
-            VelocityServicePort velocityService,
+    public RiskScoringService riskScoringService(RuleEngineService ruleEngine, MLServicePort mlService, VelocityServicePort velocityService,
             GeographicValidator geographicValidator) {
-        return new RiskScoringService(
-            ruleEngine,
-            mlService,
-            velocityService,
-            geographicValidator,
-            mlWeight,
-            ruleWeight
-        );
+        return new RiskScoringService(ruleEngine, mlService, velocityService, geographicValidator, mlWeight, ruleWeight);
     }
 
     @Bean
     public DecisionService decisionService() {
-        List<DecisionStrategy> strategies = List.of(
-            new CriticalRiskStrategy(),
-            new HighRiskStrategy(),
-            new MediumRiskStrategy(),
-            new LowRiskStrategy()
-        );
-        return new DecisionService(strategies);
+        return new DecisionService(buildStrategies());
+    }
+
+    private static List<DecisionStrategy> buildStrategies() {
+        return List.of(new CriticalRiskStrategy(), new HighRiskStrategy(), new MediumRiskStrategy(), new LowRiskStrategy());
     }
 }

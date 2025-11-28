@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Mapper(componentModel = "spring")
 public interface RiskAssessmentMapper {
 
-    @Mapping(target = "id", source = "assessmentId")
+    @Mapping(target = "id", source = "assessmentId", qualifiedByName = "assessmentIdToUuid")
     @Mapping(target = "transactionId", source = "transactionId", qualifiedByName = "transactionIdToUuid")
     @Mapping(target = "riskScoreValue", source = "riskScore.value")
     @Mapping(target = "riskLevel", source = "riskLevel", qualifiedByName = "riskLevelToString")
@@ -35,8 +35,8 @@ public interface RiskAssessmentMapper {
         if (entity == null) return null;
 
         RiskAssessment assessment = new RiskAssessment(
-            entity.getId(),
-            TransactionId.of(entity.getTransactionId())
+                AssessmentId.of(entity.getId()),
+                TransactionId.of(entity.getTransactionId())
         );
 
         // Set ML prediction
@@ -47,15 +47,15 @@ public interface RiskAssessmentMapper {
         // Add rule evaluations
         if (entity.getRuleEvaluations() != null) {
             entity.getRuleEvaluations().forEach(ruleEntity ->
-                assessment.addRuleEvaluation(toRuleEvaluation(ruleEntity))
+                    assessment.addRuleEvaluation(toRuleEvaluation(ruleEntity))
             );
         }
 
         // Complete the assessment with score and decision
         if (entity.getRiskScoreValue() != 0 && entity.getDecision() != null) {
             assessment.completeAssessment(
-                new RiskScore(entity.getRiskScoreValue()),
-                Decision.valueOf(entity.getDecision())
+                    new RiskScore(entity.getRiskScoreValue()),
+                    Decision.valueOf(entity.getDecision())
             );
         }
 
@@ -78,6 +78,11 @@ public interface RiskAssessmentMapper {
     @Named("transactionIdToUuid")
     default UUID transactionIdToUuid(TransactionId transactionId) {
         return transactionId != null ? transactionId.toUUID() : null;
+    }
+
+    @Named("assessmentIdToUuid")
+    default UUID assessmentIdToUuid(AssessmentId assessmentId) {
+        return assessmentId != null ? assessmentId.toUUID() : null;
     }
 
     @Named("mlPredictionToJson")
@@ -106,8 +111,8 @@ public interface RiskAssessmentMapper {
     default Set<RuleEvaluationEntity> mapRuleEvaluations(List<RuleEvaluation> evaluations) {
         if (evaluations == null) return new HashSet<>();
         return evaluations.stream()
-            .map(this::toRuleEvaluationEntity)
-            .collect(Collectors.toSet());
+                .map(this::toRuleEvaluationEntity)
+                .collect(Collectors.toSet());
     }
 
     @Mapping(target = "id", ignore = true)

@@ -1,31 +1,42 @@
-package com.twenty9ine.frauddetection.rules;
-
-import com.twenty9ine.frauddetection.domain.model.VelocityMetrics;
-import com.twenty9ine.frauddetection.domain.model.Transaction;
-import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult;
-import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
-import com.twenty9ine.frauddetection.domain.model.RiskImpact
+import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction
+import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult
+import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger
 import com.twenty9ine.frauddetection.domain.valueobject.RiskImpact
-import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger;
+import java.time.Duration
 
 global RuleEvaluationResult ruleEvaluationResult;
 
 rule "High Velocity - 5 Minute Window"
     when
-        $velocity : VelocityMetrics($count : fiveMinuteCount)
-        eval($count > 5)
+        $velocity : VelocityMetrics(getTransactionCount(VelocityMetrics.FIVE_MINUTES) > 5,
+                                   $count : getTransactionCount(VelocityMetrics.FIVE_MINUTES))
         $tx : Transaction()
     then
-        ruleEvaluationResult.addTrigger(new RuleTrigger("VELOCITY_5MIN", "High Velocity 5min", RiskImpact.HIGH,
-            "More than 5 transactions in 5 minutes", $count));
-    end
+        ruleEvaluationResult.addTrigger(
+            new RuleTrigger(
+                "VELOCITY_5MIN",
+                "High Velocity 5min",
+                RiskImpact.HIGH,
+                "More than 5 transactions in 5 minutes",
+                $count
+            )
+        );
+end
 
 rule "Extreme Velocity - 1 Hour Window"
     when
-        $velocity : VelocityMetrics($count : oneHourCount)
-        eval($count > 20)
+        $velocity : VelocityMetrics(getTransactionCount(VelocityMetrics.ONE_HOUR) > 20,
+                                   $count : getTransactionCount(VelocityMetrics.ONE_HOUR))
         $tx : Transaction()
     then
-        ruleEvaluationResult.addTrigger(new RuleTrigger("VELOCITY_1HOUR", "Extreme Velocity 1hr", RiskImpact.CRITICAL,
-            "More than 20 transactions in 1 hour", $count));
-    end
+        ruleEvaluationResult.addTrigger(
+            new RuleTrigger(
+                "VELOCITY_1HOUR",
+                "Extreme Velocity 1hr",
+                RiskImpact.CRITICAL,
+                "More than 20 transactions in 1 hour",
+                $count
+            )
+        );
+end

@@ -1,34 +1,31 @@
 package com.twenty9ine.frauddetection.domain.event;
 
+import com.twenty9ine.frauddetection.domain.valueobject.AssessmentId;
+import com.twenty9ine.frauddetection.domain.valueobject.EventId;
 import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 
 import java.time.Instant;
-import java.util.UUID;
 
-public record HighRiskDetected(
-    UUID eventId,
-    UUID assessmentId,
-    TransactionId transactionId,
-    RiskLevel riskLevel,
-    Instant occurredAt
-) implements DomainEvent {
+public record HighRiskDetected(EventId eventId, AssessmentId assessmentId, TransactionId transactionId,
+                               RiskLevel riskLevel,
+                               Instant occurredAt) implements DomainEvent {
 
-    public HighRiskDetected(UUID assessmentId,
-                           TransactionId transactionId,
-                           RiskLevel riskLevel,
-                           Instant occurredAt) {
-        this(
-            UUID.randomUUID(),
-            assessmentId,
-            transactionId,
-            riskLevel,
-            occurredAt
-        );
+    public HighRiskDetected(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel) {
+        this(assessmentId, transactionId, riskLevel, Instant.now());
     }
 
+    public HighRiskDetected(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel, Instant occurredAt) {
+        this(EventId.generate(), assessmentId, transactionId, riskLevel, occurredAt);
+    }
+
+    public static HighRiskDetected of(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel) {
+        return new HighRiskDetected(assessmentId, transactionId, riskLevel);
+    }
+
+
     @Override
-    public UUID getEventId() {
+    public EventId getEventId() {
         return eventId;
     }
 
@@ -39,6 +36,6 @@ public record HighRiskDetected(
 
     @Override
     public String getEventType() {
-        return "HighRiskDetected";
+        return HighRiskDetected.class.getSimpleName();
     }
 }
