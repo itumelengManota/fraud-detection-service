@@ -5,7 +5,9 @@ import com.twenty9ine.frauddetection.domain.model.Money;
 import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult;
 import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
 import com.twenty9ine.frauddetection.domain.model.RiskImpact;
-import java.math.BigDecimal;
+import java.math.BigDecimal
+import com.twenty9ine.frauddetection.domain.valueobject.RiskImpact
+import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger;
 
 global RuleEvaluationResult ruleEvaluationResult;
 

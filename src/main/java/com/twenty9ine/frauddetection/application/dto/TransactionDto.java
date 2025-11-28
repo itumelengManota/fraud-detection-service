@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.application.dto;
 
-import com.twenty9ine.frauddetection.domain.model.*;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
@@ -25,7 +25,7 @@ public record TransactionDto(
 ) {
     public Transaction toDomain() {
         return Transaction.builder()
-            .id(transactionId)
+            .id(TransactionId.of(transactionId))
             .accountId(accountId)
             .amount(new Money(amount, currency))
             .type(type)

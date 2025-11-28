@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.domain.port;
 
-import com.twenty9ine.frauddetection.domain.model.Location;
+import com.twenty9ine.frauddetection.domain.valueobject.Location;
 
 import java.time.Instant;
 import java.util.Optional;

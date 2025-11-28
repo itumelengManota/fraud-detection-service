@@ -1,8 +1,9 @@
 package com.twenty9ine.frauddetection.domain.service;
 
-import com.twenty9ine.frauddetection.domain.model.*;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.port.MLServicePort;
 import com.twenty9ine.frauddetection.domain.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
@@ -82,7 +83,7 @@ public class RiskScoringService {
     }
 
     private RiskScore calculateCompositeScore(MLPrediction ml,
-                                             RuleEvaluationResult rules) {
+                                              RuleEvaluationResult rules) {
         BigDecimal mlScore = BigDecimal.valueOf(ml.fraudProbability())
             .multiply(BigDecimal.valueOf(100));
 

@@ -1,6 +1,7 @@
 package com.twenty9ine.frauddetection.domain.event;
 
-import com.twenty9ine.frauddetection.domain.model.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -8,13 +9,13 @@ import java.util.UUID;
 public record HighRiskDetected(
     UUID eventId,
     UUID assessmentId,
-    UUID transactionId,
+    TransactionId transactionId,
     RiskLevel riskLevel,
     Instant occurredAt
 ) implements DomainEvent {
 
     public HighRiskDetected(UUID assessmentId,
-                           UUID transactionId,
+                           TransactionId transactionId,
                            RiskLevel riskLevel,
                            Instant occurredAt) {
         this(

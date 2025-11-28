@@ -1,8 +1,8 @@
 package com.twenty9ine.frauddetection.domain.service;
 
-import com.twenty9ine.frauddetection.domain.model.GeographicContext;
-import com.twenty9ine.frauddetection.domain.model.Transaction;
-import com.twenty9ine.frauddetection.domain.model.VelocityMetrics;
+import com.twenty9ine.frauddetection.domain.valueobject.GeographicContext;
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics;
 import lombok.extern.slf4j.Slf4j;
 import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;

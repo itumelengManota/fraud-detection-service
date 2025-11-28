@@ -26,7 +26,6 @@ repositories {
 
 ext {
     mapstructVersion = '1.6.3'
-    lombokVersion = '1.18.36'
     lombokMapstructBindingVersion = '0.2.0'
     droolsVersion = '10.1.0'
     kieVersion = '7.74.1.Final'
@@ -52,14 +51,6 @@ dependencies {
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.kafka:spring-kafka'
 
-
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-    runtimeOnly 'org.postgresql:postgresql'
-    annotationProcessor 'org.projectlombok:lombok'
-
-
     implementation "io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-retry:$resilience4jVersion"
@@ -83,19 +74,25 @@ dependencies {
     implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
 
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
-    annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
-
-    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
-
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
 
     implementation "net.logstash.logback:logstash-logback-encoder:$logstashVersion"
+
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    annotationProcessor 'org.projectlombok:lombok'
+    annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+    annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
     testImplementation 'org.testcontainers:kafka'
     testImplementation 'org.testcontainers:postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -103,20 +100,20 @@ dependencies {
 //    testImplementation 'io.rest-assured:rest-assured'
 //    testImplementation 'org.awaitility:awaitility'
 
-    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
-    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
+//    testCompileOnly "org.projectlombok:lombok:$lombokVersion"
+//    testAnnotationProcessor "org.projectlombok:lombok:$lombokVersion"
     testAnnotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 }
 
-//enable preview features to use primitive patterns
-tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += ["--enable-preview"]
-}
-
-//enable preview features to use primitive patterns
-tasks.withType(Test).configureEach {
-    jvmArgs += ["--enable-preview"]
-}
+////enable preview features to use primitive patterns
+//tasks.withType(JavaCompile).configureEach {
+//    options.compilerArgs += ["--enable-preview"]
+//}
+//
+////enable preview features to use primitive patterns
+//tasks.withType(Test).configureEach {
+//    jvmArgs += ["--enable-preview"]
+//}
 
 tasks.named('test') {
     useJUnitPlatform()

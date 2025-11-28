@@ -11,54 +11,61 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import java.time.Instant;
-import java.util.stream.Collectors;
 
 @ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            ConstraintViolationException ex) {
+    public ResponseEntity<ErrorResponse> handleValidationException(ConstraintViolationException exception) {
 
-        log.warn("Validation error: {}", ex.getMessage());
+        log.warn("Validation error: {}", exception.getMessage());
 
-        ErrorResponse error = ErrorResponse.builder()
-            .code("VALIDATION_ERROR")
-            .message("Invalid request data")
-            .details(ex.getConstraintViolations().stream()
-                .map(ConstraintViolation::getMessage)
-                .collect(Collectors.toList()))
-            .timestamp(Instant.now())
-            .build();
-
-        return ResponseEntity.badRequest().body(error);
+        return ResponseEntity.badRequest()
+                             .body(buildConstraintViolation(exception));
     }
 
     @ExceptionHandler(InvariantViolationException.class)
-    public ResponseEntity<ErrorResponse> handleInvariantViolation(
-            InvariantViolationException ex) {
+    public ResponseEntity<ErrorResponse> handleInvariantViolation(InvariantViolationException exception) {
 
-        log.error("Business rule violation: {}", ex.getMessage());
+        log.error("Business rule violation: {}", exception.getMessage());
 
-        ErrorResponse error = ErrorResponse.builder()
-            .code("BUSINESS_RULE_VIOLATION")
-            .message(ex.getMessage())
-            .timestamp(Instant.now())
-            .build();
-return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
-}
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                             .body(buildBusinessRuleViolation(exception));
+    }
 
-@ExceptionHandler(Exception.class)
-public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
-    log.error("Unexpected error", ex);
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Unexpected error", ex);
 
-    ErrorResponse error = ErrorResponse.builder()
-        .code("INTERNAL_SERVER_ERROR")
-        .message("An unexpected error occurred")
-        .timestamp(Instant.now())
-        .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                             .body(buildInternalServerError());
+    }
 
-    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
-}
+    private static ErrorResponse buildConstraintViolation(ConstraintViolationException ex) {
+        return ErrorResponse.builder()
+                .code("VALIDATION_ERROR")
+                .message("Invalid request data")
+                .details(ex.getConstraintViolations().stream()
+                        .map(ConstraintViolation::getMessage)
+                        .toList())
+                .timestamp(Instant.now())
+                .build();
+    }
+
+    private static ErrorResponse buildInternalServerError() {
+        return ErrorResponse.builder()
+                .code("INTERNAL_SERVER_ERROR")
+                .message("An unexpected error occurred")
+                .timestamp(Instant.now())
+                .build();
+    }
+
+    private static ErrorResponse buildBusinessRuleViolation(InvariantViolationException ex) {
+        return ErrorResponse.builder()
+                .code("BUSINESS_RULE_VIOLATION")
+                .message(ex.getMessage())
+                .timestamp(Instant.now())
+                .build();
+    }
 }

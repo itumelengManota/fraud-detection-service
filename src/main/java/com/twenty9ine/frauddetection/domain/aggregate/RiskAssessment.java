@@ -1,11 +1,13 @@
-package com.twenty9ine.frauddetection.domain.model;
+package com.twenty9ine.frauddetection.domain.aggregate;
 
 import com.twenty9ine.frauddetection.domain.event.DomainEvent;
 import com.twenty9ine.frauddetection.domain.event.HighRiskDetected;
 import com.twenty9ine.frauddetection.domain.event.RiskAssessmentCompleted;
 import com.twenty9ine.frauddetection.domain.exception.InvariantViolationException;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 
 import java.time.Instant;
@@ -20,16 +22,18 @@ import java.util.UUID;
 public class RiskAssessment {
 
     private final UUID assessmentId;
-    private final UUID transactionId;
+    private final TransactionId transactionId;
     private RiskScore riskScore;
     private RiskLevel riskLevel;
     private Decision decision;
     private final List<RuleEvaluation> ruleEvaluations;
+
+    @Setter
     private MLPrediction mlPrediction;
     private final Instant assessmentTime;
     private final List<DomainEvent> domainEvents;
 
-    public RiskAssessment(UUID assessmentId, UUID transactionId) {
+    public RiskAssessment(UUID assessmentId, TransactionId transactionId) {
         this.assessmentId = assessmentId;
         this.transactionId = transactionId;
         this.ruleEvaluations = new ArrayList<>();
@@ -67,28 +71,35 @@ public class RiskAssessment {
         this.ruleEvaluations.add(evaluation);
     }
 
-    public void setMlPrediction(MLPrediction prediction) {
-        this.mlPrediction = prediction;
-    }
-
-    private void validateDecisionAlignment(RiskScore score, Decision decision) {
-        if (score.toRiskLevel() == RiskLevel.CRITICAL && decision != Decision.BLOCK) {
-            throw new InvariantViolationException(
-                "Critical risk must result in BLOCK decision"
-            );
-        }
-        if (score.toRiskLevel() == RiskLevel.LOW && decision == Decision.BLOCK) {
-            throw new InvariantViolationException(
-                "Low risk cannot result in BLOCK decision"
-            );
-        }
-    }
-
     public List<DomainEvent> getDomainEvents() {
         return Collections.unmodifiableList(domainEvents);
     }
 
     public void clearDomainEvents() {
         this.domainEvents.clear();
+    }
+
+    private void validateDecisionAlignment(RiskScore score, Decision decision) {
+        if (hasCriticalRisk(score) && isProceed(decision))
+            throw new InvariantViolationException("Critical risk must result in BLOCK decision");
+
+        if (hasLowRisk(score) && isBlocked(decision))
+            throw new InvariantViolationException("Low risk cannot result in BLOCK decision");
+    }
+
+    private static boolean isBlocked(Decision decision) {
+        return decision == Decision.BLOCK;
+    }
+
+    private static boolean hasLowRisk(RiskScore score) {
+        return score.toRiskLevel() == RiskLevel.LOW;
+    }
+
+    private static boolean isProceed(Decision decision) {
+        return decision != Decision.BLOCK;
+    }
+
+    private static boolean hasCriticalRisk(RiskScore score) {
+        return score.toRiskLevel() == RiskLevel.CRITICAL;
     }
 }

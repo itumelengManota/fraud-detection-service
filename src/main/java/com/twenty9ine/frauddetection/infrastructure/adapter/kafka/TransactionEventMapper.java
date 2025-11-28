@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
-import com.twenty9ine.frauddetection.domain.model.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import org.springframework.stereotype.Component;
 
 @Component

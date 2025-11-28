@@ -1,8 +1,8 @@
 package com.twenty9ine.frauddetection.application.dto;
 
-import com.twenty9ine.frauddetection.domain.model.Decision;
-import com.twenty9ine.frauddetection.domain.model.RiskAssessment;
-import com.twenty9ine.frauddetection.domain.model.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.Decision;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import lombok.Builder;
 
 import java.time.Instant;
@@ -20,7 +20,7 @@ public record RiskAssessmentDto(
     public static RiskAssessmentDto from(RiskAssessment assessment) {
         return RiskAssessmentDto.builder()
             .assessmentId(assessment.getAssessmentId())
-            .transactionId(assessment.getTransactionId())
+            .transactionId(assessment.getTransactionId().toUUID())
             .riskScore(assessment.getRiskScore().value())
             .riskLevel(assessment.getRiskLevel())
             .decision(assessment.getDecision())

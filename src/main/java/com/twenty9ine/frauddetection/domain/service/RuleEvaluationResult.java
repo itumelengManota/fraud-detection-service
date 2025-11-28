@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.domain.service;
 
-import com.twenty9ine.frauddetection.domain.model.RuleTrigger;
+import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger;
 import lombok.Getter;
 
 import java.util.ArrayList;

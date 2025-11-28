@@ -1,4 +1,4 @@
-package com.twenty9ine.frauddetection.domain.model;
+package com.twenty9ine.frauddetection.domain.valueobject;
 
 import java.util.Map;
 

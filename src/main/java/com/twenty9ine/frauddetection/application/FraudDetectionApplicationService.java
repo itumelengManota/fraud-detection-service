@@ -1,9 +1,9 @@
 package com.twenty9ine.frauddetection.application;
 
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
-import com.twenty9ine.frauddetection.domain.model.Decision;
-import com.twenty9ine.frauddetection.domain.model.RiskAssessment;
-import com.twenty9ine.frauddetection.domain.model.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.Decision;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.port.EventPublisherPort;
 import com.twenty9ine.frauddetection.domain.port.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;

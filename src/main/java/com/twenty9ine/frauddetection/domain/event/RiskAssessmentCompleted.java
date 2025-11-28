@@ -1,8 +1,9 @@
 package com.twenty9ine.frauddetection.domain.event;
 
-import com.twenty9ine.frauddetection.domain.model.Decision;
-import com.twenty9ine.frauddetection.domain.model.RiskLevel;
-import com.twenty9ine.frauddetection.domain.model.RiskScore;
+import com.twenty9ine.frauddetection.domain.valueobject.Decision;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskScore;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -10,7 +11,7 @@ import java.util.UUID;
 public record RiskAssessmentCompleted(
     UUID eventId,
     UUID assessmentId,
-    UUID transactionId,
+    TransactionId transactionId,
     RiskScore finalScore,
     RiskLevel riskLevel,
     Decision decision,
@@ -18,7 +19,7 @@ public record RiskAssessmentCompleted(
 ) implements DomainEvent {
 
     public RiskAssessmentCompleted(UUID assessmentId,
-                                  UUID transactionId,
+                                  TransactionId transactionId,
                                   RiskScore finalScore,
                                   RiskLevel riskLevel,
                                   Decision decision,

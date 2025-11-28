@@ -1,8 +1,8 @@
 package com.twenty9ine.frauddetection.domain.service;
 
-import com.twenty9ine.frauddetection.domain.model.GeographicContext;
-import com.twenty9ine.frauddetection.domain.model.Location;
-import com.twenty9ine.frauddetection.domain.model.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.GeographicContext;
+import com.twenty9ine.frauddetection.domain.valueobject.Location;
+import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.port.LocationHistoryPort;
 import lombok.extern.slf4j.Slf4j;
 

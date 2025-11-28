@@ -2,23 +2,25 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.twenty9ine.frauddetection.domain.model.*;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface RiskAssessmentMapper {
 
     @Mapping(target = "id", source = "assessmentId")
+    @Mapping(target = "transactionId", source = "transactionId", qualifiedByName = "transactionIdToUuid")
     @Mapping(target = "riskScoreValue", source = "riskScore.value")
     @Mapping(target = "riskLevel", source = "riskLevel", qualifiedByName = "riskLevelToString")
     @Mapping(target = "decision", source = "decision", qualifiedByName = "decisionToString")
@@ -28,12 +30,13 @@ public interface RiskAssessmentMapper {
     @Mapping(target = "updatedAt", ignore = true)
     RiskAssessmentEntity toEntity(RiskAssessment domain);
 
+
     default RiskAssessment toDomain(RiskAssessmentEntity entity) {
         if (entity == null) return null;
 
         RiskAssessment assessment = new RiskAssessment(
             entity.getId(),
-            entity.getTransactionId()
+            TransactionId.of(entity.getTransactionId())
         );
 
         // Set ML prediction
@@ -70,6 +73,11 @@ public interface RiskAssessmentMapper {
     @Named("decisionToString")
     default String decisionToString(Decision decision) {
         return decision != null ? decision.name() : null;
+    }
+
+    @Named("transactionIdToUuid")
+    default UUID transactionIdToUuid(TransactionId transactionId) {
+        return transactionId != null ? transactionId.toUUID() : null;
     }
 
     @Named("mlPredictionToJson")

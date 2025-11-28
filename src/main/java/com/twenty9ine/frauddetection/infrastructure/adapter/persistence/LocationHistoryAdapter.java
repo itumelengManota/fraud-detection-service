@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 
-import com.twenty9ine.frauddetection.domain.model.Location;
+import com.twenty9ine.frauddetection.domain.valueobject.Location;
 import com.twenty9ine.frauddetection.domain.port.LocationHistoryPort;
 import org.springframework.stereotype.Component;
 

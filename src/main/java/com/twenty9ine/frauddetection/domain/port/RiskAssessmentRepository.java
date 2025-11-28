@@ -1,7 +1,7 @@
 package com.twenty9ine.frauddetection.domain.port;
 
-import com.twenty9ine.frauddetection.domain.model.RiskAssessment;
-import com.twenty9ine.frauddetection.domain.model.RiskLevel;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 
 import java.time.Instant;
 import java.util.List;

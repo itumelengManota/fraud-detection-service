@@ -1,7 +1,7 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 
-import com.twenty9ine.frauddetection.domain.model.RiskAssessment;
-import com.twenty9ine.frauddetection.domain.model.RiskLevel;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import com.twenty9ine.frauddetection.domain.port.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper.RiskAssessmentMapper;
