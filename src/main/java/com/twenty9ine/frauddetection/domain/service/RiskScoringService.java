@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.domain.service;
 
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.application.port.MLServicePort;
-import com.twenty9ine.frauddetection.application.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import lombok.extern.slf4j.Slf4j;
 

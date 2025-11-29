@@ -1,6 +1,6 @@
 CREATE TABLE risk_assessments
 (
-    id                 UUID PRIMARY KEY,
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id     UUID                     NOT NULL UNIQUE,
     risk_score_value   INTEGER                  NOT NULL CHECK (risk_score_value >= 0 AND risk_score_value <= 100),
     risk_level         VARCHAR(20)              NOT NULL,

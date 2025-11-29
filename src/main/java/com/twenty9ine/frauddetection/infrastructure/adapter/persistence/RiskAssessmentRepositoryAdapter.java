@@ -44,7 +44,7 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
 
     @Override
     public List<RiskAssessment> findByRiskLevelSince(RiskLevel level, Instant since) {
-        return jdbcRepository.findByRiskLevelSince(level.name(), since)
+        return jdbcRepository.findByRiskLevelAndAssessmentTimeGreaterThanEqualOrderByAssessmentTimeDesc(level.name(), since)
             .stream()
             .map(mapper::toDomain)
             .collect(Collectors.toList());

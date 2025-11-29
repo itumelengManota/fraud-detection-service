@@ -6,7 +6,7 @@ import com.twenty9ine.frauddetection.domain.event.DomainEvent;
 import com.twenty9ine.frauddetection.domain.event.HighRiskDetected;
 import com.twenty9ine.frauddetection.domain.event.RiskAssessmentCompleted;
 import com.twenty9ine.frauddetection.domain.exception.EventPublishingException;
-import com.twenty9ine.frauddetection.application.port.EventPublisherPort;
+import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;

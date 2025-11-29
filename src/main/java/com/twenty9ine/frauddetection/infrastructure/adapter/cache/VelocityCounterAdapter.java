@@ -3,7 +3,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.cache;
 import com.twenty9ine.frauddetection.domain.valueobject.TimeWindow;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics;
-import com.twenty9ine.frauddetection.application.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RAtomicDouble;
 import org.redisson.api.RAtomicLong;

@@ -9,6 +9,7 @@ import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.R
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
+import org.postgresql.util.PGobject;
 
 import java.util.HashSet;
 import java.util.List;
@@ -86,26 +87,32 @@ public interface RiskAssessmentMapper {
     }
 
     @Named("mlPredictionToJson")
-    default String mlPredictionToJson(MLPrediction prediction) {
+    default PGobject mlPredictionToJson(MLPrediction prediction) {
         if (prediction == null) return null;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            return mapper.writeValueAsString(prediction);
-        } catch (JsonProcessingException e) {
+            String json = mapper.writeValueAsString(prediction);
+
+            PGobject pgObject = new PGobject();
+            pgObject.setType("jsonb");
+            pgObject.setValue(json);
+            return pgObject;
+        } catch (Exception e) {
             throw new RuntimeException("Failed to serialize MLPrediction", e);
         }
     }
 
     @Named("jsonToMlPrediction")
-    default MLPrediction jsonToMlPrediction(String json) {
-        if (json == null) return null;
+    default MLPrediction jsonToMlPrediction(PGobject pgObject) {
+        if (pgObject == null || pgObject.getValue() == null) return null;
         try {
             ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(json, MLPrediction.class);
+            return mapper.readValue(pgObject.getValue(), MLPrediction.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to deserialize MLPrediction", e);
         }
     }
+
 
     @Named("mapRuleEvaluations")
     default Set<RuleEvaluationEntity> mapRuleEvaluations(List<RuleEvaluation> evaluations) {

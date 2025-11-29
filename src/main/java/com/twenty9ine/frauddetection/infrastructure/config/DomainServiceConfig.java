@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.infrastructure.config;
 
 import com.twenty9ine.frauddetection.application.port.LocationHistoryPort;
 import com.twenty9ine.frauddetection.application.port.MLServicePort;
-import com.twenty9ine.frauddetection.application.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.service.*;
 import org.kie.api.runtime.KieContainer;
 import org.springframework.beans.factory.annotation.Value;

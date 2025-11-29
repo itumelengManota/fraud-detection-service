@@ -1,7 +1,7 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
 import com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationService;
-import com.twenty9ine.frauddetection.application.port.VelocityServicePort;
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
