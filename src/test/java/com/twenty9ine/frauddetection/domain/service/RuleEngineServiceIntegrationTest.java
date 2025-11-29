@@ -9,8 +9,10 @@ import org.kie.api.runtime.KieContainer;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Currency;
 import java.util.Map;
 
+import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Disabled
@@ -84,24 +86,24 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 8L,
-                VelocityMetrics.ONE_HOUR, 10L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 15L
+                FIVE_MINUTES, 8L,
+                ONE_HOUR, 10L,
+                TWENTY_FOUR_HOURS, 15L
             ))
             .totalAmounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(800),
-                VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(1000),
-                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(1500)
+                FIVE_MINUTES, BigDecimal.valueOf(800),
+                ONE_HOUR, BigDecimal.valueOf(1000),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(1500)
             ))
             .uniqueMerchants(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 3,
-                VelocityMetrics.ONE_HOUR, 5,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 8
+                FIVE_MINUTES, 3L,
+                ONE_HOUR, 5L,
+                TWENTY_FOUR_HOURS, 8L
             ))
             .uniqueLocations(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 2L,
-                VelocityMetrics.ONE_HOUR, 4L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 6L
+                FIVE_MINUTES, 2L,
+                ONE_HOUR, 4L,
+                TWENTY_FOUR_HOURS, 6L
             ))
             .build();
         GeographicContext geographic = GeographicContext.normal();
@@ -124,24 +126,24 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 8L,
-                VelocityMetrics.ONE_HOUR, 25L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 50L
+                FIVE_MINUTES, 8L,
+                ONE_HOUR, 25L,
+                TWENTY_FOUR_HOURS, 50L
             ))
             .totalAmounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(2000),
-                VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(10000),
-                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(25000)
+                FIVE_MINUTES, BigDecimal.valueOf(2000),
+                ONE_HOUR, BigDecimal.valueOf(10000),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(25000)
             ))
             .uniqueMerchants(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 5,
-                VelocityMetrics.ONE_HOUR, 15,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 30
+                FIVE_MINUTES, 5L,
+                ONE_HOUR, 15L,
+                TWENTY_FOUR_HOURS, 30L
             ))
             .uniqueLocations(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 3L,
-                VelocityMetrics.ONE_HOUR, 10L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 20L
+                FIVE_MINUTES, 3L,
+                ONE_HOUR, 10L,
+                TWENTY_FOUR_HOURS, 20L
             ))
             .build();
         GeographicContext geographic = GeographicContext.normal();
@@ -196,24 +198,24 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(60000));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 10L,
-                VelocityMetrics.ONE_HOUR, 30L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 80L
+                FIVE_MINUTES, 10L,
+                ONE_HOUR, 30L,
+                TWENTY_FOUR_HOURS, 80L
             ))
             .totalAmounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(5000),
-                VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(20000),
-                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(100000)
+                FIVE_MINUTES, BigDecimal.valueOf(5000),
+                ONE_HOUR, BigDecimal.valueOf(20000),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(100000)
             ))
             .uniqueMerchants(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 7,
-                VelocityMetrics.ONE_HOUR, 20,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 50
+                FIVE_MINUTES, 7L,
+                ONE_HOUR, 20L,
+                TWENTY_FOUR_HOURS, 50L
             ))
             .uniqueLocations(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 5L,
-                VelocityMetrics.ONE_HOUR, 15L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 40L
+                FIVE_MINUTES, 5L,
+                ONE_HOUR, 15L,
+                TWENTY_FOUR_HOURS, 40L
             ))
             .build();
 
@@ -288,24 +290,24 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 6L,
-                VelocityMetrics.ONE_HOUR, 10L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 15L
+                FIVE_MINUTES, 6L,
+                ONE_HOUR, 10L,
+                TWENTY_FOUR_HOURS, 15L
             ))
             .totalAmounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(600),
-                VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(1000),
-                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(1500)
+                FIVE_MINUTES, BigDecimal.valueOf(600),
+                ONE_HOUR, BigDecimal.valueOf(1000),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(1500)
             ))
             .uniqueMerchants(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 3,
-                VelocityMetrics.ONE_HOUR, 5,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 8
+                FIVE_MINUTES, 3L,
+                ONE_HOUR, 5L,
+                TWENTY_FOUR_HOURS, 8L
             ))
             .uniqueLocations(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 2L,
-                VelocityMetrics.ONE_HOUR, 4L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 6L
+                FIVE_MINUTES, 2L,
+                ONE_HOUR, 4L,
+                TWENTY_FOUR_HOURS, 6L
             ))
             .build();
         GeographicContext geographic = GeographicContext.normal();
@@ -326,24 +328,24 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 7L,
-                VelocityMetrics.ONE_HOUR, 21L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 30L
+                FIVE_MINUTES, 7L,
+                ONE_HOUR, 21L,
+                TWENTY_FOUR_HOURS, 30L
             ))
             .totalAmounts(Map.of(
-                VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(700),
-                VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(2100),
-                VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(3000)
+                FIVE_MINUTES, BigDecimal.valueOf(700),
+                ONE_HOUR, BigDecimal.valueOf(2100),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(3000)
             ))
             .uniqueMerchants(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 4,
-                VelocityMetrics.ONE_HOUR, 12,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 20
+                FIVE_MINUTES, 4L,
+                ONE_HOUR, 12L,
+                TWENTY_FOUR_HOURS, 20L
             ))
             .uniqueLocations(Map.of(
-                VelocityMetrics.FIVE_MINUTES, 3L,
-                VelocityMetrics.ONE_HOUR, 8L,
-                VelocityMetrics.TWENTY_FOUR_HOURS, 15L
+                FIVE_MINUTES, 3L,
+                ONE_HOUR, 8L,
+                TWENTY_FOUR_HOURS, 15L
             ))
             .build();
         GeographicContext geographic = GeographicContext.normal();
@@ -362,7 +364,7 @@ class RuleEngineServiceIntegrationTest {
         return Transaction.builder()
                         .id(TransactionId.generate())
                         .accountId("ACC-TEST-123")
-                        .amount(new Money(amount, "USD"))
+                        .amount(new Money(amount, Currency.getInstance("USD")))
                         .type(TransactionType.PURCHASE)
                         .channel(Channel.ONLINE)
                         .merchantId("MERCH-001")

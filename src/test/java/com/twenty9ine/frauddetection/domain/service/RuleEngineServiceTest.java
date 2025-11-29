@@ -12,8 +12,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Currency;
 import java.util.Map;
 
+import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -215,7 +217,7 @@ class RuleEngineServiceTest {
         return Transaction.builder()
                 .id(TransactionId.generate())
                 .accountId("ACC-123")
-                .amount(new Money(amount, "USD"))
+                .amount(new Money(amount, Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
                 .merchantId("MERCH-001")
@@ -230,24 +232,24 @@ class RuleEngineServiceTest {
     private VelocityMetrics createHighVelocityMetrics() {
         return VelocityMetrics.builder()
                 .transactionCounts(Map.of(
-                        VelocityMetrics.FIVE_MINUTES, 8L,
-                        VelocityMetrics.ONE_HOUR, 25L,
-                        VelocityMetrics.TWENTY_FOUR_HOURS, 50L
+                        FIVE_MINUTES, 8L,
+                        ONE_HOUR, 25L,
+                        TWENTY_FOUR_HOURS, 50L
                 ))
                 .totalAmounts(Map.of(
-                        VelocityMetrics.FIVE_MINUTES, BigDecimal.valueOf(5000),
-                        VelocityMetrics.ONE_HOUR, BigDecimal.valueOf(15000),
-                        VelocityMetrics.TWENTY_FOUR_HOURS, BigDecimal.valueOf(30000)
+                        FIVE_MINUTES, BigDecimal.valueOf(5000),
+                        ONE_HOUR, BigDecimal.valueOf(15000),
+                        TWENTY_FOUR_HOURS, BigDecimal.valueOf(30000)
                 ))
                 .uniqueMerchants(Map.of(
-                        VelocityMetrics.FIVE_MINUTES, 5,
-                        VelocityMetrics.ONE_HOUR, 15,
-                        VelocityMetrics.TWENTY_FOUR_HOURS, 30
+                        FIVE_MINUTES, 5L,
+                        ONE_HOUR, 15L,
+                        TWENTY_FOUR_HOURS, 30L
                 ))
                 .uniqueLocations(Map.of(
-                        VelocityMetrics.FIVE_MINUTES, 3L,
-                        VelocityMetrics.ONE_HOUR, 8L,
-                        VelocityMetrics.TWENTY_FOUR_HOURS, 15L
+                        FIVE_MINUTES, 3L,
+                        ONE_HOUR, 8L,
+                        TWENTY_FOUR_HOURS, 15L
                 ))
                 .build();
     }

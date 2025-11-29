@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 public class TransactionEventMapper {
 
     public Transaction toDomain(byte[] payload) {
+        //TODO: Implement the mapping logic from payload to Transaction domain object
         return null;
     }
 }

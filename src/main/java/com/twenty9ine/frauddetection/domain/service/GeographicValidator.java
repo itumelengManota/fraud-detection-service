@@ -24,18 +24,14 @@ public class GeographicValidator {
         Location currentLocation = transaction.location();
         String accountId = transaction.accountId();
 
-        Optional<Location> previousLocation =
-            locationHistoryPort.findMostRecent(accountId, transaction.timestamp());
+        Optional<Location> previousLocation = locationHistoryPort.findMostRecent(accountId, transaction.timestamp());
 
         if (previousLocation.isEmpty()) {
             return GeographicContext.normal();
         }
 
         double distanceKm = currentLocation.distanceFrom(previousLocation.get());
-        Duration timeBetween = Duration.between(
-            previousLocation.get().timestamp(),
-            transaction.timestamp()
-        );
+        Duration timeBetween = Duration.between(previousLocation.get().timestamp(), transaction.timestamp());
 
         double requiredSpeedKmh = distanceKm / (timeBetween.toMinutes() / 60.0);
 
@@ -47,11 +43,11 @@ public class GeographicValidator {
         }
 
         return GeographicContext.builder()
-            .impossibleTravel(impossibleTravel)
-            .distanceKm(distanceKm)
-            .travelSpeed(requiredSpeedKmh)
-            .previousLocation(previousLocation.get())
-            .currentLocation(currentLocation)
-            .build();
+                                .impossibleTravel(impossibleTravel)
+                                .distanceKm(distanceKm)
+                                .travelSpeed(requiredSpeedKmh)
+                                .previousLocation(previousLocation.get())
+                                .currentLocation(currentLocation)
+                                .build();
     }
 }

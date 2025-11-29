@@ -6,6 +6,7 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Currency;
 import java.util.UUID;
 
 @Builder
@@ -23,11 +24,13 @@ public record TransactionDto(
     String deviceId,
     @NotNull Instant timestamp
 ) {
+
+    //TODO: Create mapper for this
     public Transaction toDomain() {
         return Transaction.builder()
             .id(TransactionId.of(transactionId))
             .accountId(accountId)
-            .amount(new Money(amount, currency))
+            .amount(new Money(amount, Currency.getInstance(currency)))
             .type(type)
             .channel(channel)
             .merchantId(merchantId)

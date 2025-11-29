@@ -17,26 +17,17 @@ public class DroolsInfrastructureConfig {
         KieServices kieServices = KieServices.Factory.get();
         KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
 
-        kieFileSystem.write(ResourceFactory.newClassPathResource(
-            "rules/velocity-rules.drl"
-        ));
-        kieFileSystem.write(ResourceFactory.newClassPathResource(
-            "rules/geographic-rules.drl"
-        ));
-        kieFileSystem.write(ResourceFactory.newClassPathResource(
-            "rules/amount-rules.drl"
-        ));
+        kieFileSystem.write(ResourceFactory.newClassPathResource("rules/velocity-rules.drl"));
+        kieFileSystem.write(ResourceFactory.newClassPathResource("rules/geographic-rules.drl"));
+        kieFileSystem.write(ResourceFactory.newClassPathResource("rules/amount-rules.drl"));
 
         KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
         kieBuilder.buildAll();
 
         if (kieBuilder.getResults().hasMessages(Message.Level.ERROR)) {
-            throw new RuntimeException("Rule compilation errors: " +
-                kieBuilder.getResults().toString());
+            throw new RuntimeException("Rule compilation errors: %s".formatted(kieBuilder.getResults().toString()));
         }
 
-        return kieServices.newKieContainer(
-            kieBuilder.getKieModule().getReleaseId()
-        );
+        return kieServices.newKieContainer(kieBuilder.getKieModule().getReleaseId());
     }
 }

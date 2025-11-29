@@ -18,13 +18,12 @@ public class CacheConfig {
     @Primary
     public CacheManager caffeineCacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-            "mlPredictions", "ruleConfigs", "merchantData", "velocityMetrics"
-        );
-        cacheManager.setCaffeine(Caffeine.newBuilder()
-            .maximumSize(10_000)
-            .expireAfterWrite(Duration.ofMinutes(5))
-            .recordStats()
-        );
+            "mlPredictions", "ruleConfigs", "merchantData", "velocityMetrics");
+
+        cacheManager.setCaffeine(Caffeine.newBuilder().maximumSize(10_000)
+                                                      .expireAfterWrite(Duration.ofMinutes(5))
+                                                      .recordStats());
+
         return cacheManager;
     }
 }

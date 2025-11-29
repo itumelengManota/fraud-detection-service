@@ -21,52 +21,33 @@ public class TransactionEventConsumer {
     private final TransactionEventMapper mapper;
     private final MeterRegistry meterRegistry;
 
-    public TransactionEventConsumer(
-            FraudDetectionApplicationService fraudDetectionService,
-            VelocityServicePort velocityService,
-            TransactionEventMapper mapper,
-            MeterRegistry meterRegistry) {
+    public TransactionEventConsumer(FraudDetectionApplicationService fraudDetectionService, VelocityServicePort velocityService,
+                                    TransactionEventMapper mapper, MeterRegistry meterRegistry) {
         this.fraudDetectionService = fraudDetectionService;
         this.velocityService = velocityService;
         this.mapper = mapper;
         this.meterRegistry = meterRegistry;
     }
 
-    @KafkaListener(
-        topics = "${kafka.topics.transactions}",
-        groupId = "fraud-detection-service",
-        concurrency = "10"
-    )
-    public void consume(
-            @Payload byte[] payload,
-            @Header(KafkaHeaders.RECEIVED_KEY) String key,
-            Acknowledgment acknowledgment) {
+    @KafkaListener(topics = "${kafka.topics.transactions}", groupId = "fraud-detection-service", concurrency = "10")
+    public void consume(@Payload byte[] payload, @Header(KafkaHeaders.RECEIVED_KEY) String key, Acknowledgment acknowledgment) {
 
         Timer.Sample sample = Timer.start(meterRegistry);
 
         try {
             var transaction = mapper.toDomain(payload);
-
             log.debug("Received transaction event: {}", transaction.id());
 
-            velocityService.incrementCounters(
-                transaction.accountId(),
-                transaction.location()
-            );
+            velocityService.incrementCounters(transaction);
 
             fraudDetectionService.assessRisk(transaction);
-
             acknowledgment.acknowledge();
 
-            meterRegistry.counter("fraud.events.processed",
-                "status", "success"
-            ).increment();
-
+            meterRegistry.counter("fraud.events.processed", "status", "success").increment();
         } catch (Exception e) {
             log.error("Failed to process transaction event", e);
-            meterRegistry.counter("fraud.events.processed",
-                "status", "error"
-            ).increment();
+            meterRegistry.counter("fraud.events.processed", "status", "error").increment();
+
             throw e;
         } finally {
             sample.stop(meterRegistry.timer("fraud.event.processing"));

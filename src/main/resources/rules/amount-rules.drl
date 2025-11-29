@@ -17,8 +17,8 @@ rule "Large Amount Transaction"
             "LARGE_AMOUNT",
             "Large Amount",
             RiskImpact.MEDIUM,
-            "Transaction amount exceeds $10,000",
-            $money.amount().doubleValue()
+            "Transaction value exceeds $10,000",
+            $money.value().doubleValue()
         );
         ruleEvaluationResult.addTrigger(trigger);
 end
@@ -34,8 +34,8 @@ rule "Very Large Amount Transaction"
             "VERY_LARGE_AMOUNT",
             "Very Large Amount",
             RiskImpact.HIGH,
-            "Transaction amount exceeds $50,000",
-            $money.amount().doubleValue()
+            "Transaction value exceeds $50,000",
+            $money.value().doubleValue()
         );
         ruleEvaluationResult.addTrigger(trigger);
 end

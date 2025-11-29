@@ -1,17 +1,18 @@
 package com.twenty9ine.frauddetection.domain.valueobject;
 
+import jakarta.validation.constraints.NotNull;
+
 import java.math.BigDecimal;
+import java.util.Currency;
 
 public record Money(
-    BigDecimal amount,
-    String currency    //TODO: Consider using ISO 4217 currency codes
+        @NotNull(message = "Value of Money cannot be null")
+        BigDecimal value,
+        @NotNull(message = "Currency of Money cannot be null")
+        Currency currency
 ) {
-    public Money {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount must be non-negative");
-        }
-        if (currency == null || currency.isBlank()) {
-            throw new IllegalArgumentException("Currency must be provided");
-        }
+    @Override
+    public String toString() {
+        return String.format("%s %s", value, currency.getCurrencyCode());
     }
 }

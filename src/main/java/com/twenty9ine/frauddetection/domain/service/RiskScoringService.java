@@ -20,12 +20,8 @@ public class RiskScoringService {
     private final double mlWeight;
     private final double ruleWeight;
 
-    public RiskScoringService(RuleEngineService ruleEngine,
-                              MLServicePort mlService,
-                              VelocityServicePort velocityService,
-                              GeographicValidator geographicValidator,
-                              double mlWeight,
-                              double ruleWeight) {
+    public RiskScoringService(RuleEngineService ruleEngine, MLServicePort mlService, VelocityServicePort velocityService,
+                              GeographicValidator geographicValidator, double mlWeight, double ruleWeight) {
         this.ruleEngine = ruleEngine;
         this.mlService = mlService;
         this.velocityService = velocityService;
@@ -35,20 +31,13 @@ public class RiskScoringService {
     }
 
     public RiskAssessment assessRisk(Transaction transaction) {
-        CompletableFuture<MLPrediction> mlFuture =
-                CompletableFuture.supplyAsync(() ->
-                        mlService.predict(transaction)
-                );
+        CompletableFuture<MLPrediction> mlFuture = CompletableFuture.supplyAsync(() -> mlService.predict(transaction));
 
-        CompletableFuture<VelocityMetrics> velocityFuture =
-                CompletableFuture.supplyAsync(() ->
-                        velocityService.getVelocity(transaction.accountId())
-                );
+        CompletableFuture<VelocityMetrics> velocityFuture = CompletableFuture.supplyAsync(() ->
+                velocityService.findVelocityMetricsByTransaction(transaction));
 
-        CompletableFuture<GeographicContext> geographicFuture =
-                CompletableFuture.supplyAsync(() ->
-                        geographicValidator.validate(transaction)
-                );
+        CompletableFuture<GeographicContext> geographicFuture = CompletableFuture.supplyAsync(() ->
+                        geographicValidator.validate(transaction));
 
         CompletableFuture.allOf(mlFuture, velocityFuture, geographicFuture).join();
 
@@ -56,8 +45,7 @@ public class RiskScoringService {
         VelocityMetrics velocity = velocityFuture.join();
         GeographicContext geographic = geographicFuture.join();
 
-        RuleEvaluationResult ruleResults =
-                ruleEngine.evaluateRules(transaction, velocity, geographic);
+        RuleEvaluationResult ruleResults = ruleEngine.evaluateRules(transaction, velocity, geographic);
 
         RiskScore score = calculateCompositeScore(mlPrediction, ruleResults);
 

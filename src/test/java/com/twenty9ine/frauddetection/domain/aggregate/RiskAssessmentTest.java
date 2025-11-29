@@ -386,7 +386,7 @@ class RiskAssessmentTest {
         @DisplayName("Should set ML prediction")
         void shouldSetMLPrediction() {
             MLPrediction prediction = new MLPrediction("model-v1", "v1.0", 0.75, 0.92,
-                    Map.of("amount", 0.4, "velocity", 0.3, "location", 0.3));
+                    Map.of("value", 0.4, "velocity", 0.3, "location", 0.3));
 
             riskAssessment.setMlPrediction(prediction);
 
