@@ -10,7 +10,7 @@ rule "Large Amount Transaction"
     when
         $tx : Transaction(
             $money : amount,
-            amount.amount().doubleValue() > 10000.0
+            amount.value().doubleValue() > 10000.0
         )
     then
         RuleTrigger trigger = new RuleTrigger(
@@ -27,7 +27,7 @@ rule "Very Large Amount Transaction"
     when
         $tx : Transaction(
             $money : amount,
-            amount.amount().doubleValue() > 50000.0
+            amount.value().doubleValue() > 50000.0
         )
     then
         RuleTrigger trigger = new RuleTrigger(

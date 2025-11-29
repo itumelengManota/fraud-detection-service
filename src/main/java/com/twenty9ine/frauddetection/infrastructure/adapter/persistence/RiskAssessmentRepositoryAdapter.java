@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
-import com.twenty9ine.frauddetection.application.port.RiskAssessmentRepository;
+import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper.RiskAssessmentMapper;
 import org.springframework.stereotype.Component;
@@ -19,9 +19,7 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
     private final RiskAssessmentJdbcRepository jdbcRepository;
     private final RiskAssessmentMapper mapper;
 
-    public RiskAssessmentRepositoryAdapter(
-            RiskAssessmentJdbcRepository jdbcRepository,
-            RiskAssessmentMapper mapper) {
+    public RiskAssessmentRepositoryAdapter(RiskAssessmentJdbcRepository jdbcRepository, RiskAssessmentMapper mapper) {
         this.jdbcRepository = jdbcRepository;
         this.mapper = mapper;
     }

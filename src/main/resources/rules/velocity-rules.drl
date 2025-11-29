@@ -1,16 +1,16 @@
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction
+import com.twenty9ine.frauddetection.domain.valueobject.TimeWindow
 import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult
 import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger
 import com.twenty9ine.frauddetection.domain.valueobject.RiskImpact
-import java.time.Duration
 
 global RuleEvaluationResult ruleEvaluationResult;
 
 rule "High Velocity - 5 Minute Window"
     when
-        $velocity : VelocityMetrics(getTransactionCount(VelocityMetrics.FIVE_MINUTES) > 5,
-                                   $count : getTransactionCount(VelocityMetrics.FIVE_MINUTES))
+        $velocity : VelocityMetrics(getTransactionCount(TimeWindow.FIVE_MINUTES) > 5,
+                                   $count : getTransactionCount(TimeWindow.FIVE_MINUTES))
         $tx : Transaction()
     then
         ruleEvaluationResult.addTrigger(
@@ -26,8 +26,8 @@ end
 
 rule "Extreme Velocity - 1 Hour Window"
     when
-        $velocity : VelocityMetrics(getTransactionCount(VelocityMetrics.ONE_HOUR) > 20,
-                                   $count : getTransactionCount(VelocityMetrics.ONE_HOUR))
+        $velocity : VelocityMetrics(getTransactionCount(TimeWindow.ONE_HOUR) > 20,
+                                   $count : getTransactionCount(TimeWindow.ONE_HOUR))
         $tx : Transaction()
     then
         ruleEvaluationResult.addTrigger(

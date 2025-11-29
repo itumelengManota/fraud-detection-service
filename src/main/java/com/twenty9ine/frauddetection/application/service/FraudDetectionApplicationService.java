@@ -5,7 +5,7 @@ import com.twenty9ine.frauddetection.domain.valueobject.Decision;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
-import com.twenty9ine.frauddetection.application.port.RiskAssessmentRepository;
+import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;
 import com.twenty9ine.frauddetection.domain.service.RiskScoringService;
 import lombok.extern.slf4j.Slf4j;
