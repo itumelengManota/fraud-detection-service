@@ -6,6 +6,15 @@ public enum Decision {
     REVIEW,
     BLOCK;
 
+    public static Decision fromString(String decisionString) {
+        for (Decision decision : Decision.values()) {
+            if (decision.name().equalsIgnoreCase(decisionString)) {
+                return decision;
+            }
+        }
+        throw new IllegalArgumentException("Unknown decision: " + decisionString);
+    }
+
     public boolean isAllowed() {
         return this == ALLOW;
     }

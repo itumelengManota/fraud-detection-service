@@ -1,9 +1,11 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
+import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
 import com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationService;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -12,6 +14,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
+@RequiredArgsConstructor
 @Component
 @Slf4j
 public class TransactionEventConsumer {
@@ -20,14 +23,7 @@ public class TransactionEventConsumer {
     private final VelocityServicePort velocityService;
     private final TransactionEventMapper mapper;
     private final MeterRegistry meterRegistry;
-
-    public TransactionEventConsumer(FraudDetectionApplicationService fraudDetectionService, VelocityServicePort velocityService,
-                                    TransactionEventMapper mapper, MeterRegistry meterRegistry) {
-        this.fraudDetectionService = fraudDetectionService;
-        this.velocityService = velocityService;
-        this.mapper = mapper;
-        this.meterRegistry = meterRegistry;
-    }
+    private final TransactionRepository transactionRepository;
 
     @KafkaListener(topics = "${kafka.topics.transactions}", groupId = "fraud-detection-service", concurrency = "10")
     public void consume(@Payload byte[] payload, @Header(KafkaHeaders.RECEIVED_KEY) String key, Acknowledgment acknowledgment) {
@@ -39,6 +35,7 @@ public class TransactionEventConsumer {
             log.debug("Received transaction event: {}", transaction.id());
 
             velocityService.incrementCounters(transaction);
+            transactionRepository.save(transaction);
 
             fraudDetectionService.assessRisk(transaction);
             acknowledgment.acknowledge();

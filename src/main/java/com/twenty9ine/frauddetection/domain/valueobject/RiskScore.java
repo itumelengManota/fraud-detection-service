@@ -17,6 +17,10 @@ public record RiskScore(@Min(0) @Max(100) int value) {
         }
     }
 
+    public static RiskScore of(int value) {
+        return new RiskScore(value);
+    }
+
     public boolean hasLowRisk() {
         return toRiskLevel() == RiskLevel.LOW;
     }

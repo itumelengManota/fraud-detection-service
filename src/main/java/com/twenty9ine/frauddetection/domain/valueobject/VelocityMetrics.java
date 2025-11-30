@@ -13,7 +13,6 @@ public record VelocityMetrics(Map<TimeWindow, Long> transactionCounts,
                               Map<TimeWindow, Long> uniqueMerchants,
                               Map<TimeWindow, Long> uniqueLocations) {
 
-    //TODO: Consider using a constant for empty metrics
     public static VelocityMetrics empty() {
         return VelocityMetrics.builder()
             .transactionCounts(Map.of(

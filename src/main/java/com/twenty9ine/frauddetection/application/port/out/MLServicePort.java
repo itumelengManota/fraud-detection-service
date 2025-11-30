@@ -1,4 +1,4 @@
-package com.twenty9ine.frauddetection.application.port;
+package com.twenty9ine.frauddetection.application.port.out;
 
 import com.twenty9ine.frauddetection.domain.valueobject.MLPrediction;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;

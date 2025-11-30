@@ -262,7 +262,7 @@ class RuleEngineServiceTest {
         Location currentLocation = new Location(51.5074, -0.1278, "London", "GB", currentTime);
 
         return GeographicContext.builder()
-                .impossibleTravel(true)
+                .isImpossibleTravel(true)
                 .distanceKm(5570.0)
                 .travelSpeed(11140.0)
                 .previousLocation(previousLocation)

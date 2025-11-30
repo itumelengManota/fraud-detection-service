@@ -1,7 +1,7 @@
 package com.twenty9ine.frauddetection.infrastructure.config;
 
-import com.twenty9ine.frauddetection.application.port.LocationHistoryPort;
-import com.twenty9ine.frauddetection.application.port.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.service.*;
 import org.kie.api.runtime.KieContainer;
@@ -26,8 +26,8 @@ public class DomainServiceConfig {
     }
 
     @Bean
-    public GeographicValidator geographicValidator(LocationHistoryPort locationHistoryPort) {
-        return new GeographicValidator(locationHistoryPort);
+    public GeographicValidator geographicValidator(TransactionRepository transactionRepository) {
+        return new GeographicValidator(transactionRepository);
     }
 
     @Bean

@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Component
 public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository {
@@ -30,21 +29,20 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
         entity.setCreatedAt(Instant.now());
         entity.setUpdatedAt(Instant.now());
 
-        RiskAssessmentEntity saved = jdbcRepository.save(entity);
-        return mapper.toDomain(saved);
+        return mapper.toDomain(jdbcRepository.save(entity));
     }
 
     @Override
     public Optional<RiskAssessment> findByTransactionId(UUID transactionId) {
         return jdbcRepository.findByTransactionId(transactionId)
-            .map(mapper::toDomain);
+                             .map(mapper::toDomain);
     }
 
     @Override
     public List<RiskAssessment> findByRiskLevelSince(RiskLevel level, Instant since) {
         return jdbcRepository.findByRiskLevelAndAssessmentTimeGreaterThanEqualOrderByAssessmentTimeDesc(level.name(), since)
-            .stream()
-            .map(mapper::toDomain)
-            .collect(Collectors.toList());
+                             .stream()
+                             .map(mapper::toDomain)
+                             .toList();
     }
 }

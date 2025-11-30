@@ -1,7 +1,7 @@
 package com.twenty9ine.frauddetection.domain.service;
 
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
-import com.twenty9ine.frauddetection.application.port.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import lombok.extern.slf4j.Slf4j;
@@ -31,13 +31,9 @@ public class RiskScoringService {
     }
 
     public RiskAssessment assessRisk(Transaction transaction) {
-        CompletableFuture<MLPrediction> mlFuture = CompletableFuture.supplyAsync(() -> mlService.predict(transaction));
-
-        CompletableFuture<VelocityMetrics> velocityFuture = CompletableFuture.supplyAsync(() ->
-                velocityService.findVelocityMetricsByTransaction(transaction));
-
-        CompletableFuture<GeographicContext> geographicFuture = CompletableFuture.supplyAsync(() ->
-                        geographicValidator.validate(transaction));
+        CompletableFuture<MLPrediction> mlFuture = predict(transaction);
+        CompletableFuture<VelocityMetrics> velocityFuture = findVelocityMetricsByTransaction(transaction);
+        CompletableFuture<GeographicContext> geographicFuture = validateGeographical(transaction);
 
         CompletableFuture.allOf(mlFuture, velocityFuture, geographicFuture).join();
 
@@ -64,6 +60,20 @@ public class RiskScoringService {
         );
 
         return assessment;
+    }
+
+    private CompletableFuture<MLPrediction> predict(Transaction transaction) {
+        return CompletableFuture.supplyAsync(() -> mlService.predict(transaction));
+    }
+
+    private CompletableFuture<GeographicContext> validateGeographical(Transaction transaction) {
+        return CompletableFuture.supplyAsync(() ->
+                geographicValidator.validate(transaction));
+    }
+
+    private CompletableFuture<VelocityMetrics> findVelocityMetricsByTransaction(Transaction transaction) {
+        return CompletableFuture.supplyAsync(() ->
+                velocityService.findVelocityMetricsByTransaction(transaction));
     }
 
     private RiskScore calculateCompositeScore(MLPrediction ml,

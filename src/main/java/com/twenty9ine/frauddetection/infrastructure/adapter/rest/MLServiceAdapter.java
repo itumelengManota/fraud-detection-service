@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
 import com.twenty9ine.frauddetection.domain.valueobject.MLPrediction;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.application.port.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
 import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.FeatureVector;
 import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.MLPredictionResponse;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -17,9 +17,7 @@ public class MLServiceAdapter implements MLServicePort {
     private final MLInferenceClient mlClient;
     private final CircuitBreaker circuitBreaker;
 
-    public MLServiceAdapter(
-            MLInferenceClient mlClient,
-            CircuitBreakerRegistry circuitBreakerRegistry) {
+    public MLServiceAdapter(MLInferenceClient mlClient, CircuitBreakerRegistry circuitBreakerRegistry) {
         this.mlClient = mlClient;
         this.circuitBreaker = circuitBreakerRegistry.circuitBreaker("mlService");
     }
