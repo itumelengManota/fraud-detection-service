@@ -110,47 +110,6 @@ class MLPredictionTest {
     }
 
     @Nested
-    @DisplayName("isAvailable Tests")
-    class IsAvailableTests {
-
-        @Test
-        @DisplayName("Should return false when model ID is unavailable")
-        void shouldReturnFalseWhenModelIdIsUnavailable() {
-            MLPrediction prediction = MLPrediction.unavailable();
-
-            assertThat(prediction.isAvailable()).isFalse();
-        }
-
-        @Test
-        @DisplayName("Should return true when model ID is available")
-        void shouldReturnTrueWhenModelIdIsAvailable() {
-            MLPrediction prediction = new MLPrediction(
-                    "model-v1",
-                    "1.0.0",
-                    0.75,
-                    0.88,
-                    Map.of()
-            );
-
-            assertThat(prediction.isAvailable()).isTrue();
-        }
-
-        @Test
-        @DisplayName("Should return true for any model ID other than unavailable")
-        void shouldReturnTrueForAnyOtherModelId() {
-            MLPrediction prediction = new MLPrediction(
-                    "custom-model",
-                    "3.2.1",
-                    0.5,
-                    0.6,
-                    Map.of()
-            );
-
-            assertThat(prediction.isAvailable()).isTrue();
-        }
-    }
-
-    @Nested
     @DisplayName("Bean Validation Constraint Tests - Fraud Probability")
     class FraudProbabilityValidationTests {
 

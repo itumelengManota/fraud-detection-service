@@ -3,18 +3,10 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 import com.twenty9ine.frauddetection.domain.valueobject.RuleEvaluation;
 import com.twenty9ine.frauddetection.domain.valueobject.RuleType;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mapstruct.factory.Mappers;
 import org.springframework.test.context.aot.DisabledInAotMode;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,14 +15,15 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
-@ExtendWith(SpringExtension.class)
-@TestConfiguration
 @DisabledInAotMode
 class RuleEvaluationMapperTest {
 
-    @Autowired
     private RuleEvaluationMapper mapper;
+
+    @BeforeEach
+    void setUp() {
+        mapper = Mappers.getMapper(RuleEvaluationMapper.class);
+    }
 
     @Test
     void testToEntity_CompleteRuleEvaluation_MapsAllFields() {
@@ -147,7 +140,7 @@ class RuleEvaluationMapperTest {
         RuleEvaluationEntity entity = new RuleEvaluationEntity();
         entity.setId(1L);
         entity.setRuleName("Geo Location Rule");
-        entity.setRuleType("GEO_LOCATION");
+        entity.setRuleType("GEOGRAPHIC");
         entity.setScoreImpact(35);
         entity.setDescription("Suspicious location detected");
 

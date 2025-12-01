@@ -190,25 +190,26 @@ class RiskAssessmentJdbcRepositoryIntegrationTest {
     }
 
     private RiskAssessmentEntity createRiskAssessmentEntity() {
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setTransactionId(UUID.randomUUID());
-        entity.setRiskScoreValue(75);
-        entity.setRiskLevel("MEDIUM");
-        entity.setDecision("REVIEW");
+        return RiskAssessmentEntity.builder()
+                .id(UUID.randomUUID())
+                .transactionId(UUID.randomUUID())
+                .riskScoreValue(75)
+                .riskLevel("MEDIUM")
+                .decision("REVIEW")
+                .mlPredictionJson(createMlPredictionJson())
+                .assessmentTime(Instant.now().truncatedTo(ChronoUnit.MILLIS))
+                .createdAt(Instant.now().truncatedTo(ChronoUnit.MILLIS))
+                .updatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS)).build();
+    }
 
-        // Create PGobject for JSONB
+    private PGobject createMlPredictionJson() {
+        PGobject jsonObject = new PGobject();
+        jsonObject.setType("jsonb");
         try {
-            PGobject jsonObject = new PGobject();
-            jsonObject.setType("jsonb");
             jsonObject.setValue("{\"confidence\": 0.85}");
-            entity.setMlPredictionJson(jsonObject);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to create PGobject", e);
+            throw new RuntimeException(e);
         }
-
-        entity.setAssessmentTime(Instant.now().truncatedTo(ChronoUnit.MILLIS));
-        entity.setCreatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS));
-        entity.setUpdatedAt(Instant.now().truncatedTo(ChronoUnit.MILLIS));
-        return entity;
+        return jsonObject;
     }
 }

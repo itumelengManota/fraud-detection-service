@@ -25,11 +25,29 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
 
     @Override
     public RiskAssessment save(RiskAssessment assessment) {
-        RiskAssessmentEntity entity = mapper.toEntity(assessment);
-        entity.setCreatedAt(Instant.now());
-        entity.setUpdatedAt(Instant.now());
+        RiskAssessmentEntity newRiskAssessment = mapper.toEntity(assessment);
 
-        return mapper.toDomain(jdbcRepository.save(entity));
+        return jdbcRepository.findById(newRiskAssessment.getId())
+                             .map(existingRiskAssessment -> {
+                                var entityToUpdate = synchronise(existingRiskAssessment, newRiskAssessment);
+                                return mapper.toDomain(jdbcRepository.save(entityToUpdate));
+                             })
+                            .orElseGet(() -> mapper.toDomain(jdbcRepository.save(newRiskAssessment)));
+    }
+
+    private static RiskAssessmentEntity synchronise(RiskAssessmentEntity existingRiskAssessment, RiskAssessmentEntity newRiskAssessment) {
+        return RiskAssessmentEntity.builder().id(existingRiskAssessment.getId())
+                .transactionId(existingRiskAssessment.getTransactionId())
+                .riskScoreValue(newRiskAssessment.getRiskScoreValue())
+                .riskLevel(newRiskAssessment.getRiskLevel())
+                .decision(newRiskAssessment.getDecision())
+                .mlPredictionJson(newRiskAssessment.getMlPredictionJson())
+                .assessmentTime(newRiskAssessment.getAssessmentTime())
+                .createdAt(existingRiskAssessment.getCreatedAt())
+                .updatedAt(existingRiskAssessment.getUpdatedAt())
+                .revision(existingRiskAssessment.getRevision())
+                .ruleEvaluations(newRiskAssessment.getRuleEvaluations())
+                .build();
     }
 
     @Override

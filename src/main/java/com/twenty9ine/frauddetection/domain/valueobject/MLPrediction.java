@@ -28,8 +28,4 @@ public record MLPrediction(
             Map.of()
         );
     }
-
-    public boolean isAvailable() {
-        return !"unavailable".equals(modelId);
-    }
 }

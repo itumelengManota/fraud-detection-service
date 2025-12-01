@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
+import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
+import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -12,7 +14,7 @@ import org.postgresql.util.PGobject;
 
 import java.util.UUID;
 
-@Mapper(componentModel = "spring", uses = {RuleEvaluationMapper.class})
+@Mapper(componentModel = "spring", uses = RuleEvaluationMapper.class, injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface RiskAssessmentMapper {
 
     @Mapping(target = "id", source = "assessmentId", qualifiedByName = "assessmentIdToUuid")
@@ -24,6 +26,7 @@ public interface RiskAssessmentMapper {
     @Mapping(target = "ruleEvaluations", source = "ruleEvaluations", qualifiedByName = "mapToEntitySet")
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "revision", ignore = true)
     RiskAssessmentEntity toEntity(RiskAssessment domain);
 
     default RiskAssessment toDomain(RiskAssessmentEntity entity) {
@@ -39,17 +42,7 @@ public interface RiskAssessmentMapper {
         }
 
         if (entity.getRuleEvaluations() != null) {
-            entity.getRuleEvaluations().forEach(ruleEntity -> {
-                RuleEvaluation evaluation = RuleEvaluation.builder()
-                        .ruleId(ruleEntity.getId().toString())
-                        .ruleName(ruleEntity.getRuleName())
-                        .ruleType(RuleType.valueOf(ruleEntity.getRuleType()))
-                        .triggered(true)
-                        .scoreImpact(ruleEntity.getScoreImpact())
-                        .description(ruleEntity.getDescription())
-                        .build();
-                assessment.addRuleEvaluation(evaluation);
-            });
+            entity.getRuleEvaluations().forEach(ruleEntity -> assessment.addRuleEvaluation(buildRuleEvaluation(ruleEntity)));
         }
 
         if (entity.getRiskScoreValue() != 0 && entity.getDecision() != null) {
@@ -61,6 +54,21 @@ public interface RiskAssessmentMapper {
 
         assessment.clearDomainEvents();
         return assessment;
+    }
+
+    private static RuleEvaluation buildRuleEvaluation(RuleEvaluationEntity ruleEntity) {
+        return RuleEvaluation.builder()
+                .ruleId(getRuleId(ruleEntity.getId()))
+                .ruleName(ruleEntity.getRuleName())
+                .ruleType(RuleType.valueOf(ruleEntity.getRuleType()))
+                .triggered(true)
+                .scoreImpact(ruleEntity.getScoreImpact())
+                .description(ruleEntity.getDescription())
+                .build();
+    }
+
+    private static String getRuleId(Long id) {
+        return id != null ? id.toString() : null;
     }
 
     @Named("riskLevelToString")

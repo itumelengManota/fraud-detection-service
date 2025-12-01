@@ -3,10 +3,22 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.*;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.aot.DisabledInAotMode;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,13 +27,27 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
-@SpringBootTest
+@DataJdbcTest
+@Testcontainers
+@DisabledInAotMode
+@ComponentScan(basePackages = "com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper")
 class TransactionMapperTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
 
     @Autowired
     private TransactionMapper mapper;
-
     private Instant timestamp;
 
     @BeforeEach
@@ -284,7 +310,7 @@ class TransactionMapperTest {
         entity.setAccountId("ACC999");
         entity.setAmountValue(BigDecimal.valueOf(50.00));
         entity.setAmountCurrency("USD");
-        entity.setType("WITHDRAWAL");
+        entity.setType("ATM_WITHDRAWAL");
         entity.setChannel("ATM");
         entity.setTimestamp(timestamp);
         entity.setMerchant(null);

@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     device_id UUID,
     location_id UUID NOT NULL,
     timestamp TIMESTAMP NOT NULL,
+    created_at         TIMESTAMP WITH TIME ZONE,
+    updated_at         TIMESTAMP WITH TIME ZONE,
+    revision           INTEGER NOT NULL,
 
     CONSTRAINT chk_transaction_type CHECK (type IN ('PURCHASE', 'ATM_WITHDRAWAL', 'TRANSFER', 'PAYMENT', 'REFUND')),
     CONSTRAINT chk_channel CHECK (channel IN ('CARD', 'ACH', 'WIRE', 'MOBILE', 'ONLINE', 'POS', 'ATM'))

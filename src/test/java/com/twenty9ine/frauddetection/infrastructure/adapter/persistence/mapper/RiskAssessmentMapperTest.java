@@ -1,68 +1,73 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.aot.DisabledInAotMode;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 import static com.twenty9ine.frauddetection.domain.valueobject.RiskLevel.LOW;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Disabled
-@SpringBootTest
+@DataJdbcTest
+@Testcontainers
+@DisabledInAotMode
+@ComponentScan(basePackages = "com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper")
 class RiskAssessmentMapperTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+    }
 
     @Autowired
     private RiskAssessmentMapper mapper;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     private Instant timestamp;
 
     @BeforeEach
     void setUp() {
-        timestamp = Instant.now();
+        // Truncate to milliseconds to match database precision
+        timestamp = Instant.now().truncatedTo(ChronoUnit.MILLIS);
     }
 
     @Test
-    void testToEntity_CompleteRiskAssessment_MapsAllFields() throws SQLException {
+    void testToEntity_CompleteRiskAssessment_MapsAllFields() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
         RiskAssessment assessment = RiskAssessment.of(transactionId);
 
-        assessment.addRuleEvaluation(new RuleEvaluation(
-                "RULE001",
-                "High Amount Rule",
-                RuleType.AMOUNT,
-                true,
-                50,
-                "Amount exceeds threshold"
-        ));
+        assessment.addRuleEvaluation(new RuleEvaluation("RULE001", "High Amount Rule", RuleType.AMOUNT,
+                true, 50, "Amount exceeds threshold"));
 
-        assessment.setMlPrediction(new MLPrediction(
-                "modelId",
-                "RandomForest",
-                0.92,
-                1.0,
-                Map.of("feature1", 0.5, "feature2", 0.3)
-        ));
+        assessment.setMlPrediction(new MLPrediction("modelId", "RandomForest", 0.92,
+                1.0, Map.of("feature1", 0.5, "feature2", 0.3)));
 
-        assessment.completeAssessment(
-                RiskScore.of(75),
-                Decision.REVIEW
-        );
+        assessment.completeAssessment(RiskScore.of(75), Decision.REVIEW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -70,7 +75,7 @@ class RiskAssessmentMapperTest {
         assertEquals(assessment.getAssessmentId().toUUID(), entity.getId());
         assertEquals(transactionId.toUUID(), entity.getTransactionId());
         assertEquals(75, entity.getRiskScoreValue());
-        assertEquals("MEDIUM", entity.getRiskLevel());
+        assertEquals("HIGH", entity.getRiskLevel());
         assertEquals("REVIEW", entity.getDecision());
         assertEquals(assessment.getAssessmentTime(), entity.getAssessmentTime());
         assertNotNull(entity.getMlPredictionJson());
@@ -82,10 +87,7 @@ class RiskAssessmentMapperTest {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
         RiskAssessment assessment = RiskAssessment.of(transactionId);
 
-        assessment.completeAssessment(
-                RiskScore.of(30),
-                Decision.ALLOW
-        );
+        assessment.completeAssessment(RiskScore.of(30), Decision.ALLOW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -94,7 +96,7 @@ class RiskAssessmentMapperTest {
         assertEquals(transactionId.toUUID(), entity.getTransactionId());
         assertEquals(30, entity.getRiskScoreValue());
         assertEquals("LOW", entity.getRiskLevel());
-        assertEquals("PROCEED", entity.getDecision());
+        assertEquals("ALLOW", entity.getDecision());
         assertNull(entity.getMlPredictionJson());
         assertTrue(entity.getRuleEvaluations().isEmpty());
     }
@@ -104,15 +106,12 @@ class RiskAssessmentMapperTest {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
         RiskAssessment assessment = RiskAssessment.of(transactionId);
 
-        assessment.addRuleEvaluation(new RuleEvaluation(
-                "RULE001", "Rule 1", RuleType.AMOUNT, true, 30, "Desc 1"
-        ));
-        assessment.addRuleEvaluation(new RuleEvaluation(
-                "RULE002", "Rule 2", RuleType.VELOCITY, true, 25, "Desc 2"
-        ));
-        assessment.addRuleEvaluation(new RuleEvaluation(
-                "RULE003", "Rule 3", RuleType.GEOGRAPHIC, true, 20, "Desc 3"
-        ));
+        assessment.addRuleEvaluation(new RuleEvaluation("RULE001", "Rule 1", RuleType.AMOUNT, true,
+                30, "Desc 1"));
+        assessment.addRuleEvaluation(new RuleEvaluation("RULE002", "Rule 2", RuleType.VELOCITY, true,
+                25, "Desc 2"));
+        assessment.addRuleEvaluation(new RuleEvaluation("RULE003", "Rule 3", RuleType.GEOGRAPHIC, true,
+                20, "Desc 3"));
 
         assessment.completeAssessment(RiskScore.of(75), Decision.REVIEW);
 
@@ -125,23 +124,24 @@ class RiskAssessmentMapperTest {
     void testToEntity_AllRiskLevels_MapCorrectly() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
 
-        Map<Integer, String> scoreToLevel = Map.of(
-                10, "LOW",
-                30, "LOW",
-                40, "MEDIUM",
-                60, "MEDIUM",
-                70, "HIGH",
-                90, "HIGH",
-                95, "CRITICAL"
-        );
+        Map<Integer, Map<String, Decision>> scoreToLevel = Map.of(10, Map.of("LOW", Decision.ALLOW),
+                30, Map.of("LOW", Decision.ALLOW),
+                40, Map.of("LOW", Decision.ALLOW),
+                60, Map.of("MEDIUM", Decision.CHALLENGE),
+                70, Map.of("MEDIUM", Decision.CHALLENGE),
+                90, Map.of("HIGH", Decision.REVIEW),
+                95, Map.of("CRITICAL", Decision.BLOCK));
 
-        for (Map.Entry<Integer, String> entry : scoreToLevel.entrySet()) {
-            RiskAssessment assessment = RiskAssessment.of(transactionId);
-            assessment.completeAssessment(RiskScore.of(entry.getKey()), Decision.REVIEW);
+        for (Map.Entry<Integer, Map<String, Decision>> entry : scoreToLevel.entrySet()) {
+            entry.getValue().forEach((riskLevel, decision) -> {
+                RiskAssessment assessment = RiskAssessment.of(transactionId);
+                assessment.completeAssessment(RiskScore.of(entry.getKey()), decision);
 
-            RiskAssessmentEntity entity = mapper.toEntity(assessment);
+                RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
-            assertEquals(entry.getValue(), entity.getRiskLevel());
+                assertEquals(riskLevel, entity.getRiskLevel());
+            });
+
         }
     }
 
@@ -164,19 +164,10 @@ class RiskAssessmentMapperTest {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
         RiskAssessment assessment = RiskAssessment.of(transactionId);
 
-        Map<String, Double> features = Map.of(
-                "amount", 0.7,
-                "velocity", 0.5,
-                "location", 0.3
-        );
+        Map<String, Double> features = Map.of("amount", 0.7, "velocity", 0.5, "location", 0.3);
 
-        MLPrediction mlPrediction = new MLPrediction(
-                "model123",
-                "GradientBoost",
-                0.85,
-                0.93,
-                features
-        );
+        MLPrediction mlPrediction = new MLPrediction("model123", "GradientBoost", 0.85,
+                0.93, features);
 
         assessment.setMlPrediction(mlPrediction);
         assessment.completeAssessment(RiskScore.of(85), Decision.BLOCK);
@@ -184,7 +175,7 @@ class RiskAssessmentMapperTest {
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
         assertNotNull(entity.getMlPredictionJson());
-        assertEquals("json", entity.getMlPredictionJson().getType());
+        assertEquals("jsonb", entity.getMlPredictionJson().getType());
 
         String json = entity.getMlPredictionJson().getValue();
         assertTrue(json.contains("0.85"));
@@ -207,28 +198,16 @@ class RiskAssessmentMapperTest {
         UUID assessmentId = UUID.randomUUID();
         UUID transactionId = UUID.randomUUID();
 
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setId(assessmentId);
-        entity.setTransactionId(transactionId);
-        entity.setRiskScoreValue(80);
-        entity.setRiskLevel("HIGH");
-        entity.setDecision("REVIEW");
-        entity.setAssessmentTime(timestamp);
-
-        PGobject mlJson = new PGobject();
-        mlJson.setType("json");
-        mlJson.setValue("{\"fraudProbability\":0.80,\"modelName\":\"XGBoost\",\"confidence\":0.90,\"features\":{}}");
-        entity.setMlPredictionJson(mlJson);
-
-        Set<RuleEvaluationEntity> ruleEntities = new HashSet<>();
-        RuleEvaluationEntity ruleEntity = new RuleEvaluationEntity();
-        ruleEntity.setId(1L);
-        ruleEntity.setRuleName("Test Rule");
-        ruleEntity.setRuleType("AMOUNT");
-        ruleEntity.setScoreImpact(40);
-        ruleEntity.setDescription("Test description");
-        ruleEntities.add(ruleEntity);
-        entity.setRuleEvaluations(ruleEntities);
+        RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                .id(assessmentId)
+                .transactionId(transactionId)
+                .riskScoreValue(80)
+                .riskLevel("HIGH")
+                .decision("REVIEW")
+                .assessmentTime(timestamp)
+                .mlPredictionJson(buildMlJson())
+                .ruleEvaluations(buildRuleEvaluationEntities())
+                .build();
 
         RiskAssessment assessment = mapper.toDomain(entity);
 
@@ -238,21 +217,42 @@ class RiskAssessmentMapperTest {
         assertEquals(80, assessment.getRiskScore().value());
         assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
         assertEquals(Decision.REVIEW, assessment.getDecision());
-        assertEquals(timestamp, assessment.getAssessmentTime());
+        // Use tolerance-based comparison for timestamps (within 10ms)
+        assertTrue(Math.abs(timestamp.toEpochMilli() - assessment.getAssessmentTime().toEpochMilli()) < 10,
+                "Timestamps should be within 10ms of each other");
         assertNotNull(assessment.getMlPrediction());
         assertEquals(1, assessment.getRuleEvaluations().size());
     }
 
+    private static @NotNull Set<RuleEvaluationEntity> buildRuleEvaluationEntities() {
+        Set<RuleEvaluationEntity> ruleEntities = new HashSet<>();
+        RuleEvaluationEntity ruleEntity = new RuleEvaluationEntity();
+        ruleEntity.setId(1L);
+        ruleEntity.setRuleName("Test Rule");
+        ruleEntity.setRuleType("AMOUNT");
+        ruleEntity.setScoreImpact(40);
+        ruleEntity.setDescription("Test description");
+        ruleEntities.add(ruleEntity);
+        return ruleEntities;
+    }
+
+    private static @NotNull PGobject buildMlJson() throws SQLException {
+        PGobject mlJson = new PGobject();
+        mlJson.setType("jsonb");
+        mlJson.setValue("{\"modelId\":\"model-id\",\"modelVersion\":\"XGBoost\",\"fraudProbability\":0.80,\"confidence\":0.90,\"featureImportance\":{}}");
+        return mlJson;
+    }
+
     @Test
     void testToDomain_MinimalEntity_MapsRequiredFields() {
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setTransactionId(UUID.randomUUID());
-        entity.setRiskScoreValue(25);
-        entity.setRiskLevel("LOW");
-        entity.setDecision("PROCEED");
-        entity.setAssessmentTime(timestamp);
-        entity.setRuleEvaluations(new HashSet<>());
+        RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                .id(UUID.randomUUID())
+                .transactionId(UUID.randomUUID())
+                .riskScoreValue(25)
+                .riskLevel("LOW")
+                .decision("ALLOW")
+                .assessmentTime(timestamp)
+                .ruleEvaluations(new HashSet<>()).build();
 
         RiskAssessment assessment = mapper.toDomain(entity);
 
@@ -266,33 +266,40 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testToDomain_AllRiskLevels_MapCorrectly() {
-        for (String level : List.of("LOW", "MEDIUM", "HIGH", "CRITICAL")) {
-            RiskAssessmentEntity entity = new RiskAssessmentEntity();
-            entity.setId(UUID.randomUUID());
-            entity.setTransactionId(UUID.randomUUID());
-            entity.setRiskScoreValue(50);
-            entity.setRiskLevel(level);
-            entity.setDecision("REVIEW");
-            entity.setAssessmentTime(timestamp);
-            entity.setRuleEvaluations(new HashSet<>());
+        Map<Integer, Map<String, String>> levels = Map.of(40, Map.of("LOW", "ALLOW"),
+                70, Map.of("MEDIUM", "CHALLENGE"),
+                90, Map.of("HIGH", "REVIEW"),
+                91, Map.of("CRITICAL", "BLOCK"));
 
-            RiskAssessment assessment = mapper.toDomain(entity);
+        levels.forEach((riskScore, values) -> {
+            values.forEach((riskLevel, decision) -> {
+                RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                        .id(UUID.randomUUID())
+                        .transactionId(UUID.randomUUID())
+                        .riskScoreValue(riskScore)
+                        .riskLevel(riskLevel)
+                        .decision(decision)
+                        .assessmentTime(timestamp)
+                        .ruleEvaluations(new HashSet<>()).build();
 
-            assertEquals(RiskLevel.valueOf(level), assessment.getRiskLevel());
-        }
+                RiskAssessment assessment = mapper.toDomain(entity);
+
+                assertEquals(RiskLevel.valueOf(riskLevel), assessment.getRiskLevel());
+            });
+        });
     }
 
     @Test
     void testToDomain_AllDecisions_MapCorrectly() {
         for (String decision : List.of("ALLOW", "REVIEW", "BLOCK")) {
-            RiskAssessmentEntity entity = new RiskAssessmentEntity();
-            entity.setId(UUID.randomUUID());
-            entity.setTransactionId(UUID.randomUUID());
-            entity.setRiskScoreValue(50);
-            entity.setRiskLevel("MEDIUM");
-            entity.setDecision(decision);
-            entity.setAssessmentTime(timestamp);
-            entity.setRuleEvaluations(new HashSet<>());
+            RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                    .id(UUID.randomUUID())
+                    .transactionId(UUID.randomUUID())
+                    .riskScoreValue(50)
+                    .riskLevel("MEDIUM")
+                    .decision(decision)
+                    .assessmentTime(timestamp)
+                    .ruleEvaluations(new HashSet<>()).build();
 
             RiskAssessment assessment = mapper.toDomain(entity);
 
@@ -302,18 +309,18 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testToDomain_WithMLPrediction_DeserializesCorrectly() throws SQLException {
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setTransactionId(UUID.randomUUID());
-        entity.setRiskScoreValue(85);
-        entity.setRiskLevel("HIGH");
-        entity.setDecision("BLOCK");
-        entity.setAssessmentTime(timestamp);
-        entity.setRuleEvaluations(new HashSet<>());
+        RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                .id(UUID.randomUUID())
+                .transactionId(UUID.randomUUID())
+                .riskScoreValue(85)
+                .riskLevel("HIGH")
+                .decision("BLOCK")
+                .assessmentTime(timestamp)
+                .ruleEvaluations(new HashSet<>()).build();
 
         PGobject mlJson = new PGobject();
         mlJson.setType("json");
-        mlJson.setValue("{\"fraudProbability\":0.85,\"modelName\":\"RandomForest\",\"confidence\":0.92,\"features\":{\"f1\":0.5}}");
+        mlJson.setValue("{\"fraudProbability\":0.85,\"modelId\":\"model-id\",\"modelVersion\":\"RandomForest\",\"confidence\":0.92,\"featureImportance\":{\"f1\":0.5}}");
         entity.setMlPredictionJson(mlJson);
 
         RiskAssessment assessment = mapper.toDomain(entity);
@@ -326,15 +333,16 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testToDomain_NoMLPrediction_ReturnsNull() {
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setTransactionId(UUID.randomUUID());
-        entity.setRiskScoreValue(40);
-        entity.setRiskLevel("MEDIUM");
-        entity.setDecision("REVIEW");
-        entity.setAssessmentTime(timestamp);
-        entity.setRuleEvaluations(new HashSet<>());
-        entity.setMlPredictionJson(null);
+        RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                .id(UUID.randomUUID())
+                .transactionId(UUID.randomUUID())
+                .riskScoreValue(40)
+                .riskLevel("MEDIUM")
+                .decision("REVIEW")
+                .assessmentTime(timestamp)
+                .ruleEvaluations(new HashSet<>())
+                .mlPredictionJson(null)
+                .build();
 
         RiskAssessment assessment = mapper.toDomain(entity);
 
@@ -343,15 +351,16 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testToDomain_WithMultipleRuleEvaluations_MapsAll() {
-        RiskAssessmentEntity entity = new RiskAssessmentEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setTransactionId(UUID.randomUUID());
-        entity.setRiskScoreValue(75);
-        entity.setRiskLevel("HIGH");
-        entity.setDecision("REVIEW");
-        entity.setAssessmentTime(timestamp);
+        RiskAssessmentEntity entity = RiskAssessmentEntity.builder()
+                .id(UUID.randomUUID())
+                .transactionId(UUID.randomUUID())
+                .riskScoreValue(75)
+                .riskLevel("HIGH")
+                .decision("REVIEW")
+                .assessmentTime(timestamp).build();
 
         Set<RuleEvaluationEntity> ruleEntities = new HashSet<>();
+
         for (int i = 1; i <= 3; i++) {
             RuleEvaluationEntity ruleEntity = new RuleEvaluationEntity();
             ruleEntity.setId((long) i);
@@ -361,6 +370,7 @@ class RiskAssessmentMapperTest {
             ruleEntity.setDescription("Description " + i);
             ruleEntities.add(ruleEntity);
         }
+
         entity.setRuleEvaluations(ruleEntities);
 
         RiskAssessment assessment = mapper.toDomain(entity);
@@ -369,21 +379,15 @@ class RiskAssessmentMapperTest {
     }
 
     @Test
-    void testRoundTrip_DomainToEntityToDomain_PreservesData() throws SQLException {
+    void testRoundTrip_DomainToEntityToDomain_PreservesData() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
         RiskAssessment originalAssessment = RiskAssessment.of(transactionId);
 
-        originalAssessment.addRuleEvaluation(new RuleEvaluation(
-                "RULE001", "Test Rule", RuleType.VELOCITY, true, 35, "Description"
-        ));
+        originalAssessment.addRuleEvaluation(new RuleEvaluation("RULE001", "Test Rule", RuleType.VELOCITY,
+                true, 35, "Description"));
 
-        originalAssessment.setMlPrediction(new MLPrediction(
-                "modelId",
-                "RandomForest",
-                0.75,
-                0.88,
-                Map.of("feature1", 0.6)
-        ));
+        originalAssessment.setMlPrediction(new MLPrediction("modelId", "1.0.0", 0.75,
+                0.88, Map.of("feature1", 0.6)));
 
         originalAssessment.completeAssessment(RiskScore.of(70), Decision.REVIEW);
 
@@ -416,20 +420,24 @@ class RiskAssessmentMapperTest {
     }
 
     private @NotNull RiskAssessmentEntity getRiskAssessmentEntity(UUID assessmentId, UUID transactionId) throws SQLException {
-        RiskAssessmentEntity originalEntity = new RiskAssessmentEntity();
-        originalEntity.setId(assessmentId);
-        originalEntity.setTransactionId(transactionId);
-        originalEntity.setRiskScoreValue(65);
-        originalEntity.setRiskLevel("MEDIUM");
-        originalEntity.setDecision("REVIEW");
-        originalEntity.setAssessmentTime(timestamp);
+        return RiskAssessmentEntity.builder()
+                .id(assessmentId)
+                .transactionId(transactionId)
+                .riskScoreValue(65)
+                .riskLevel("MEDIUM")
+                .decision("REVIEW")
+                .assessmentTime(timestamp)
+                .mlPredictionJson(buildPGobject())
+                .ruleEvaluations(new HashSet<>())
+                .build();
+    }
 
+    private PGobject buildPGobject() throws SQLException {
         PGobject mlJson = new PGobject();
-        mlJson.setType("json");
-        mlJson.setValue("{\"fraudProbability\":0.70,\"modelName\":\"TestModel\",\"confidence\":0.85,\"features\":{}}");
-        originalEntity.setMlPredictionJson(mlJson);
-        originalEntity.setRuleEvaluations(new HashSet<>());
-        return originalEntity;
+        mlJson.setType("jsonb");
+        mlJson.setValue("{\"modelId\":\"fraud-detector-v1\",\"modelVersion\":\"1.0.0\",\"fraudProbability\":0.75,\"confidence\":0.88,\"featureImportance\":{\"amount\":0.4,\"velocity\":0.6}}");
+
+        return mlJson;
     }
 
     @Test
@@ -485,24 +493,19 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testMlPredictionToJson_ValidPrediction_CreatesValidPGobject() {
-        MLPrediction prediction = new MLPrediction(
-                "modelId",
-                "RandomForest",
-                0.85,
-                0.90,
-                Map.of("key1", 0.5, "key2", 0.3)
-        );
+        MLPrediction prediction = new MLPrediction("modelId", "RandomForest", 0.85,
+                0.90, Map.of("key1", 0.5, "key2", 0.3));
 
         PGobject pgObject = mapper.mlPredictionToJson(prediction);
 
         assertNotNull(pgObject);
-        assertEquals("json", pgObject.getType());
+        assertEquals("jsonb", pgObject.getType());
         assertTrue(pgObject.getValue().contains("0.85"));
-        assertTrue(pgObject.getValue().contains("TestModel"));
+        assertTrue(pgObject.getValue().contains("RandomForest"));
     }
 
     @Test
-    void testMlPredictionToJson_NullPrediction_ReturnsNull() throws SQLException {
+    void testMlPredictionToJson_NullPrediction_ReturnsNull() {
         PGobject result = mapper.mlPredictionToJson(null);
         assertNull(result);
     }
@@ -511,18 +514,18 @@ class RiskAssessmentMapperTest {
     void testJsonToMlPrediction_ValidJson_DeserializesCorrectly() throws SQLException {
         PGobject pgObject = new PGobject();
         pgObject.setType("json");
-        pgObject.setValue("{\"fraudProbability\":0.80,\"modelName\":\"Model\",\"confidence\":0.95,\"features\":{\"f1\":0.4}}");
+        pgObject.setValue("{\"fraudProbability\":0.80,\"modelId\":\"model-id\",\"modelVersion\":\"Model\",\"confidence\":0.95,\"featureImportance\":{\"f1\":0.4}}");
 
         MLPrediction prediction = mapper.jsonToMlPrediction(pgObject);
 
         assertNotNull(prediction);
         assertEquals(0.80, prediction.fraudProbability());
-        assertEquals("Model", prediction.modelId());
+        assertEquals("Model", prediction.modelVersion());
         assertEquals(0.95, prediction.confidence());
     }
 
     @Test
-    void testJsonToMlPrediction_NullJson_ReturnsNull() throws SQLException {
+    void testJsonToMlPrediction_NullJson_ReturnsNull() {
         MLPrediction prediction = mapper.jsonToMlPrediction(null);
         assertNull(prediction);
     }

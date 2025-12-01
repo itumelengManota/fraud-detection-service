@@ -34,7 +34,8 @@ ext {
     redissonVersion = '3.52.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '2.7.0'
-    logstashVersion = '8.0'
+//    logstashVersion = '8.0'
+    uuidGeneratorVersion = '5.1.1'
 }
 
 dependencies {
@@ -47,6 +48,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.flywaydb:flyway-database-postgresql'
 
+    //For UUIDv7 (defined in RFC 9562)
+    implementation "com.fasterxml.uuid:java-uuid-generator:$uuidGeneratorVersion"
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-database-postgresql'
     implementation 'org.springframework.kafka:spring-kafka'

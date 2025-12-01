@@ -1,8 +1,12 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
@@ -24,4 +28,15 @@ public class TransactionEntity {
     private DeviceEntity device;
     private LocationEntity location;
     private Instant timestamp;
+
+    @NotNull
+    @CreatedDate
+    private Instant createdAt;
+
+    @NotNull
+    @LastModifiedDate
+    private Instant updatedAt;
+
+    @Version
+    private int revision;
 }

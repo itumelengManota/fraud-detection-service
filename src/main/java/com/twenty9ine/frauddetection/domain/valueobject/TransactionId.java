@@ -1,5 +1,7 @@
 package com.twenty9ine.frauddetection.domain.valueobject;
 
+import com.fasterxml.uuid.Generators;
+
 import java.util.UUID;
 
 public record TransactionId(UUID transactionId) {
@@ -9,7 +11,7 @@ public record TransactionId(UUID transactionId) {
     }
 
     public static TransactionId generate() {
-        return new TransactionId(UUID.randomUUID());
+        return new TransactionId(Generators.timeBasedEpochGenerator().generate());
     }
 
     public static TransactionId of(String transactionId) {

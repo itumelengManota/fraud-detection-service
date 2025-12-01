@@ -1,5 +1,7 @@
 package com.twenty9ine.frauddetection.domain.valueobject;
 
+import com.fasterxml.uuid.Generators;
+
 import java.util.UUID;
 
 public record AssessmentId(UUID assessmentId) {
@@ -9,7 +11,7 @@ public record AssessmentId(UUID assessmentId) {
     }
 
     public static AssessmentId generate() {
-        return new AssessmentId(UUID.randomUUID());
+        return new AssessmentId(Generators.timeBasedEpochGenerator().generate());
     }
 
     public static AssessmentId of(String assessmentId) {

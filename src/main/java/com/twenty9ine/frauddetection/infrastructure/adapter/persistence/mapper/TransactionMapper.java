@@ -3,6 +3,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.*;
+import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
@@ -10,7 +11,7 @@ import org.mapstruct.Named;
 import java.util.Currency;
 import java.util.UUID;
 
-@Mapper(componentModel = "spring", uses = {LocationMapper.class})
+@Mapper(componentModel = "spring", uses = LocationMapper.class, injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface TransactionMapper {
 
     @Mapping(target = "id", source = "id", qualifiedByName = "transactionIdToUUID")
