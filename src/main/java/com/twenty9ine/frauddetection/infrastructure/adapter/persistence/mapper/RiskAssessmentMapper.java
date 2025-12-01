@@ -1,6 +1,8 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
@@ -12,6 +14,8 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 import org.postgresql.util.PGobject;
 
+import java.sql.SQLException;
+import java.util.Map;
 import java.util.UUID;
 
 @Mapper(componentModel = "spring", uses = RuleEvaluationMapper.class, injectionStrategy = InjectionStrategy.CONSTRUCTOR)
@@ -91,30 +95,80 @@ public interface RiskAssessmentMapper {
         return assessmentId != null ? assessmentId.toUUID() : null;
     }
 
-    @Named("mlPredictionToJson")
-    default PGobject mlPredictionToJson(MLPrediction prediction) {
-        if (prediction == null) return null;
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            String json = mapper.writeValueAsString(prediction);
+//    @Named("mlPredictionToJson")
+//    default PGobject mlPredictionToJson(MLPrediction prediction) {
+//        if (prediction == null) return null;
+//        try {
+//            ObjectMapper mapper = new ObjectMapper();
+//            String json = mapper.writeValueAsString(prediction);
+//
+//            PGobject pgObject = new PGobject();
+//            pgObject.setType("jsonb");
+//            pgObject.setValue(json);
+//            return pgObject;
+//        } catch (Exception e) {
+//            throw new RuntimeException("Failed to serialize MLPrediction", e);
+//        }
+//    }
 
-            PGobject pgObject = new PGobject();
-            pgObject.setType("jsonb");
-            pgObject.setValue(json);
-            return pgObject;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize MLPrediction", e);
+//    @Named("jsonToMlPrediction")
+//    default MLPrediction jsonToMlPrediction(PGobject pgObject) {
+//        if (pgObject == null || pgObject.getValue() == null) return null;
+//
+//        try {
+//            ObjectMapper mapper = new ObjectMapper();
+//            return mapper.readValue(pgObject.getValue(), MLPrediction.class);
+//        } catch (JsonProcessingException e) {
+//            throw new RuntimeException("Failed to deserialize MLPrediction", e);
+//        }
+//    }
+
+    @Named("jsonToMlPrediction")
+    default MLPrediction jsonToMlPrediction(PGobject json) {
+        if (json == null || json.getValue() == null) {
+            return null;
+        }
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode node = objectMapper.readTree(json.getValue());
+
+            return new MLPrediction(
+                    node.get("modelId").asText(),
+                    node.get("modelVersion").asText(),
+                    node.get("fraudProbability").asDouble(),
+                    node.get("confidence").asDouble(),
+                    objectMapper.convertValue(
+                            node.get("featureImportance"),
+                            new TypeReference<Map<String, Double>>() {}
+                    )
+            );
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to deserialize MLPrediction", e);
         }
     }
 
-    @Named("jsonToMlPrediction")
-    default MLPrediction jsonToMlPrediction(PGobject pgObject) {
-        if (pgObject == null || pgObject.getValue() == null) return null;
+    @Named("mlPredictionToJson")
+    default PGobject mlPredictionToJson(MLPrediction prediction) {
+        if (prediction == null) {
+            return null;
+        }
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(pgObject.getValue(), MLPrediction.class);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize MLPrediction", e);
+            PGobject pgObject = new PGobject();
+            pgObject.setType("jsonb");
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Object> json = Map.of(
+                    "modelId", prediction.modelId(),
+                    "modelVersion", prediction.modelVersion(),
+                    "fraudProbability", prediction.fraudProbability(),
+                    "confidence", prediction.confidence(),
+                    "featureImportance", prediction.featureImportance()
+            );
+
+            pgObject.setValue(objectMapper.writeValueAsString(json));
+            return pgObject;
+        } catch (SQLException | JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize MLPrediction", e);
         }
     }
 }

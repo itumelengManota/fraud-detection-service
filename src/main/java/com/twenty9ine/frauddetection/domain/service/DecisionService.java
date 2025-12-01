@@ -19,13 +19,17 @@ public class DecisionService {
 
     public Decision makeDecision(RiskAssessment assessment) {
         RiskLevel level = assessment.getRiskLevel();
-        DecisionStrategy strategy = strategies.get(level);
+        DecisionStrategy strategy = findStrategy(level);
 
         if (strategy == null) {
             throw new IllegalStateException("No strategy for risk level: %s".formatted(level));
         }
 
         return strategy.decide(assessment);
+    }
+
+    private DecisionStrategy findStrategy(RiskLevel level) {
+        return strategies.get(level);
     }
 
     private static Map<RiskLevel, DecisionStrategy> initialise(List<DecisionStrategy> strategies) {
