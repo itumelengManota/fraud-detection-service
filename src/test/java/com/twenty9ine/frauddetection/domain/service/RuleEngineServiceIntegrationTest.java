@@ -2,7 +2,6 @@ package com.twenty9ine.frauddetection.domain.service;
 
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.kie.api.KieServices;
 import org.kie.api.runtime.KieContainer;
@@ -15,7 +14,6 @@ import java.util.Map;
 import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@Disabled
 class RuleEngineServiceIntegrationTest {
 
     private RuleEngineService ruleEngineService;
@@ -57,7 +55,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("LARGE_AMOUNT");
+            .containsExactly("Large Amount");
         assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.MEDIUM);
         assertThat(result.aggregateScore()).isEqualTo(25.0);
     }
@@ -76,7 +74,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("LARGE_AMOUNT", "VERY_LARGE_AMOUNT");
+            .containsExactlyInAnyOrder("Large Amount", "Very Large Amount");
         assertThat(result.aggregateScore()).isEqualTo(65.0); // MEDIUM (25) + HIGH (40)
     }
 
@@ -115,8 +113,8 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("VELOCITY_5MIN");
-        assertThat(result.getTriggers().get(0).impact()).isEqualTo(RiskImpact.HIGH);
+            .containsExactly("High Velocity 5min");
+        assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.HIGH);
         assertThat(result.aggregateScore()).isEqualTo(40.0);
     }
 
@@ -155,7 +153,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("VELOCITY_5MIN", "VELOCITY_1HOUR");
+            .containsExactlyInAnyOrder("High Velocity 5min", "Extreme Velocity 1hr");
         assertThat(result.aggregateScore()).isEqualTo(100.0); // HIGH (40) + CRITICAL (60)
     }
 
@@ -186,7 +184,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("IMPOSSIBLE_TRAVEL");
+            .containsExactly("Impossible Travel");
         assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.CRITICAL);
         assertThat(result.getTriggers().getFirst().triggeredValue()).isEqualTo(11140.0);
         assertThat(result.aggregateScore()).isEqualTo(60.0);
@@ -240,11 +238,11 @@ class RuleEngineServiceIntegrationTest {
             .hasSize(5)
             .extracting(RuleTrigger::ruleName)
             .containsExactlyInAnyOrder(
-                "LARGE_AMOUNT",
-                "VERY_LARGE_AMOUNT",
-                "VELOCITY_5MIN",
-                "VELOCITY_1HOUR",
-                "IMPOSSIBLE_TRAVEL"
+                "Large Amount",
+                "Very Large Amount",
+                "High Velocity 5min",
+                "Extreme Velocity 1hr",
+                "Impossible Travel"
             );
         assertThat(result.aggregateScore()).isEqualTo(225.0);
         // MEDIUM (25) + HIGH (40) + HIGH (40) + CRITICAL (60) + CRITICAL (60)
@@ -264,7 +262,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("LARGE_AMOUNT");
+            .containsExactly("Large Amount");
     }
 
     @Test
@@ -281,7 +279,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("LARGE_AMOUNT", "VERY_LARGE_AMOUNT");
+            .containsExactlyInAnyOrder("Large Amount", "Very Large Amount");
     }
 
     @Test
@@ -319,7 +317,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("VELOCITY_5MIN");
+            .containsExactly("High Velocity 5min");
     }
 
     @Test
@@ -357,7 +355,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("VELOCITY_5MIN", "VELOCITY_1HOUR");
+            .containsExactlyInAnyOrder("High Velocity 5min", "Extreme Velocity 1hr");
     }
 
     private Transaction createTestTransaction(BigDecimal amount) {
