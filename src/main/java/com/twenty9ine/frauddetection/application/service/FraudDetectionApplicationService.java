@@ -2,6 +2,9 @@ package com.twenty9ine.frauddetection.application.service;
 
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.port.in.*;
+import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
+import com.twenty9ine.frauddetection.application.port.in.query.FindHighRiskAssessmentsQuery;
+import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessmentQuery;
 import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;

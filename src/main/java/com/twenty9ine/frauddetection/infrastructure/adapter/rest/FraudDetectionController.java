@@ -2,6 +2,9 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.port.in.*;
+import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
+import com.twenty9ine.frauddetection.application.port.in.query.FindHighRiskAssessmentsQuery;
+import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessmentQuery;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

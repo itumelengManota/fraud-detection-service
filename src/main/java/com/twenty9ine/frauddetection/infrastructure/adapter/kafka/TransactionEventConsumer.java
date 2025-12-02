@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
-import com.twenty9ine.frauddetection.application.port.in.AssessTransactionRiskCommand;
+import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
 import com.twenty9ine.frauddetection.application.port.in.AssessTransactionRiskUseCase;
 import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;

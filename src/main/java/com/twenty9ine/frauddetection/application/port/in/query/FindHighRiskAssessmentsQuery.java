@@ -1,4 +1,4 @@
-package com.twenty9ine.frauddetection.application.port.in;
+package com.twenty9ine.frauddetection.application.port.in.query;
 
 import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import jakarta.validation.constraints.NotNull;

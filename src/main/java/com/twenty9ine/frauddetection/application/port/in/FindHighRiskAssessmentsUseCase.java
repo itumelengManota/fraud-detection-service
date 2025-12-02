@@ -1,6 +1,7 @@
 package com.twenty9ine.frauddetection.application.port.in;
 
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
+import com.twenty9ine.frauddetection.application.port.in.query.FindHighRiskAssessmentsQuery;
 
 import java.util.List;
 

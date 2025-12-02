@@ -1,4 +1,4 @@
-package com.twenty9ine.frauddetection.application.port.in;
+package com.twenty9ine.frauddetection.application.port.in.command;
 
 import com.twenty9ine.frauddetection.application.dto.LocationDto;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
