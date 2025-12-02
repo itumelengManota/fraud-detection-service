@@ -18,7 +18,6 @@ public record RiskAssessmentDto(
     Instant assessmentTime
 ) {
 
-    //TODO: Consider using a mapper library like MapStruct for complex mappings
     public static RiskAssessmentDto from(RiskAssessment assessment) {
         return RiskAssessmentDto.builder()
             .assessmentId(assessment.getAssessmentId().toUUID())

@@ -6,6 +6,6 @@ import java.time.Instant;
 
 @Builder
 public record Transaction(TransactionId id, String accountId, Money amount, TransactionType type, Channel channel,
-                          String merchantId, String merchantName, String merchantCategory, Location location,
+                          Merchant merchant, Location location,
                           String deviceId, Instant timestamp) {
 }

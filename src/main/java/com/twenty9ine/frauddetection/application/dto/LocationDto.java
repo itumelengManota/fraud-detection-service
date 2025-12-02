@@ -12,7 +12,6 @@ public record LocationDto(
     String city,
     @NotNull Instant timestamp
 ) {
-    //TODO: Create mapper for this
     public Location toDomain() {
         return new Location(latitude, longitude, country, city, timestamp);
     }

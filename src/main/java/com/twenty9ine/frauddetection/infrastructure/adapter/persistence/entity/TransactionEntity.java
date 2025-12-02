@@ -1,8 +1,7 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Builder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -13,30 +12,29 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-@Setter
-@Getter
-@Table("transactions")
-public class TransactionEntity {
-    @Id
-    private UUID id;
-    private String accountId;
-    private BigDecimal amountValue;
-    private String amountCurrency;
-    private String type;
-    private String channel;
-    private MerchantEntity merchant;
-    private DeviceEntity device;
-    private LocationEntity location;
-    private Instant timestamp;
+@Builder
+@Table("transaction")
+public record TransactionEntity(@Id
+                                UUID id,
+                                String accountId,
+                                BigDecimal amountValue,
+                                String amountCurrency,
+                                String type,
+                                String channel,
+                                MerchantEntity merchant,
+                                String deviceId,
+                                LocationEntity location,
+                                Instant timestamp,
 
-    @NotNull
-    @CreatedDate
-    private Instant createdAt;
+                                @NotNull
+                                @CreatedDate
+                                Instant createdAt,
 
-    @NotNull
-    @LastModifiedDate
-    private Instant updatedAt;
+                                @NotNull
+                                @LastModifiedDate
+                                Instant updatedAt,
 
-    @Version
-    private int revision;
+                                @Version
+                                int revision) {
+
 }

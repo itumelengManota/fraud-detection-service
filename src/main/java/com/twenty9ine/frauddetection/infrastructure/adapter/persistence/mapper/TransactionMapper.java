@@ -11,7 +11,7 @@ import org.mapstruct.Named;
 import java.util.Currency;
 import java.util.UUID;
 
-@Mapper(componentModel = "spring", uses = LocationMapper.class, injectionStrategy = InjectionStrategy.CONSTRUCTOR)
+@Mapper(componentModel = "spring", uses = {LocationMapper.class, MerchantMapper.class}, injectionStrategy = InjectionStrategy.CONSTRUCTOR)
 public interface TransactionMapper {
 
     @Mapping(target = "id", source = "id", qualifiedByName = "transactionIdToUUID")
@@ -19,19 +19,16 @@ public interface TransactionMapper {
     @Mapping(target = "amountCurrency", source = "amount.currency", qualifiedByName = "currencyToCode")
     @Mapping(target = "type", source = "type", qualifiedByName = "enumToString")
     @Mapping(target = "channel", source = "channel", qualifiedByName = "enumToString")
-    @Mapping(target = "merchant", source = ".", qualifiedByName = "toMerchantEntity")
-    @Mapping(target = "device", source = "deviceId", qualifiedByName = "toDeviceEntity")
     @Mapping(target = "location", source = "location")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "revision", ignore = true)
     TransactionEntity toEntity(Transaction transaction);
 
     @Mapping(target = "id", source = "id", qualifiedByName = "uuidToTransactionId")
-    @Mapping(target = "amount", expression = "java(new Money(entity.getAmountValue(), Currency.getInstance(entity.getAmountCurrency())))")
+    @Mapping(target = "amount", expression = "java(new Money(entity.amountValue(), Currency.getInstance(entity.amountCurrency())))")
     @Mapping(target = "type", source = "type", qualifiedByName = "stringToTransactionType")
     @Mapping(target = "channel", source = "channel", qualifiedByName = "stringToChannel")
-    @Mapping(target = "merchantId", source = "merchant.merchantId")
-    @Mapping(target = "merchantName", source = "merchant.name")
-    @Mapping(target = "merchantCategory", source = "merchant.category")
-    @Mapping(target = "deviceId", source = "device.deviceId")
     @Mapping(target = "location", source = "location")
     Transaction toDomain(TransactionEntity entity);
 
@@ -63,23 +60,5 @@ public interface TransactionMapper {
     @Named("stringToChannel")
     default Channel stringToChannel(String channel) {
         return Channel.valueOf(channel);
-    }
-
-    @Named("toMerchantEntity")
-    default MerchantEntity toMerchantEntity(Transaction transaction) {
-        if (transaction.merchantId() == null) return null;
-        MerchantEntity entity = new MerchantEntity();
-        entity.setMerchantId(transaction.merchantId());
-        entity.setName(transaction.merchantName());
-        entity.setCategory(transaction.merchantCategory());
-        return entity;
-    }
-
-    @Named("toDeviceEntity")
-    default DeviceEntity toDeviceEntity(String deviceId) {
-        if (deviceId == null) return null;
-        DeviceEntity entity = new DeviceEntity();
-        entity.setDeviceId(deviceId);
-        return entity;
     }
 }

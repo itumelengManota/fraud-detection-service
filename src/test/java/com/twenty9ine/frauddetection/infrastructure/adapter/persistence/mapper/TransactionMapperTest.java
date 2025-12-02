@@ -4,18 +4,12 @@ import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -63,9 +57,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(100.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchantId("MERCH001")
-                .merchantName("Test Merchant")
-                .merchantCategory("RETAIL")
+                .merchant(new Merchant(MerchantId.of("MERCH001"), "Test Merchant", "RETAIL"))
                 .deviceId("DEV456")
                 .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
                 .timestamp(timestamp)
@@ -74,13 +66,13 @@ class TransactionMapperTest {
         TransactionEntity entity = mapper.toEntity(transaction);
 
         assertNotNull(entity);
-        assertEquals(transaction.id().toUUID(), entity.getId());
-        assertEquals(transaction.accountId(), entity.getAccountId());
-        assertEquals(transaction.amount().value(), entity.getAmountValue());
-        assertEquals(transaction.amount().currency().getCurrencyCode(), entity.getAmountCurrency());
-        assertEquals(transaction.type().name(), entity.getType());
-        assertEquals(transaction.channel().name(), entity.getChannel());
-        assertEquals(transaction.timestamp(), entity.getTimestamp());
+        assertEquals(transaction.id().toUUID(), entity.id());
+        assertEquals(transaction.accountId(), entity.accountId());
+        assertEquals(transaction.amount().value(), entity.amountValue());
+        assertEquals(transaction.amount().currency().getCurrencyCode(), entity.amountCurrency());
+        assertEquals(transaction.type().name(), entity.type());
+        assertEquals(transaction.channel().name(), entity.channel());
+        assertEquals(transaction.timestamp(), entity.timestamp());
     }
 
     @Test
@@ -91,18 +83,16 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(250.50), Currency.getInstance("EUR")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.POS)
-                .merchantId("MERCH002")
-                .merchantName("Coffee Shop")
-                .merchantCategory("FOOD")
+                .merchant(new Merchant(MerchantId.of("MERCH002"), "Coffee Shop", "FOOD"))
                 .timestamp(timestamp)
                 .build();
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNotNull(entity.getMerchant());
-        assertEquals(transaction.merchantId(), entity.getMerchant().getMerchantId());
-        assertEquals(transaction.merchantName(), entity.getMerchant().getName());
-        assertEquals(transaction.merchantCategory(), entity.getMerchant().getCategory());
+        assertNotNull(entity.merchant());
+        assertEquals(transaction.merchant().id().merchantId(), entity.merchant().id());
+        assertEquals(transaction.merchant().name(), entity.merchant().name());
+        assertEquals(transaction.merchant().category(), entity.merchant().category());
     }
 
     @Test
@@ -113,15 +103,13 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(75.00), Currency.getInstance("GBP")))
                 .type(TransactionType.ATM_WITHDRAWAL)
                 .channel(Channel.ATM)
-                .merchantId(null)
-                .merchantName(null)
-                .merchantCategory(null)
+                .merchant(null)
                 .timestamp(timestamp)
                 .build();
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNull(entity.getMerchant());
+        assertNull(entity.merchant());
     }
 
     @Test
@@ -138,8 +126,8 @@ class TransactionMapperTest {
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNotNull(entity.getDevice());
-        assertEquals(transaction.deviceId(), entity.getDevice().getDeviceId());
+        assertNotNull(entity.deviceId());
+        assertEquals(transaction.deviceId(), entity.deviceId());
     }
 
     @Test
@@ -156,7 +144,7 @@ class TransactionMapperTest {
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNull(entity.getDevice());
+        assertNull(entity.deviceId());
     }
 
     @Test
@@ -175,12 +163,12 @@ class TransactionMapperTest {
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNotNull(entity.getLocation());
-        assertEquals(location.latitude(), entity.getLocation().getLatitude());
-        assertEquals(location.longitude(), entity.getLocation().getLongitude());
-        assertEquals(location.country(), entity.getLocation().getCountry());
-        assertEquals(location.city(), entity.getLocation().getCity());
-        assertEquals(location.timestamp(), entity.getLocation().getTimestamp());
+        assertNotNull(entity.location());
+        assertEquals(location.latitude(), entity.location().latitude());
+        assertEquals(location.longitude(), entity.location().longitude());
+        assertEquals(location.country(), entity.location().country());
+        assertEquals(location.city(), entity.location().city());
+        assertEquals(location.timestamp(), entity.location().timestamp());
     }
 
     @Test
@@ -197,7 +185,7 @@ class TransactionMapperTest {
 
         TransactionEntity entity = mapper.toEntity(transaction);
 
-        assertNull(entity.getLocation());
+        assertNull(entity.location());
     }
 
     @Test
@@ -214,7 +202,7 @@ class TransactionMapperTest {
 
             TransactionEntity entity = mapper.toEntity(transaction);
 
-            assertEquals(type.name(), entity.getType());
+            assertEquals(type.name(), entity.type());
         }
     }
 
@@ -232,7 +220,7 @@ class TransactionMapperTest {
 
             TransactionEntity entity = mapper.toEntity(transaction);
 
-            assertEquals(channel.name(), entity.getChannel());
+            assertEquals(channel.name(), entity.channel());
         }
     }
 
@@ -240,119 +228,113 @@ class TransactionMapperTest {
     void testToDomain_CompleteEntity_MapsAllFields() {
         UUID id = UUID.randomUUID();
 
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(id);
-        entity.setAccountId("ACC456");
-        entity.setAmountValue(BigDecimal.valueOf(125.75));
-        entity.setAmountCurrency("EUR");
-        entity.setType("PURCHASE");
-        entity.setChannel("POS");
-        entity.setTimestamp(timestamp);
-
-        MerchantEntity merchant = new MerchantEntity();
-        merchant.setMerchantId("MERCH003");
-        merchant.setName("Bookstore");
-        merchant.setCategory("BOOKS");
-        entity.setMerchant(merchant);
-
-        DeviceEntity device = new DeviceEntity();
-        device.setDeviceId("DEV789");
-        entity.setDevice(device);
-
-        LocationEntity location = new LocationEntity();
-        location.setLatitude(48.8566);
-        location.setLongitude(2.3522);
-        location.setCountry("France");
-        location.setCity("Paris");
-        location.setTimestamp(timestamp);
-        entity.setLocation(location);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(id)
+                .accountId("ACC456")
+                .amountValue(BigDecimal.valueOf(125.75))
+                .amountCurrency("EUR")
+                .type("PURCHASE")
+                .channel("POS")
+                .merchant(new MerchantEntity("MERCH003", "Bookstore", "BOOKS"))
+                .deviceId("DEV789")
+                .location(buildLocationEntity())
+                .timestamp(timestamp)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
         assertNotNull(transaction);
         assertEquals(id, transaction.id().toUUID());
-        assertEquals(entity.getAccountId(), transaction.accountId());
-        assertEquals(entity.getAmountValue(), transaction.amount().value());
-        assertEquals(Currency.getInstance(entity.getAmountCurrency()), transaction.amount().currency());
+        assertEquals(entity.accountId(), transaction.accountId());
+        assertEquals(entity.amountValue(), transaction.amount().value());
+        assertEquals(Currency.getInstance(entity.amountCurrency()), transaction.amount().currency());
         assertEquals(TransactionType.PURCHASE, transaction.type());
         assertEquals(Channel.POS, transaction.channel());
-        assertEquals(entity.getTimestamp(), transaction.timestamp());
+        assertEquals(entity.timestamp(), transaction.timestamp());
+    }
+
+    private LocationEntity buildLocationEntity() {
+        return LocationEntity.builder()
+                .latitude(48.8566)
+                .longitude(2.3522)
+                .country("France")
+                .city("Paris")
+                .timestamp(timestamp)
+                .build();
     }
 
     @Test
     void testToDomain_MerchantDetails_MapsCorrectly() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC789");
-        entity.setAmountValue(BigDecimal.valueOf(300.00));
-        entity.setAmountCurrency("USD");
-        entity.setType("PURCHASE");
-        entity.setChannel("ONLINE");
-        entity.setTimestamp(timestamp);
+        MerchantEntity merchant = new MerchantEntity("MERCH004", "Electronics Store", "ELECTRONICS");
 
-        MerchantEntity merchant = new MerchantEntity();
-        merchant.setMerchantId("MERCH004");
-        merchant.setName("Electronics Store");
-        merchant.setCategory("ELECTRONICS");
-        entity.setMerchant(merchant);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC789")
+                .amountValue(BigDecimal.valueOf(300.00))
+                .amountCurrency("USD")
+                .type("PURCHASE")
+                .channel("ONLINE")
+                .timestamp(timestamp)
+                .merchant(merchant)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
-        assertEquals(merchant.getMerchantId(), transaction.merchantId());
-        assertEquals(merchant.getName(), transaction.merchantName());
-        assertEquals(merchant.getCategory(), transaction.merchantCategory());
+        assertEquals(merchant.id(), transaction.merchant().id().merchantId());
+        assertEquals(merchant.name(), transaction.merchant().name());
+        assertEquals(merchant.category(), transaction.merchant().category());
     }
 
     @Test
     void testToDomain_NoMerchant_ReturnsNullMerchantFields() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC999");
-        entity.setAmountValue(BigDecimal.valueOf(50.00));
-        entity.setAmountCurrency("USD");
-        entity.setType("ATM_WITHDRAWAL");
-        entity.setChannel("ATM");
-        entity.setTimestamp(timestamp);
-        entity.setMerchant(null);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC999")
+                .amountValue(BigDecimal.valueOf(50.00))
+                .amountCurrency("USD")
+                .type("ATM_WITHDRAWAL")
+                .channel("ATM")
+                .timestamp(timestamp)
+                .merchant(null)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
-        assertNull(transaction.merchantId());
-        assertNull(transaction.merchantName());
-        assertNull(transaction.merchantCategory());
+        assertNull(transaction.merchant());
     }
 
     @Test
     void testToDomain_DeviceId_MapsCorrectly() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC111");
-        entity.setAmountValue(BigDecimal.valueOf(85.50));
-        entity.setAmountCurrency("GBP");
-        entity.setType("PURCHASE");
-        entity.setChannel("MOBILE");
-        entity.setTimestamp(timestamp);
+        String deviceId = "MOBILE123";
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC111")
+                .amountValue(BigDecimal.valueOf(85.50))
+                .amountCurrency("GBP")
+                .type("PURCHASE")
+                .channel("MOBILE")
+                .timestamp(timestamp)
+                .deviceId(deviceId)
+                .build();
 
-        DeviceEntity device = new DeviceEntity();
-        device.setDeviceId("MOBILE123");
-        entity.setDevice(device);
 
         Transaction transaction = mapper.toDomain(entity);
 
-        assertEquals(device.getDeviceId(), transaction.deviceId());
+        assertEquals(deviceId, transaction.deviceId());
     }
 
     @Test
     void testToDomain_NoDevice_ReturnsNullDeviceId() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC222");
-        entity.setAmountValue(BigDecimal.valueOf(45.00));
-        entity.setAmountCurrency("CAD");
-        entity.setType("REFUND");
-        entity.setChannel("ONLINE");
-        entity.setTimestamp(timestamp);
-        entity.setDevice(null);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC222")
+                .amountValue(BigDecimal.valueOf(45.00))
+                .amountCurrency("CAD")
+                .type("REFUND")
+                .channel("ONLINE")
+                .timestamp(timestamp)
+                .deviceId(null)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
@@ -361,44 +343,47 @@ class TransactionMapperTest {
 
     @Test
     void testToDomain_Location_MapsAllLocationFields() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC333");
-        entity.setAmountValue(BigDecimal.valueOf(175.00));
-        entity.setAmountCurrency("AUD");
-        entity.setType("PURCHASE");
-        entity.setChannel("POS");
-        entity.setTimestamp(timestamp);
+        LocationEntity location = LocationEntity.builder()
+                .latitude(-33.8688)
+                .longitude(151.2093)
+                .country("Australia")
+                .city("Sydney")
+                .timestamp(timestamp)
+                .build();
 
-        LocationEntity location = new LocationEntity();
-        location.setLatitude(-33.8688);
-        location.setLongitude(151.2093);
-        location.setCountry("Australia");
-        location.setCity("Sydney");
-        location.setTimestamp(timestamp);
-        entity.setLocation(location);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC333")
+                .amountValue(BigDecimal.valueOf(175.00))
+                .amountCurrency("AUD")
+                .type("PURCHASE")
+                .channel("POS")
+                .timestamp(timestamp)
+                .location(location)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
         assertNotNull(transaction.location());
-        assertEquals(location.getLatitude(), transaction.location().latitude());
-        assertEquals(location.getLongitude(), transaction.location().longitude());
-        assertEquals(location.getCountry(), transaction.location().country());
-        assertEquals(location.getCity(), transaction.location().city());
-        assertEquals(location.getTimestamp(), transaction.location().timestamp());
+        assertEquals(location.latitude(), transaction.location().latitude());
+        assertEquals(location.longitude(), transaction.location().longitude());
+        assertEquals(location.country(), transaction.location().country());
+        assertEquals(location.city(), transaction.location().city());
+        assertEquals(location.timestamp(), transaction.location().timestamp());
     }
 
     @Test
     void testToDomain_NoLocation_ReturnsNullLocation() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC444");
-        entity.setAmountValue(BigDecimal.valueOf(60.00));
-        entity.setAmountCurrency("JPY");
-        entity.setType("TRANSFER");
-        entity.setChannel("ONLINE");
-        entity.setTimestamp(timestamp);
-        entity.setLocation(null);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC444")
+                .amountValue(BigDecimal.valueOf(60.00))
+                .amountCurrency("JPY")
+                .type("TRANSFER")
+                .channel("ONLINE")
+                .timestamp(timestamp)
+                .location(null)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
@@ -408,14 +393,15 @@ class TransactionMapperTest {
     @Test
     void testToDomain_AllTransactionTypes_MapCorrectly() {
         for (TransactionType type : TransactionType.values()) {
-            TransactionEntity entity = new TransactionEntity();
-            entity.setId(UUID.randomUUID());
-            entity.setAccountId("ACC777");
-            entity.setAmountValue(BigDecimal.valueOf(100.00));
-            entity.setAmountCurrency("USD");
-            entity.setType(type.name());
-            entity.setChannel("ONLINE");
-            entity.setTimestamp(timestamp);
+            TransactionEntity entity = TransactionEntity.builder()
+                    .id(UUID.randomUUID())
+                    .accountId("ACC777")
+                    .amountValue(BigDecimal.valueOf(100.00))
+                    .amountCurrency("USD")
+                    .type(type.name())
+                    .channel("ONLINE")
+                    .timestamp(timestamp)
+                    .build();
 
             Transaction transaction = mapper.toDomain(entity);
 
@@ -426,14 +412,15 @@ class TransactionMapperTest {
     @Test
     void testToDomain_AllChannels_MapCorrectly() {
         for (Channel channel : Channel.values()) {
-            TransactionEntity entity = new TransactionEntity();
-            entity.setId(UUID.randomUUID());
-            entity.setAccountId("ACC666");
-            entity.setAmountValue(BigDecimal.valueOf(100.00));
-            entity.setAmountCurrency("USD");
-            entity.setType("PURCHASE");
-            entity.setChannel(channel.name());
-            entity.setTimestamp(timestamp);
+            TransactionEntity entity = TransactionEntity.builder()
+                    .id(UUID.randomUUID())
+                    .accountId("ACC666")
+                    .amountValue(BigDecimal.valueOf(100.00))
+                    .amountCurrency("USD")
+                    .type("PURCHASE")
+                    .channel(channel.name())
+                    .timestamp(timestamp)
+                    .build();
 
             Transaction transaction = mapper.toDomain(entity);
 
@@ -449,9 +436,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(250.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchantId("MERCH005")
-                .merchantName("Fashion Store")
-                .merchantCategory("CLOTHING")
+                .merchant(new Merchant(MerchantId.of("MERCH005"), "Fashion Store", "CLOTHING"))
                 .deviceId("WEB123")
                 .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
                 .timestamp(timestamp)
@@ -466,9 +451,9 @@ class TransactionMapperTest {
         assertEquals(originalTransaction.amount().currency(), roundTripTransaction.amount().currency());
         assertEquals(originalTransaction.type(), roundTripTransaction.type());
         assertEquals(originalTransaction.channel(), roundTripTransaction.channel());
-        assertEquals(originalTransaction.merchantId(), roundTripTransaction.merchantId());
-        assertEquals(originalTransaction.merchantName(), roundTripTransaction.merchantName());
-        assertEquals(originalTransaction.merchantCategory(), roundTripTransaction.merchantCategory());
+        assertEquals(originalTransaction.merchant().id().merchantId(), roundTripTransaction.merchant().id().merchantId());
+        assertEquals(originalTransaction.merchant().name(), roundTripTransaction.merchant().name());
+        assertEquals(originalTransaction.merchant().category(), roundTripTransaction.merchant().category());
         assertEquals(originalTransaction.deviceId(), roundTripTransaction.deviceId());
         assertEquals(originalTransaction.timestamp(), roundTripTransaction.timestamp());
     }
@@ -477,31 +462,29 @@ class TransactionMapperTest {
     void testRoundTrip_EntityToDomainToEntity_PreservesData() {
         UUID id = UUID.randomUUID();
 
-        TransactionEntity originalEntity = new TransactionEntity();
-        originalEntity.setId(id);
-        originalEntity.setAccountId("ACC666");
-        originalEntity.setAmountValue(BigDecimal.valueOf(350.00));
-        originalEntity.setAmountCurrency("EUR");
-        originalEntity.setType("PURCHASE");
-        originalEntity.setChannel("MOBILE");
-        originalEntity.setTimestamp(timestamp);
+        MerchantEntity merchant = new MerchantEntity("MERCH006", "Grocery Store", "GROCERIES");
 
-        MerchantEntity merchant = new MerchantEntity();
-        merchant.setMerchantId("MERCH006");
-        merchant.setName("Grocery Store");
-        merchant.setCategory("GROCERIES");
-        originalEntity.setMerchant(merchant);
+        TransactionEntity originalEntity = TransactionEntity.builder()
+                .id(id)
+                .accountId("ACC666")
+                .amountValue(BigDecimal.valueOf(350.00))
+                .amountCurrency("EUR")
+                .type("PURCHASE")
+                .channel("MOBILE")
+                .timestamp(timestamp)
+                .merchant(merchant)
+                .build();
 
         Transaction transaction = mapper.toDomain(originalEntity);
         TransactionEntity roundTripEntity = mapper.toEntity(transaction);
 
-        assertEquals(originalEntity.getId(), roundTripEntity.getId());
-        assertEquals(originalEntity.getAccountId(), roundTripEntity.getAccountId());
-        assertEquals(originalEntity.getAmountValue(), roundTripEntity.getAmountValue());
-        assertEquals(originalEntity.getAmountCurrency(), roundTripEntity.getAmountCurrency());
-        assertEquals(originalEntity.getType(), roundTripEntity.getType());
-        assertEquals(originalEntity.getChannel(), roundTripEntity.getChannel());
-        assertEquals(originalEntity.getTimestamp(), roundTripEntity.getTimestamp());
+        assertEquals(originalEntity.id(), roundTripEntity.id());
+        assertEquals(originalEntity.accountId(), roundTripEntity.accountId());
+        assertEquals(originalEntity.amountValue(), roundTripEntity.amountValue());
+        assertEquals(originalEntity.amountCurrency(), roundTripEntity.amountCurrency());
+        assertEquals(originalEntity.type(), roundTripEntity.type());
+        assertEquals(originalEntity.channel(), roundTripEntity.channel());
+        assertEquals(originalEntity.timestamp(), roundTripEntity.timestamp());
     }
 
     @Test
@@ -563,18 +546,16 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(100.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchantId("MERCH007")
-                .merchantName("Test Merchant")
-                .merchantCategory("RETAIL")
+                .merchant(new Merchant(MerchantId.of("MERCH007"), "Test Merchant", "RETAIL"))
                 .timestamp(timestamp)
                 .build();
 
-        MerchantEntity merchantEntity = mapper.toMerchantEntity(transaction);
+        MerchantEntity merchantEntity = mapper.toEntity(transaction).merchant();
 
         assertNotNull(merchantEntity);
-        assertEquals("MERCH007", merchantEntity.getMerchantId());
-        assertEquals("Test Merchant", merchantEntity.getName());
-        assertEquals("RETAIL", merchantEntity.getCategory());
+        assertEquals("MERCH007", merchantEntity.id());
+        assertEquals("Test Merchant", merchantEntity.name());
+        assertEquals("RETAIL", merchantEntity.category());
     }
 
     @Test
@@ -585,28 +566,13 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(100.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchantId(null)
+                .merchant(null)
                 .timestamp(timestamp)
                 .build();
 
-        MerchantEntity merchantEntity = mapper.toMerchantEntity(transaction);
+        MerchantEntity merchantEntity = mapper.toEntity(transaction).merchant();
 
         assertNull(merchantEntity);
-    }
-
-    @Test
-    void testToDeviceEntity_WithDeviceId_CreatesEntity() {
-        DeviceEntity deviceEntity = mapper.toDeviceEntity("DEV123");
-
-        assertNotNull(deviceEntity);
-        assertEquals("DEV123", deviceEntity.getDeviceId());
-    }
-
-    @Test
-    void testToDeviceEntity_WithNullDeviceId_ReturnsNull() {
-        DeviceEntity deviceEntity = mapper.toDeviceEntity(null);
-
-        assertNull(deviceEntity);
     }
 
     @Test
@@ -623,31 +589,32 @@ class TransactionMapperTest {
         TransactionEntity entity = mapper.toEntity(transaction);
 
         assertNotNull(entity);
-        assertEquals(transaction.id().toUUID(), entity.getId());
-        assertEquals(transaction.accountId(), entity.getAccountId());
-        assertEquals(transaction.amount().value(), entity.getAmountValue());
-        assertNull(entity.getMerchant());
-        assertNull(entity.getDevice());
-        assertNull(entity.getLocation());
+        assertEquals(transaction.id().toUUID(), entity.id());
+        assertEquals(transaction.accountId(), entity.accountId());
+        assertEquals(transaction.amount().value(), entity.amountValue());
+        assertNull(entity.merchant());
+        assertNull(entity.deviceId());
+        assertNull(entity.location());
     }
 
     @Test
     void testToDomain_MinimalEntity_MapsRequiredFields() {
-        TransactionEntity entity = new TransactionEntity();
-        entity.setId(UUID.randomUUID());
-        entity.setAccountId("ACC_MIN");
-        entity.setAmountValue(BigDecimal.valueOf(10.00));
-        entity.setAmountCurrency("USD");
-        entity.setType("PURCHASE");
-        entity.setChannel("ONLINE");
-        entity.setTimestamp(timestamp);
+        TransactionEntity entity = TransactionEntity.builder()
+                .id(UUID.randomUUID())
+                .accountId("ACC_MIN")
+                .amountValue(BigDecimal.valueOf(10.00))
+                .amountCurrency("USD")
+                .type("PURCHASE")
+                .channel("ONLINE")
+                .timestamp(timestamp)
+                .build();
 
         Transaction transaction = mapper.toDomain(entity);
 
         assertNotNull(transaction);
-        assertEquals(entity.getId(), transaction.id().toUUID());
-        assertEquals(entity.getAccountId(), transaction.accountId());
-        assertNull(transaction.merchantId());
+        assertEquals(entity.id(), transaction.id().toUUID());
+        assertEquals(entity.accountId(), transaction.accountId());
+        assertNull(transaction.merchant());
         assertNull(transaction.deviceId());
         assertNull(transaction.location());
     }

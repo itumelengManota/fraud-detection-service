@@ -45,7 +45,7 @@ public class MLServiceAdapter implements MLServicePort {
     private FeatureVector extractFeatures(Transaction transaction) {
         return FeatureVector.builder()
             .amount(transaction.amount().value())
-            .merchantCategory(transaction.merchantCategory())
+            .merchantCategory(transaction.merchant().category())
             .accountAge(0)
             .build();
     }

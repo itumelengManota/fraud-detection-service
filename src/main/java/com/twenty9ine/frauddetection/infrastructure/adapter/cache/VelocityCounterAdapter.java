@@ -126,7 +126,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
 
     private void incrementMerchantCounter(Transaction transaction, TimeWindow timeWindow) {
         RHyperLogLog<String> merchantLog = findMerchantCounter(transaction, timeWindow);
-        merchantLog.add(transaction.merchantId());
+        merchantLog.add(transaction.merchant().id().merchantId());
         merchantLog.expire(timeWindow.getDuration());
     }
 

@@ -43,6 +43,7 @@ public class RiskAssessmentEntity {
     @Version
     private int revision;
 
+    @Builder.Default
     @MappedCollection(idColumn = "assessment_id")
     private Set<RuleEvaluationEntity> ruleEvaluations = new HashSet<>();
 }
