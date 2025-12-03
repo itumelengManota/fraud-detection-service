@@ -294,12 +294,26 @@ class RiskScoringServiceIntegrationTest {
         // Then
         assertThat(assessment).isNotNull();
         assertThat(assessment.getMlPrediction()).isNotNull();
+        assertThat(assessment.getMlPrediction().fraudProbability()).isEqualTo(0.5);
 
-        // With ML prediction of 0.5 (50 points) with weight 0.6 = 30
-        // With rules triggered (LARGE_AMOUNT=25, VERY_LARGE_AMOUNT=40) = 65 points with weight 0.4 = 26
-        // Expected score: 30 + 26 = 56 (approximately)
-        // Score calculation should be consistent
+        // Verify rules triggered: LARGE_AMOUNT (25) + VERY_LARGE_AMOUNT (40) = 65 points
+        assertThat(assessment.getRuleEvaluations()).hasSize(2);
+        assertThat(assessment.getRuleEvaluations())
+                .extracting(RuleEvaluation::ruleName)
+                .contains("Large Amount", "Very Large Amount");
+
+        // Verify composite score calculation:
+        // ML: 0.5 * 100 * 0.6 = 30
+        // Rules: 65 * 0.4 = 26
+        // Total: 30 + 26 = 56
+        assertThat(assessment.getRiskScore().value())
+                .isGreaterThanOrEqualTo(55)
+                .isLessThanOrEqualTo(57);
+
+        // Verify risk level based on score (56 should be MEDIUM: 41-70)
+        assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
     }
+
 
     @Test
     @Order(9)
