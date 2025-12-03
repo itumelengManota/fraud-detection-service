@@ -6,22 +6,11 @@ import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.cache.VelocityCounterAdapter;
-import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.TransactionJdbcRepository;
-import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.TransactionRepositoryAdapter;
-import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper.TransactionMapper;
 import org.junit.jupiter.api.*;
-import org.kie.api.KieServices;
-import org.kie.api.builder.KieBuilder;
-import org.kie.api.builder.KieFileSystem;
-import org.kie.api.builder.Message;
-import org.kie.api.runtime.KieContainer;
-import org.kie.internal.io.ResourceFactory;
-import org.mockito.Mockito;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -29,7 +18,6 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -48,7 +36,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
 
-@Disabled
 @SpringBootTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
@@ -86,9 +73,8 @@ class RiskScoringServiceIntegrationTest {
         @Bean
         public RedissonClient redissonClient() {
             Config config = new Config();
-            config.useSingleServer().setAddress(
-                    String.format("redis://%s:%d", redis.getHost(), redis.getFirstMappedPort())
-            );
+            config.useSingleServer().setAddress(String.format("redis://%s:%d", redis.getHost(), redis.getFirstMappedPort()));
+
             return Redisson.create(config);
         }
 
@@ -103,56 +89,12 @@ class RiskScoringServiceIntegrationTest {
             return new VelocityCounterAdapter(redissonClient, cacheManager);
         }
 
-//        @Bean
-//        public KieContainer kieContainer() {
-//            KieServices kieServices = KieServices.Factory.get();
-//            KieFileSystem kieFileSystem = kieServices.newKieFileSystem();
-//
-//            kieFileSystem.write(ResourceFactory.newClassPathResource("rules/velocity-rules.drl"));
-//            kieFileSystem.write(ResourceFactory.newClassPathResource("rules/geographic-rules.drl"));
-//            kieFileSystem.write(ResourceFactory.newClassPathResource("rules/amount-rules.drl"));
-//
-//            KieBuilder kieBuilder = kieServices.newKieBuilder(kieFileSystem);
-//            kieBuilder.buildAll();
-//
-//            if (kieBuilder.getResults().hasMessages(Message.Level.ERROR)) {
-//                throw new RuntimeException("Rule compilation errors: " + kieBuilder.getResults().toString());
-//            }
-//
-//            return kieServices.newKieContainer(kieBuilder.getKieModule().getReleaseId());
-//        }
-
-//        @Bean
-//        public RuleEngineService ruleEngineService(KieContainer kieContainer) {
-//            return new RuleEngineService(kieContainer);
-//        }
-
-//        @Bean
-//        public GeographicValidator geographicValidator(TransactionRepository transactionRepository) {
-//            return new GeographicValidator(transactionRepository);
-//        }
-
         @Primary
         @Bean
         public MLServicePort mlServicePort() {
-            // Simple stub implementation for testing
-            return transaction -> new MLPrediction(
-                    "test-model",
-                    "v1.0.0",
-                    0.5, // Default fraud probability
-                    0.9,
-                    Map.of("amount", 0.3, "velocity", 0.4, "location", 0.3)
-            );
+            return transaction -> new MLPrediction("test-model", "v1.0.0", 0.5,
+                    0.9, Map.of("amount", 0.3, "velocity", 0.4, "location", 0.3));
         }
-
-//        @Bean
-//        public RiskScoringService riskScoringService(
-//                RuleEngineService ruleEngine,
-//                MLServicePort mlService,
-//                VelocityServicePort velocityService,
-//                GeographicValidator geographicValidator) {
-//            return new RiskScoringService(ruleEngine, mlService, velocityService, geographicValidator, 0.6, 0.4);
-//        }
     }
 
     @Autowired
@@ -205,7 +147,7 @@ class RiskScoringServiceIntegrationTest {
         assertThat(assessment).isNotNull();
         assertThat(assessment.getMlPrediction()).isNotNull();
         assertThat(assessment.getRuleEvaluations()).hasSize(1);
-        assertThat(assessment.getRuleEvaluations().get(0).ruleName()).contains("Large Amount");
+        assertThat(assessment.getRuleEvaluations().getFirst().ruleName()).contains("Large Amount");
     }
 
     @Test
@@ -325,11 +267,7 @@ class RiskScoringServiceIntegrationTest {
 
         // Create transaction with large amount and impossible travel
         Location location2 = new Location(51.5074, -0.1278, "UK", "London", now);
-        Transaction transaction = createTransactionWithLocationAndAmount(
-                accountId,
-                location2,
-                BigDecimal.valueOf(70000.00)
-        );
+        Transaction transaction = createTransactionWithLocationAndAmount(accountId, location2, BigDecimal.valueOf(70000.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -337,8 +275,8 @@ class RiskScoringServiceIntegrationTest {
         // Then
         assertThat(assessment).isNotNull();
         assertThat(assessment.getMlPrediction()).isNotNull();
-        assertThat(assessment.getRuleEvaluations().size()).isGreaterThanOrEqualTo(3);
         assertThat(assessment.getRuleEvaluations())
+                .hasSizeGreaterThanOrEqualTo(3)
                 .extracting(RuleEvaluation::ruleName)
                 .contains("Large Amount", "Very Large Amount", "High Velocity 5min", "Impossible Travel");
     }

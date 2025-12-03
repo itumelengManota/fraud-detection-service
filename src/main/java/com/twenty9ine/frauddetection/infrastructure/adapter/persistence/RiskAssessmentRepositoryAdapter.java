@@ -28,10 +28,7 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
         RiskAssessmentEntity newRiskAssessment = mapper.toEntity(assessment);
 
         return jdbcRepository.findById(newRiskAssessment.getId())
-                             .map(existingRiskAssessment -> {
-                                var entityToUpdate = synchronise(existingRiskAssessment, newRiskAssessment);
-                                return mapper.toDomain(jdbcRepository.save(entityToUpdate));
-                             })
+                             .map(existingRiskAssessment -> mapper.toDomain(jdbcRepository.save(synchronise(existingRiskAssessment, newRiskAssessment))))
                             .orElseGet(() -> mapper.toDomain(jdbcRepository.save(newRiskAssessment)));
     }
 

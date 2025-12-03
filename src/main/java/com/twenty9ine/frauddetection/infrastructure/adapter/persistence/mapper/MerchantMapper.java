@@ -22,7 +22,7 @@ public interface MerchantMapper {
     }
 
     @Named("stringToMerchantId")
-    default MerchantId StringToMerchantId(String id) {
+    default MerchantId stringToMerchantId(String id) {
         return MerchantId.of(id);
     }
 }

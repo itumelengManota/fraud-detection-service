@@ -17,4 +17,6 @@ public interface TransactionJdbcRepository extends CrudRepository<TransactionEnt
     List<TransactionEntity> findByAccountIdAndTimestampBetween(String accountId, Instant start, Instant end);
 
     Optional<TransactionEntity> findFirstByAccountIdOrderByTimestampAsc(String accountId);
+
+    Optional<TransactionEntity> findFirstByAccountIdOrderByTimestampDesc(String accountId);
 }

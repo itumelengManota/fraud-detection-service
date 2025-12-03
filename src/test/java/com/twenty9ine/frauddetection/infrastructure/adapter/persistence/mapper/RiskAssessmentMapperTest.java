@@ -59,15 +59,14 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_CompleteRiskAssessment_MapsAllFields() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
+        RuleEvaluation ruleEvaluation = new RuleEvaluation("RULE001", "High Amount Rule", RuleType.AMOUNT,
+                                        true, 50, "Amount exceeds threshold");
+        MLPrediction mlPrediction = new MLPrediction("modelId", "RandomForest", 0.92,
+                1.0, Map.of("feature1", 0.5, "feature2", 0.3));
 
-        assessment.addRuleEvaluation(new RuleEvaluation("RULE001", "High Amount Rule", RuleType.AMOUNT,
-                true, 50, "Amount exceeds threshold"));
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(75), List.of(ruleEvaluation), mlPrediction);
 
-        assessment.setMlPrediction(new MLPrediction("modelId", "RandomForest", 0.92,
-                1.0, Map.of("feature1", 0.5, "feature2", 0.3)));
-
-        assessment.completeAssessment(RiskScore.of(75), Decision.REVIEW);
+        assessment.completeAssessment(Decision.REVIEW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -85,9 +84,9 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_MinimalRiskAssessment_MapsRequiredFields() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(30));
 
-        assessment.completeAssessment(RiskScore.of(30), Decision.ALLOW);
+        assessment.completeAssessment(Decision.ALLOW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -104,7 +103,7 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_WithMultipleRuleEvaluations_MapsAll() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(90));
 
         assessment.addRuleEvaluation(new RuleEvaluation("RULE001", "Rule 1", RuleType.AMOUNT, true,
                 30, "Desc 1"));
@@ -113,7 +112,7 @@ class RiskAssessmentMapperTest {
         assessment.addRuleEvaluation(new RuleEvaluation("RULE003", "Rule 3", RuleType.GEOGRAPHIC, true,
                 20, "Desc 3"));
 
-        assessment.completeAssessment(RiskScore.of(75), Decision.REVIEW);
+        assessment.completeAssessment(Decision.REVIEW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -134,8 +133,8 @@ class RiskAssessmentMapperTest {
 
         for (Map.Entry<Integer, Map<String, Decision>> entry : scoreToLevel.entrySet()) {
             entry.getValue().forEach((riskLevel, decision) -> {
-                RiskAssessment assessment = RiskAssessment.of(transactionId);
-                assessment.completeAssessment(RiskScore.of(entry.getKey()), decision);
+                RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(entry.getKey()));
+                assessment.completeAssessment(decision);
 
                 RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -150,8 +149,8 @@ class RiskAssessmentMapperTest {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
 
         for (Decision decision : Decision.values()) {
-            RiskAssessment assessment = RiskAssessment.of(transactionId);
-            assessment.completeAssessment(RiskScore.of(50), decision);
+            RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(90));
+            assessment.completeAssessment(decision);
 
             RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -162,15 +161,12 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_WithMLPrediction_SerializesCorrectly() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
-
         Map<String, Double> features = Map.of("amount", 0.7, "velocity", 0.5, "location", 0.3);
-
         MLPrediction mlPrediction = new MLPrediction("model123", "GradientBoost", 0.85,
                 0.93, features);
 
-        assessment.setMlPrediction(mlPrediction);
-        assessment.completeAssessment(RiskScore.of(85), Decision.BLOCK);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(91), List.of(), mlPrediction);
+        assessment.completeAssessment(Decision.BLOCK);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -185,8 +181,8 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_NoMLPrediction_ReturnsNullJson() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
-        assessment.completeAssessment(RiskScore.of(50), Decision.REVIEW);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(90));
+        assessment.completeAssessment(Decision.REVIEW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -381,15 +377,15 @@ class RiskAssessmentMapperTest {
     @Test
     void testRoundTrip_DomainToEntityToDomain_PreservesData() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment originalAssessment = RiskAssessment.of(transactionId);
 
-        originalAssessment.addRuleEvaluation(new RuleEvaluation("RULE001", "Test Rule", RuleType.VELOCITY,
-                true, 35, "Description"));
+        RuleEvaluation ruleEvaluation = new RuleEvaluation("RULE001", "Test Rule", RuleType.VELOCITY,
+                true, 35, "Description");
 
-        originalAssessment.setMlPrediction(new MLPrediction("modelId", "1.0.0", 0.75,
-                0.88, Map.of("feature1", 0.6)));
+        MLPrediction mlPrediction = new MLPrediction("modelId", "1.0.0", 0.75,
+                0.88, Map.of("feature1", 0.6));
 
-        originalAssessment.completeAssessment(RiskScore.of(70), Decision.REVIEW);
+        RiskAssessment originalAssessment = new RiskAssessment(transactionId, RiskScore.of(90), List.of(ruleEvaluation), mlPrediction);
+        originalAssessment.completeAssessment(Decision.REVIEW);
 
         RiskAssessmentEntity entity = mapper.toEntity(originalAssessment);
         RiskAssessment roundTripAssessment = mapper.toDomain(entity);
@@ -533,8 +529,8 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_ZeroRiskScore_MapsCorrectly() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
-        assessment.completeAssessment(RiskScore.of(0), Decision.ALLOW);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(0));
+        assessment.completeAssessment(Decision.ALLOW);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 
@@ -545,8 +541,8 @@ class RiskAssessmentMapperTest {
     @Test
     void testToEntity_MaximumRiskScore_MapsCorrectly() {
         TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
-        assessment.completeAssessment(RiskScore.of(100), Decision.BLOCK);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(100));
+        assessment.completeAssessment(Decision.BLOCK);
 
         RiskAssessmentEntity entity = mapper.toEntity(assessment);
 

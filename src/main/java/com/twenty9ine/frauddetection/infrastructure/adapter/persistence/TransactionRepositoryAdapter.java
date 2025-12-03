@@ -20,9 +20,29 @@ public class TransactionRepositoryAdapter implements TransactionRepository {
 
     @Override
     public Transaction save(Transaction transaction) {
-        TransactionEntity entity = mapper.toEntity(transaction);
-        TransactionEntity saved = jdbcRepository.save(entity);
-        return mapper.toDomain(saved);
+        TransactionEntity newTransaction = mapper.toEntity(transaction);
+
+        return jdbcRepository.findById(newTransaction.id())
+                .map(existingTransaction -> mapper.toDomain(jdbcRepository.save(synchronise(existingTransaction, newTransaction))))
+                .orElseGet(() -> mapper.toDomain(jdbcRepository.save(newTransaction)));
+    }
+
+    private static TransactionEntity synchronise(TransactionEntity existingTransaction, TransactionEntity newTransaction) {
+        return TransactionEntity.builder()
+                .id(existingTransaction.id())
+                .accountId(newTransaction.accountId())
+                .amountValue(newTransaction.amountValue())
+                .amountCurrency(newTransaction.amountCurrency())
+                .type(newTransaction.type())
+                .channel(newTransaction.channel())
+                .merchant(newTransaction.merchant())
+                .deviceId(newTransaction.deviceId())
+                .location(newTransaction.location())
+                .timestamp(newTransaction.timestamp())
+                .createdAt(existingTransaction.createdAt())
+                .updatedAt(existingTransaction.updatedAt())
+                .revision(existingTransaction.revision())
+                .build();
     }
 
     @Override
@@ -48,6 +68,12 @@ public class TransactionRepositoryAdapter implements TransactionRepository {
     @Override
     public Optional<Transaction> findEarliestByAccountId(String accountId) {
         return jdbcRepository.findFirstByAccountIdOrderByTimestampAsc(accountId)
+                .map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Transaction> findLatestByAccountId(String accountId) {
+        return jdbcRepository.findFirstByAccountIdOrderByTimestampDesc(accountId)
                 .map(mapper::toDomain);
     }
 

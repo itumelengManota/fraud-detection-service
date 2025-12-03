@@ -58,7 +58,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
 
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
         Decision decision = decisionService.makeDecision(assessment);
-        assessment.completeAssessment(assessment.getRiskScore(), decision);
+        assessment.completeAssessment(decision);
 
         repository.save(assessment);
         eventPublisher.publishAll(assessment.getDomainEvents());

@@ -58,8 +58,8 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldSaveRiskAssessment() {
         // Given
-        RiskAssessment assessment = createRiskAssessment();
-        assessment.completeAssessment(new RiskScore(75), Decision.REVIEW);
+        RiskAssessment assessment = createRiskAssessment(RiskScore.of(75));
+        assessment.completeAssessment(Decision.REVIEW);
 
         // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
@@ -76,10 +76,10 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldSaveRiskAssessmentWithMLPrediction() {
         // Given
-        RiskAssessment assessment = createRiskAssessment();
-        MLPrediction mlPrediction = new MLPrediction("modelId", "fraud_model_v1", 0.85, 0.85, Map.of("feature1", 0.1, "feature2", 0.9));
-        assessment.setMlPrediction(mlPrediction);
-        assessment.completeAssessment(new RiskScore(85), Decision.BLOCK);
+        MLPrediction mlPrediction = new MLPrediction("modelId", "fraud_model_v1", 0.85,
+                0.85, Map.of("feature1", 0.1, "feature2", 0.9));
+        RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), RiskScore.of(90), List.of(), mlPrediction);
+        assessment.completeAssessment(Decision.BLOCK);
 
         // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
@@ -93,12 +93,10 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldSaveRiskAssessmentWithRuleEvaluations() {
         // Given
-        RiskAssessment assessment = createRiskAssessment();
         RuleEvaluation evaluation1 = new RuleEvaluation("ruleId", "ruleName", RuleType.VELOCITY, true, 30, "High transaction velocity");
         RuleEvaluation evaluation2 = new RuleEvaluation("ruleId", "ruleName", RuleType.AMOUNT, true, 40, "Large amount threshold exceeded");
-        assessment.addRuleEvaluation(evaluation1);
-        assessment.addRuleEvaluation(evaluation2);
-        assessment.completeAssessment(new RiskScore(70), Decision.REVIEW);
+        RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), RiskScore.of(50), List.of(evaluation1, evaluation2), null);
+        assessment.completeAssessment(Decision.REVIEW);
 
         // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
@@ -114,8 +112,8 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     void shouldFindByTransactionId() {
         // Given
         TransactionId transactionId = TransactionId.generate();
-        RiskAssessment assessment = RiskAssessment.of(transactionId);
-        assessment.completeAssessment(new RiskScore(60), Decision.REVIEW);
+        RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(60));
+        assessment.completeAssessment(Decision.REVIEW);
         repositoryAdapter.save(assessment);
 
         // When
@@ -143,20 +141,20 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         Instant baseTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         Instant searchTime = baseTime.minus(1, ChronoUnit.HOURS);
 
-        RiskAssessment highRisk1 = createRiskAssessmentWithTime(baseTime);
-        highRisk1.completeAssessment(new RiskScore(85), Decision.BLOCK);
+        RiskAssessment highRisk1 = createRiskAssessmentWithTime(baseTime, RiskScore.of(90));
+        highRisk1.completeAssessment(Decision.BLOCK);
         repositoryAdapter.save(highRisk1);
 
-        RiskAssessment highRisk2 = createRiskAssessmentWithTime(baseTime.plus(30, ChronoUnit.MINUTES));
-        highRisk2.completeAssessment(new RiskScore(90), Decision.BLOCK);
+        RiskAssessment highRisk2 = createRiskAssessmentWithTime(baseTime.plus(30, ChronoUnit.MINUTES), RiskScore.of(90));
+        highRisk2.completeAssessment(Decision.BLOCK);
         repositoryAdapter.save(highRisk2);
 
-        RiskAssessment mediumRisk = createRiskAssessmentWithTime(baseTime);
-        mediumRisk.completeAssessment(new RiskScore(60), Decision.REVIEW);
+        RiskAssessment mediumRisk = createRiskAssessmentWithTime(baseTime, RiskScore.of(40));
+        mediumRisk.completeAssessment(Decision.REVIEW);
         repositoryAdapter.save(mediumRisk);
 
-        RiskAssessment oldHighRisk = createRiskAssessmentWithTime(searchTime.minus(2, ChronoUnit.HOURS));
-        oldHighRisk.completeAssessment(new RiskScore(95), Decision.BLOCK);
+        RiskAssessment oldHighRisk = createRiskAssessmentWithTime(searchTime.minus(2, ChronoUnit.HOURS), RiskScore.of(80));
+        oldHighRisk.completeAssessment(Decision.BLOCK);
         repositoryAdapter.save(oldHighRisk);
 
         // When
@@ -183,14 +181,15 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldFindCriticalRiskLevelSince() {
         // Given
-        Instant searchTime = Instant.now().minus(1, ChronoUnit.HOURS);
+        Instant now = Instant.now();
+        Instant searchTime = now.minus(1, ChronoUnit.HOURS);
 
-        RiskAssessment criticalRisk = createRiskAssessment();
-        criticalRisk.completeAssessment(new RiskScore(95), Decision.BLOCK);
+        RiskAssessment criticalRisk = createRiskAssessmentWithTime(now, RiskScore.of(91));
+        criticalRisk.completeAssessment(Decision.BLOCK);
         repositoryAdapter.save(criticalRisk);
 
-        RiskAssessment highRisk = createRiskAssessment();
-        highRisk.completeAssessment(new RiskScore(85), Decision.BLOCK);
+        RiskAssessment highRisk = createRiskAssessmentWithTime(now, RiskScore.of(90));
+        highRisk.completeAssessment(Decision.BLOCK);
         repositoryAdapter.save(highRisk);
 
         // When
@@ -198,7 +197,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
         // Then
         assertThat(results).hasSize(1);
-        assertThat(results.get(0).getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(results.getFirst().getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
     }
 
     @Test
@@ -206,16 +205,16 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         // Given
         Instant searchTime = Instant.now().minus(1, ChronoUnit.HOURS);
 
-        RiskAssessment lowRisk1 = createRiskAssessment();
-        lowRisk1.completeAssessment(new RiskScore(20), Decision.ALLOW);
+        RiskAssessment lowRisk1 = createRiskAssessment(RiskScore.of(10));
+        lowRisk1.completeAssessment(Decision.ALLOW);
         repositoryAdapter.save(lowRisk1);
 
-        RiskAssessment lowRisk2 = createRiskAssessment();
-        lowRisk2.completeAssessment(new RiskScore(30), Decision.ALLOW);
+        RiskAssessment lowRisk2 = createRiskAssessment(RiskScore.of(10));
+        lowRisk2.completeAssessment(Decision.ALLOW);
         repositoryAdapter.save(lowRisk2);
 
-        RiskAssessment mediumRisk = createRiskAssessment();
-        mediumRisk.completeAssessment(new RiskScore(60), Decision.REVIEW);
+        RiskAssessment mediumRisk = createRiskAssessment(RiskScore.of(50));
+        mediumRisk.completeAssessment(Decision.REVIEW);
         repositoryAdapter.save(mediumRisk);
 
         // When
@@ -229,8 +228,8 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldPreserveDomainEventsWhenSaving() {
         // Given
-        RiskAssessment assessment = createRiskAssessment();
-        assessment.completeAssessment(new RiskScore(85), Decision.BLOCK);
+        RiskAssessment assessment = createRiskAssessment(RiskScore.of(90));
+        assessment.completeAssessment(Decision.BLOCK);
         int eventCountBeforeSave = assessment.getDomainEvents().size();
 
         // When
@@ -244,8 +243,8 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
     @Test
     void shouldHandleMultipleSavesCorrectly() {
         // Given
-        RiskAssessment assessment = createRiskAssessment();
-        assessment.completeAssessment(new RiskScore(50), Decision.REVIEW);
+        RiskAssessment assessment = createRiskAssessment(RiskScore.of(10));
+        assessment.completeAssessment(Decision.REVIEW);
 
         // When
         RiskAssessment saved1 = repositoryAdapter.save(assessment);
@@ -261,9 +260,13 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         return RiskAssessment.of(TransactionId.generate());
     }
 
-    private RiskAssessment createRiskAssessmentWithTime(Instant time) {
+    private RiskAssessment createRiskAssessment(RiskScore score) {
+        return new RiskAssessment(TransactionId.generate(), score);
+    }
+
+    private RiskAssessment createRiskAssessmentWithTime(Instant time, RiskScore riskScore) {
         try {
-            RiskAssessment assessment = createRiskAssessment();
+            RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), riskScore);
             java.lang.reflect.Field assessmentTimeField = RiskAssessment.class.getDeclaredField("assessmentTime");
             assessmentTimeField.setAccessible(true);
             assessmentTimeField.set(assessment, time);

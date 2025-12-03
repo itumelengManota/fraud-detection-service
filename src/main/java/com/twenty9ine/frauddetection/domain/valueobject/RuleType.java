@@ -4,6 +4,6 @@ public enum RuleType {
     VELOCITY,
     GEOGRAPHIC,
     AMOUNT,
-    MERCHANT,
-    DEVICE
+    MERCHANT,  //TODO: Add the Drools rule for MERCHANT
+    DEVICE //TODO: Add the Drools rule for DEVICE
 }

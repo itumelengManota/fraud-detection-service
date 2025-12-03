@@ -18,10 +18,11 @@ CREATE TABLE IF NOT EXISTS transaction
 
 CREATE TABLE IF NOT EXISTS merchant
 (
-    transaction_id UUID PRIMARY KEY REFERENCES transaction (id),
-    merchant_id    VARCHAR(255) UNIQUE NOT NULL,
-    name           VARCHAR(255)        NOT NULL,
-    category       VARCHAR(100)
+    id             VARCHAR(255),
+    name           VARCHAR(255) NOT NULL,
+    category       VARCHAR(100),
+    transaction_id UUID         NOT NULL REFERENCES transaction (id),
+    PRIMARY KEY (id, transaction_id)
 );
 
 CREATE TABLE IF NOT EXISTS location

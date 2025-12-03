@@ -37,8 +37,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should return ALLOW for low risk score")
         void shouldReturnAllowForLowRiskScore() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(10), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(10));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.ALLOW, decision);
@@ -48,8 +47,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should return CHALLENGE for medium risk score")
         void shouldReturnChallengeForMediumRiskScore() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(50), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(50));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.CHALLENGE, decision);
@@ -59,8 +57,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should return REVIEW for high risk score")
         void shouldReturnReviewForHighRiskScore() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(75), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(75));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.REVIEW, decision);
@@ -70,8 +67,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should return BLOCK for critical risk score")
         void shouldReturnBlockForCriticalRiskScore() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(95), Decision.BLOCK);
-
+            RiskAssessment assessment = createAssessment(Decision.BLOCK, RiskScore.of(95));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.BLOCK, decision);
@@ -86,8 +82,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 0 as LOW")
         void shouldClassifyZeroAsLow() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(0), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(0));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
@@ -97,8 +92,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 29 as LOW")
         void shouldClassify29AsLow() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(29), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(29));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
@@ -108,8 +102,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 30 as MEDIUM")
         void shouldClassify30AsMedium() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(30), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(30));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
@@ -119,8 +112,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 59 as MEDIUM")
         void shouldClassify59AsMedium() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(59), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(59));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
@@ -130,8 +122,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 60 as HIGH")
         void shouldClassify60AsHigh() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(60), Decision.CHALLENGE);
-
+            RiskAssessment assessment = createAssessment(Decision.CHALLENGE, RiskScore.of(60));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
@@ -141,8 +132,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 84 as HIGH")
         void shouldClassify84AsHigh() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(84), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(84));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
@@ -152,8 +142,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 85 as CRITICAL")
         void shouldClassify85AsCritical() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(85), Decision.REVIEW);
-
+            RiskAssessment assessment = createAssessment(Decision.REVIEW, RiskScore.of(85));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
@@ -163,8 +152,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should classify score 100 as CRITICAL")
         void shouldClassify100AsCritical() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(100), Decision.BLOCK);
-
+            RiskAssessment assessment = createAssessment(Decision.BLOCK, RiskScore.of(100));
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.CRITICAL, assessment.getRiskLevel());
@@ -186,8 +174,8 @@ class DecisionServiceTest {
         }
 
         private void assertDecisionForLevel(RiskLevel level, Decision expectedDecision) {
-            RiskAssessment assessment = createAssessment(RiskScore.of(50), Decision.ALLOW);
-            assessment.completeAssessment(RiskScore.of(50), Decision.ALLOW);
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(50));
+            assessment.completeAssessment(Decision.ALLOW);
 
             List<DecisionStrategy> strategies = List.of(
                     new LowRiskStrategy(),
@@ -195,7 +183,7 @@ class DecisionServiceTest {
                     new HighRiskStrategy(),
                     new CriticalRiskStrategy()
             );
-            DecisionService service = new DecisionService(strategies);
+//            DecisionService service = new DecisionService(strategies);
             DecisionStrategy strategy = strategies.stream()
                     .filter(s -> s.getRiskLevel().equals(level))
                     .findFirst()
@@ -214,8 +202,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should complete assessment with correct risk level and decision")
         void shouldCompleteAssessmentWithCorrectRiskLevelAndDecision() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(70), Decision.CHALLENGE);
-
+            RiskAssessment assessment = createAssessment(Decision.CHALLENGE, RiskScore.of(70));
             decisionService.makeDecision(assessment);
 
             assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
@@ -225,8 +212,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should set assessment time when completing assessment")
         void shouldSetAssessmentTimeWhenCompletingAssessment() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(40), Decision.ALLOW);
-
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(40));
             decisionService.makeDecision(assessment);
 
             assertNotNull(assessment.getAssessmentTime());
@@ -240,10 +226,10 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should handle multiple assessments independently")
         void shouldHandleMultipleAssessmentsIndependently() {
-            RiskAssessment lowRisk = createAssessment(RiskScore.of(10), Decision.ALLOW);
-            RiskAssessment mediumRisk = createAssessment(RiskScore.of(45), Decision.CHALLENGE);
-            RiskAssessment highRisk = createAssessment(RiskScore.of(90), Decision.REVIEW);
-            RiskAssessment criticalRisk = createAssessment(RiskScore.of(91), Decision.BLOCK);
+            RiskAssessment lowRisk = createAssessment(Decision.ALLOW, RiskScore.of(10));
+            RiskAssessment mediumRisk = createAssessment(Decision.CHALLENGE, RiskScore.of(45));
+            RiskAssessment highRisk = createAssessment(Decision.REVIEW, RiskScore.of(90));
+            RiskAssessment criticalRisk = createAssessment(Decision.BLOCK, RiskScore.of(91));
 
             Decision lowDecision = decisionService.makeDecision(lowRisk);
             Decision mediumDecision = decisionService.makeDecision(mediumRisk);
@@ -264,9 +250,8 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should handle assessment without ML prediction")
         void shouldHandleAssessmentWithoutMLPrediction() {
-            TransactionId transactionId = TransactionId.of(UUID.randomUUID());
-            RiskAssessment assessment = RiskAssessment.of(transactionId);
-            assessment.completeAssessment(RiskScore.of(50), Decision.ALLOW);
+            RiskAssessment assessment = new RiskAssessment(TransactionId.of(UUID.randomUUID()), RiskScore.of(70));
+            assessment.completeAssessment(Decision.ALLOW);
 
             Decision decision = decisionService.makeDecision(assessment);
 
@@ -277,7 +262,7 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should handle assessment without rule evaluations")
         void shouldHandleAssessmentWithoutRuleEvaluations() {
-            RiskAssessment assessment = createAssessment(RiskScore.of(35), Decision.ALLOW);
+            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(35));
 
             Decision decision = decisionService.makeDecision(assessment);
 
@@ -286,9 +271,9 @@ class DecisionServiceTest {
         }
     }
 
-    private RiskAssessment createAssessment(RiskScore score, Decision decision) {
-        RiskAssessment assessment = RiskAssessment.of(TransactionId.generate());
-        assessment.completeAssessment(score, decision);
+    private RiskAssessment createAssessment(Decision decision, RiskScore riskScore) {
+        RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), riskScore);
+        assessment.completeAssessment(decision);
 
         return assessment;
     }

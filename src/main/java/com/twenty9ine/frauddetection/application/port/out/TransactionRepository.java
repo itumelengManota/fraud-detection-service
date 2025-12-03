@@ -19,6 +19,8 @@ public interface TransactionRepository {
 
     Optional<Transaction> findEarliestByAccountId(String accountId);
 
+    Optional<Transaction> findLatestByAccountId(String accountId);
+
     void deleteById(TransactionId transactionId);
 
     boolean existsById(TransactionId transactionId);

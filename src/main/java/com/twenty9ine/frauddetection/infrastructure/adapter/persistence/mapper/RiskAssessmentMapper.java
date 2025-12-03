@@ -15,6 +15,7 @@ import org.mapstruct.Named;
 import org.postgresql.util.PGobject;
 
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -36,28 +37,32 @@ public interface RiskAssessmentMapper {
     default RiskAssessment toDomain(RiskAssessmentEntity entity) {
         if (entity == null) return null;
 
-        RiskAssessment assessment = new RiskAssessment(
-                AssessmentId.of(entity.getId()),
-                TransactionId.of(entity.getTransactionId())
-        );
+        RiskAssessment assessment = new RiskAssessment(AssessmentId.of(entity.getId()), TransactionId.of(entity.getTransactionId()),
+                new RiskScore(entity.getRiskScoreValue()), toRuleEvaluations(entity), jsonToMlPrediction(entity.getMlPredictionJson()));
 
-        if (entity.getMlPredictionJson() != null) {
-            assessment.setMlPrediction(jsonToMlPrediction(entity.getMlPredictionJson()));
-        }
+//        if (entity.getMlPredictionJson() != null) {
+//            assessment.setMlPrediction(jsonToMlPrediction(entity.getMlPredictionJson()));
+//        }
 
-        if (entity.getRuleEvaluations() != null) {
-            entity.getRuleEvaluations().forEach(ruleEntity -> assessment.addRuleEvaluation(buildRuleEvaluation(ruleEntity)));
-        }
+//        if (entity.getRuleEvaluations() != null) {
+//            entity.getRuleEvaluations().forEach(ruleEntity -> assessment.addRuleEvaluation(buildRuleEvaluation(ruleEntity)));
+//            toRuleEvaluations(entity);
+//        }
 
         if (entity.getRiskScoreValue() != 0 && entity.getDecision() != null) {
             assessment.completeAssessment(
-                    new RiskScore(entity.getRiskScoreValue()),
                     Decision.valueOf(entity.getDecision())
             );
         }
 
         assessment.clearDomainEvents();
         return assessment;
+    }
+
+    private static List<RuleEvaluation> toRuleEvaluations(RiskAssessmentEntity entity) {
+        return entity.getRuleEvaluations().stream()
+                .map(RiskAssessmentMapper::buildRuleEvaluation)
+                .toList();
     }
 
     private static RuleEvaluation buildRuleEvaluation(RuleEvaluationEntity ruleEntity) {
@@ -94,34 +99,6 @@ public interface RiskAssessmentMapper {
     default UUID assessmentIdToUuid(AssessmentId assessmentId) {
         return assessmentId != null ? assessmentId.toUUID() : null;
     }
-
-//    @Named("mlPredictionToJson")
-//    default PGobject mlPredictionToJson(MLPrediction prediction) {
-//        if (prediction == null) return null;
-//        try {
-//            ObjectMapper mapper = new ObjectMapper();
-//            String json = mapper.writeValueAsString(prediction);
-//
-//            PGobject pgObject = new PGobject();
-//            pgObject.setType("jsonb");
-//            pgObject.setValue(json);
-//            return pgObject;
-//        } catch (Exception e) {
-//            throw new RuntimeException("Failed to serialize MLPrediction", e);
-//        }
-//    }
-
-//    @Named("jsonToMlPrediction")
-//    default MLPrediction jsonToMlPrediction(PGobject pgObject) {
-//        if (pgObject == null || pgObject.getValue() == null) return null;
-//
-//        try {
-//            ObjectMapper mapper = new ObjectMapper();
-//            return mapper.readValue(pgObject.getValue(), MLPrediction.class);
-//        } catch (JsonProcessingException e) {
-//            throw new RuntimeException("Failed to deserialize MLPrediction", e);
-//        }
-//    }
 
     @Named("jsonToMlPrediction")
     default MLPrediction jsonToMlPrediction(PGobject json) {

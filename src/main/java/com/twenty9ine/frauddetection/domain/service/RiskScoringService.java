@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -43,23 +44,29 @@ public class RiskScoringService {
 
         RuleEvaluationResult ruleResults = ruleEngine.evaluateRules(transaction, velocity, geographic);
 
-        RiskScore score = calculateCompositeScore(mlPrediction, ruleResults);
+        return new RiskAssessment(transaction.id(), calculateCompositeScore(mlPrediction, ruleResults),
+                toRuleEvaluations(ruleResults), mlPrediction);
+    }
 
-        RiskAssessment assessment = new RiskAssessment(transaction.id());
+    private static List<RuleEvaluation> toRuleEvaluations(RuleEvaluationResult ruleResults) {
+        return ruleResults.getTriggers()
+                .stream()
+                .map(RiskScoringService::buildRuleEvaluation)
+                .toList();
+    }
 
-        assessment.setMlPrediction(mlPrediction);
-        ruleResults.getTriggers().forEach(t ->
-                assessment.addRuleEvaluation(new RuleEvaluation(
-                        t.ruleId(),
-                        t.ruleName(),
-                        RuleType.VELOCITY,
-                        true,
-                        (int) t.triggeredValue(),
-                        t.description()
-                ))
-        );
+    private static RuleEvaluation buildRuleEvaluation(RuleTrigger ruleTrigger) {
+        return new RuleEvaluation(ruleTrigger.ruleId(), ruleTrigger.ruleName(), determineRuleType(ruleTrigger),
+                            true, ruleTrigger.triggeredValue(), ruleTrigger.description());
+    }
 
-        return assessment;
+    private static RuleType determineRuleType(RuleTrigger ruleTrigger) {
+        return switch (ruleTrigger.ruleId()) {
+            case "VELOCITY_5MIN", "VELOCITY_1HOUR" -> RuleType.VELOCITY;
+            case "IMPOSSIBLE_TRAVEL" -> RuleType.GEOGRAPHIC;
+            case "LARGE_AMOUNT", "VERY_LARGE_AMOUNT" -> RuleType.AMOUNT;
+            default -> throw new IllegalStateException("Unexpected value: " + ruleTrigger.ruleId());
+        };
     }
 
     private CompletableFuture<MLPrediction> predict(Transaction transaction) {
@@ -76,18 +83,28 @@ public class RiskScoringService {
                 velocityService.findVelocityMetricsByTransaction(transaction));
     }
 
-    private RiskScore calculateCompositeScore(MLPrediction ml,
-                                              RuleEvaluationResult rules) {
-        BigDecimal mlScore = BigDecimal.valueOf(ml.fraudProbability())
-                .multiply(BigDecimal.valueOf(100));
+    private RiskScore calculateCompositeScore(MLPrediction ml, RuleEvaluationResult rules) {
+        BigDecimal mlScore = percentage(ml.fraudProbability());
+        BigDecimal ruleScore = findAggregateScore(rules);
+        BigDecimal finalScore = calculateFinalScore(mlScore, ruleScore);
 
-        BigDecimal ruleScore = BigDecimal.valueOf(rules.aggregateScore());
+        return new RiskScore(Math.clamp(roundUpScore(finalScore), 0, 100));
+    }
 
-        BigDecimal finalScore = mlScore.multiply(BigDecimal.valueOf(mlWeight))
+    private static int roundUpScore(BigDecimal finalScore) {
+        return finalScore.setScale(0, RoundingMode.HALF_UP).intValue();
+    }
+
+    private BigDecimal calculateFinalScore(BigDecimal mlScore, BigDecimal ruleScore) {
+        return mlScore.multiply(BigDecimal.valueOf(mlWeight))
                 .add(ruleScore.multiply(BigDecimal.valueOf(ruleWeight)));
+    }
 
-        int roundedScore = finalScore.setScale(0, RoundingMode.HALF_UP).intValue();
+    private static BigDecimal findAggregateScore(RuleEvaluationResult rules) {
+        return BigDecimal.valueOf(rules.aggregateScore());
+    }
 
-        return new RiskScore(Math.min(100, Math.max(0, roundedScore)));
+    private static BigDecimal percentage(double val) {
+        return BigDecimal.valueOf(val).multiply(BigDecimal.valueOf(100));
     }
 }

@@ -5,10 +5,7 @@ import com.twenty9ine.frauddetection.domain.event.HighRiskDetected;
 import com.twenty9ine.frauddetection.domain.event.RiskAssessmentCompleted;
 import com.twenty9ine.frauddetection.domain.exception.InvariantViolationException;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,13 +18,11 @@ import java.util.List;
 public class RiskAssessment {
     private final AssessmentId assessmentId;
     private final TransactionId transactionId;
-    private RiskScore riskScore;
-    private RiskLevel riskLevel;
+    private final RiskScore riskScore;
+    private final RiskLevel riskLevel;
     private Decision decision;
     private final List<RuleEvaluation> ruleEvaluations;
-
-    @Setter
-    private MLPrediction mlPrediction;
+    private final MLPrediction mlPrediction;
     private final Instant assessmentTime;
     private final List<DomainEvent> domainEvents;
 
@@ -39,24 +34,40 @@ public class RiskAssessment {
         this(AssessmentId.generate(), transactionId);
     }
 
+    public RiskAssessment(TransactionId transactionId, RiskScore riskScore) {
+        this(transactionId, riskScore, new ArrayList<>(), null);
+    }
+
+    public RiskAssessment(TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction) {
+        this(AssessmentId.generate(), transactionId, riskScore, evaluations, mlPrediction);
+    }
+
     public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId) {
+        this(assessmentId, transactionId, null, List.of(), null);
+    }
+
+    public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore) {
+        this(assessmentId, transactionId, riskScore, List.of(), null);
+    }
+
+    public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction) {
         this.assessmentId = assessmentId;
         this.transactionId = transactionId;
-        this.ruleEvaluations = new ArrayList<>();
+        this.riskScore = riskScore;
+        this.riskLevel = determineRiskLevel(riskScore);
+        this.mlPrediction = mlPrediction;
+        this.ruleEvaluations = new ArrayList<>(evaluations);
         this.domainEvents = new ArrayList<>();
         this.assessmentTime = Instant.now();
     }
 
-    public void completeAssessment(RiskScore finalScore, Decision decision) {
-        validateDecisionAlignment(finalScore, decision);
-
-        this.riskScore = finalScore;
-        this.riskLevel = finalScore.toRiskLevel();
+    public void completeAssessment(Decision decision) {
         this.decision = decision;
+        validateDecisionAlignment();
 
-        publishEvent(RiskAssessmentCompleted.of(this.assessmentId, this.transactionId, finalScore, this.riskLevel, decision));
+        publishEvent(RiskAssessmentCompleted.of(this.assessmentId, this.transactionId, this.riskScore, this.riskLevel, decision));
 
-        if (finalScore.hasHighRisk()) {
+        if (hasHighRisk()) {
             publishEvent(HighRiskDetected.of(this.assessmentId, this.transactionId, this.riskLevel));
         }
     }
@@ -77,11 +88,38 @@ public class RiskAssessment {
         this.domainEvents.add(event);
     }
 
-    private void validateDecisionAlignment(RiskScore score, Decision decision) {
-        if (score.hasCriticalRisk() && decision.isProceed())
+    private void validateDecisionAlignment() {
+        if (hasCriticalRisk() && this.decision.isProceed())
             throw new InvariantViolationException("Critical risk must result in BLOCK decision");
 
-        if (score.hasLowRisk() && decision.isBlocked())
+        if (hasLowRisk() && this.decision.isBlocked())
             throw new InvariantViolationException("Low risk cannot result in BLOCK decision");
+    }
+
+    private boolean hasLowRisk() {
+        return determineRiskLevel(this.riskScore) == RiskLevel.LOW;
+    }
+
+    private boolean hasCriticalRisk() {
+        return determineRiskLevel(this.riskScore) == RiskLevel.CRITICAL;
+    }
+
+    private boolean hasHighRisk() {
+        return determineRiskLevel(this.riskScore) == RiskLevel.HIGH ||
+                determineRiskLevel(this.riskScore) == RiskLevel.CRITICAL;
+    }
+
+    private RiskLevel determineRiskLevel(RiskScore riskScore) {
+        int score = riskScore.value();
+
+        if (score <= 40) {
+            return RiskLevel.LOW;
+        } else if (score <= 70) {
+            return RiskLevel.MEDIUM;
+        } else if (score <= 90) {
+            return RiskLevel.HIGH;
+        } else {
+            return RiskLevel.CRITICAL;
+        }
     }
 }
