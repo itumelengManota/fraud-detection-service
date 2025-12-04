@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '3.5.8'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.graalvm.buildtools.native' version '0.10.6'
+    id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
 }
 
 group = 'com.twenty9ine'
@@ -34,7 +35,6 @@ ext {
     redissonVersion = '3.52.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '2.7.0'
-//    logstashVersion = '8.0'
     uuidGeneratorVersion = '5.1.1'
 }
 
@@ -78,8 +78,6 @@ dependencies {
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
 
-//    implementation "net.logstash.logback:logstash-logback-encoder:$logstashVersion"
-
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -97,12 +95,27 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
     testImplementation 'org.testcontainers:kafka'
     testImplementation 'org.testcontainers:postgresql'
+//    testImplementation 'org.assertj:assertj-core:3.25.3'
+    testImplementation 'org.awaitility:awaitility:4.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-//    testImplementation 'io.rest-assured:rest-assured'
-//    testImplementation 'org.awaitility:awaitility'
-
     testAnnotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
+}
+
+avro {
+    outputCharacterEncoding = 'UTF-8'
+    stringType = 'String'
+    fieldVisibility = 'PRIVATE'
+    enableDecimalLogicalType = true
+}
+
+// Configure source sets for generated Avro classes
+sourceSets {
+    main {
+        java {
+            srcDir 'build/generated-main-avro-java'
+        }
+    }
 }
 
 tasks.register('generateDroolsMetadata') {

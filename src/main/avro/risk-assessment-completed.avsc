@@ -1,0 +1,13 @@
+{
+  "type": "record",
+  "name": "RiskAssessmentCompletedAvro",
+  "namespace": "com.twenty9ine.frauddetection.infrastructure.adapter.kafka",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "assessmentId", "type": "string"},
+    {"name": "finalScore", "type": "double"},
+    {"name": "riskLevel", "type": "string"},
+    {"name": "decision", "type": "string"},
+    {"name": "occurredAt", "type": "long"}
+  ]
+}

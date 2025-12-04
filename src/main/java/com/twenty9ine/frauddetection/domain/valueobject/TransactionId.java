@@ -21,4 +21,9 @@ public record TransactionId(UUID transactionId) {
     public static TransactionId of(UUID transactionId) {
         return new TransactionId(transactionId);
     }
+
+    @Override
+    public String toString() {
+        return transactionId.toString();
+    }
 }

@@ -1,0 +1,35 @@
+{
+  "type": "record",
+  "name": "TransactionAvro",
+  "namespace": "com.twenty9ine.frauddetection.infrastructure.adapter.kafka",
+  "fields": [
+    {"name": "transactionId", "type": "string"},
+    {"name": "accountId", "type": "string"},
+    {"name": "amount", "type": "double"},
+    {"name": "currency", "type": "string"},
+    {"name": "type", "type": "string"},
+    {"name": "channel", "type": "string"},
+    {"name": "merchant", "type": ["null", {
+      "type": "record",
+      "name": "MerchantAvro",
+      "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "name", "type": "string"},
+        {"name": "category", "type": "string"}
+      ]
+    }], "default": null},
+    {"name": "location", "type": ["null", {
+      "type": "record",
+      "name": "LocationAvro",
+      "fields": [
+        {"name": "latitude", "type": "double"},
+        {"name": "longitude", "type": "double"},
+        {"name": "country", "type": ["null", "string"], "default": null},
+        {"name": "city", "type": ["null", "string"], "default": null},
+        {"name": "timestamp", "type": "long"}
+      ]
+    }], "default": null},
+    {"name": "deviceId", "type": ["null", "string"], "default": null},
+    {"name": "timestamp", "type": "long"}
+  ]
+}

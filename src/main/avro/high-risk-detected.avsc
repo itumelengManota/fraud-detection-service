@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "HighRiskDetectedAvro",
+  "namespace": "com.twenty9ine.frauddetection.infrastructure.adapter.kafka",
+  "fields": [
+    {"name": "id", "type": "string"},
+    {"name": "assessmentId", "type": "string"},
+    {"name": "riskLevel", "type": "string"},
+    {"name": "occurredAt", "type": "long"}
+  ]
+}

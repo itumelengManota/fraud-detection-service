@@ -1,11 +1,9 @@
 package com.twenty9ine.frauddetection.domain.event;
 
-import com.twenty9ine.frauddetection.domain.valueobject.EventId;
-
 import java.time.Instant;
 
-public interface DomainEvent {
-    EventId getEventId();
+public interface DomainEvent<T> {
+    T getEventId();
     Instant getOccurredAt();
     String getEventType();
 }

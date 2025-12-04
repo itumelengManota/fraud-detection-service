@@ -342,7 +342,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should return unmodifiable list of domain events")
         void shouldReturnUnmodifiableListOfDomainEvents() {
-            List<DomainEvent> events = riskAssessment.getDomainEvents();
+            List<DomainEvent<TransactionId>> events = riskAssessment.getDomainEvents();
 
             assertThatThrownBy(() -> events.add(null))
                     .isInstanceOf(UnsupportedOperationException.class);
@@ -440,7 +440,7 @@ class RiskAssessmentTest {
             Method publishMethod = RiskAssessment.class.getDeclaredMethod("publishEvent", DomainEvent.class);
             publishMethod.setAccessible(true);
 
-            DomainEvent event = RiskAssessmentCompleted.of(riskAssessment.getAssessmentId(), riskAssessment.getTransactionId(),
+            DomainEvent event = RiskAssessmentCompleted.of(riskAssessment.getTransactionId(), riskAssessment.getAssessmentId(),
                     new RiskScore(50), RiskLevel.MEDIUM, Decision.REVIEW
             );
 

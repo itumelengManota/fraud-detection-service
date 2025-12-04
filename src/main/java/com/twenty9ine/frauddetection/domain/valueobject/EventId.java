@@ -21,4 +21,9 @@ public record EventId(UUID eventId) {
     public static EventId of(UUID eventId) {
         return new EventId(eventId);
     }
+
+    @Override
+    public String toString() {
+        return eventId.toString();
+    }
 }

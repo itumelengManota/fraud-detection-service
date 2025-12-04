@@ -24,7 +24,7 @@ public class RiskAssessment {
     private final List<RuleEvaluation> ruleEvaluations;
     private final MLPrediction mlPrediction;
     private final Instant assessmentTime;
-    private final List<DomainEvent> domainEvents;
+    private final List<DomainEvent<TransactionId>> domainEvents;
 
     public static RiskAssessment of(TransactionId transactionId) {
         return new RiskAssessment(transactionId);
@@ -65,10 +65,10 @@ public class RiskAssessment {
         this.decision = decision;
         validateDecisionAlignment();
 
-        publishEvent(RiskAssessmentCompleted.of(this.assessmentId, this.transactionId, this.riskScore, this.riskLevel, decision));
+        publishEvent(RiskAssessmentCompleted.of(this.transactionId, this.assessmentId, this.riskScore, this.riskLevel, decision));
 
         if (hasHighRisk()) {
-            publishEvent(HighRiskDetected.of(this.assessmentId, this.transactionId, this.riskLevel));
+            publishEvent(HighRiskDetected.of(this.transactionId, this.assessmentId, this.riskLevel));
         }
     }
 
@@ -76,7 +76,7 @@ public class RiskAssessment {
         this.ruleEvaluations.add(evaluation);
     }
 
-    public List<DomainEvent> getDomainEvents() {
+    public List<DomainEvent<TransactionId>> getDomainEvents() {
         return Collections.unmodifiableList(domainEvents);
     }
 
@@ -84,7 +84,7 @@ public class RiskAssessment {
         this.domainEvents.clear();
     }
 
-    private void publishEvent(DomainEvent event) {
+    private void publishEvent(DomainEvent<TransactionId> event) {
         this.domainEvents.add(event);
     }
 

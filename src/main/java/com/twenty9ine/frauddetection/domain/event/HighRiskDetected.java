@@ -1,32 +1,27 @@
 package com.twenty9ine.frauddetection.domain.event;
 
 import com.twenty9ine.frauddetection.domain.valueobject.AssessmentId;
-import com.twenty9ine.frauddetection.domain.valueobject.EventId;
 import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 
 import java.time.Instant;
 
-public record HighRiskDetected(EventId eventId, AssessmentId assessmentId, TransactionId transactionId,
+public record HighRiskDetected(TransactionId id, AssessmentId assessmentId,
                                RiskLevel riskLevel,
-                               Instant occurredAt) implements DomainEvent {
+                               Instant occurredAt) implements DomainEvent<TransactionId> {
 
-    public HighRiskDetected(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel) {
-        this(assessmentId, transactionId, riskLevel, Instant.now());
+    public HighRiskDetected(TransactionId id, AssessmentId assessmentId, RiskLevel riskLevel) {
+        this(id, assessmentId, riskLevel, Instant.now());
     }
 
-    public HighRiskDetected(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel, Instant occurredAt) {
-        this(EventId.generate(), assessmentId, transactionId, riskLevel, occurredAt);
-    }
-
-    public static HighRiskDetected of(AssessmentId assessmentId, TransactionId transactionId, RiskLevel riskLevel) {
-        return new HighRiskDetected(assessmentId, transactionId, riskLevel);
+    public static HighRiskDetected of(TransactionId id, AssessmentId assessmentId, RiskLevel riskLevel) {
+        return new HighRiskDetected(id, assessmentId, riskLevel);
     }
 
 
     @Override
-    public EventId getEventId() {
-        return eventId;
+    public TransactionId getEventId() {
+        return id;
     }
 
     @Override

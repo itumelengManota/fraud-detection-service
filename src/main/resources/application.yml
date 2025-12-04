@@ -18,11 +18,11 @@ spring:
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
     producer:
       acks: all
-      enable-idempotence: true
-      transactional-id: fraud-detection-tx
+#      transactional-id: fraud-detection-tx
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
       properties:
+        enable.idempotence: true
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
     properties:
       max.poll.interval.ms: 300000

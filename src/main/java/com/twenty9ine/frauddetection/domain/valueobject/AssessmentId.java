@@ -21,4 +21,9 @@ public record AssessmentId(UUID assessmentId) {
     public static AssessmentId of(UUID assessmentId) {
         return new AssessmentId(assessmentId);
     }
+
+    @Override
+    public String toString() {
+        return assessmentId.toString();
+    }
 }

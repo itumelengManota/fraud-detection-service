@@ -1,9 +1,11 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
+import com.twenty9ine.frauddetection.application.dto.LocationDto;
 import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
 import com.twenty9ine.frauddetection.application.port.in.AssessTransactionRiskUseCase;
 import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
+import com.twenty9ine.frauddetection.domain.valueobject.Location;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
@@ -35,41 +38,49 @@ public class TransactionEventConsumer {
     private final TransactionEventMapper mapper;
     private final MeterRegistry meterRegistry;
     private final TransactionRepository transactionRepository;
+    private final SeenMessageCache seenMessageCache; // Add for idempotency
 
     @KafkaListener(
             topics = "${kafka.topics.transactions}",
-            groupId = "fraud-detection-service",
-            concurrency = "10"
+            groupId = "${spring.kafka.consumer.group-id}",
+            concurrency = "10",
+            containerFactory = "kafkaListenerContainerFactory"
     )
     public void consume(
             @Payload byte[] payload,
             @Header(KafkaHeaders.RECEIVED_KEY) String key,
+            @Header(value = KafkaHeaders.RECEIVED_TIMESTAMP, required = false) Long timestamp,
             Acknowledgment acknowledgment) {
 
         Timer.Sample sample = Timer.start(meterRegistry);
 
         try {
+            // Deserialize transaction
             Transaction transaction = mapper.toDomain(payload);
             log.debug("Received transaction event: {}", transaction.id());
 
-            // Update velocity counters
-            velocityService.incrementCounters(transaction);
+            // Idempotency check
+            if (hasProcessed(acknowledgment, transaction)) return;
 
-            // Persist transaction for geographic validation
-            transactionRepository.save(transaction);
+            // Process transaction
+            processTransaction(transaction);
 
-            // Convert to command and trigger use case
-            AssessTransactionRiskCommand command = buildAssessTransactionRiskCommand(transaction);
+            markProcessed(acknowledgment, transaction);
 
-            assessTransactionRiskUseCase.assess(command);
+            meterRegistry.counter("fraud.events.processed", "status", "success", "type",
+                    transaction.type().name()).increment();
 
-            acknowledgment.acknowledge();
-
-            meterRegistry.counter("fraud.events.processed", "status", "success").increment();
+        } catch (DeserializationException e) {
+            // Poison pill - log and skip
+            log.error("Failed to deserialize transaction event - skipping poison pill", e);
+            acknowledgment.acknowledge(); // Acknowledge to prevent infinite retry
+            meterRegistry.counter("fraud.events.processed", "status", "deserialization_error").increment();
 
         } catch (Exception e) {
             log.error("Failed to process transaction event", e);
             meterRegistry.counter("fraud.events.processed", "status", "error").increment();
+
+            // Don't acknowledge - let Kafka retry with backoff
             throw e;
 
         } finally {
@@ -77,7 +88,36 @@ public class TransactionEventConsumer {
         }
     }
 
-    private static AssessTransactionRiskCommand buildAssessTransactionRiskCommand(Transaction transaction) {
+    private boolean hasProcessed(Acknowledgment acknowledgment, Transaction transaction) {
+        if (seenMessageCache.hasProcessed(transaction.id())) {
+            log.debug("Skipping duplicate transaction: {}", transaction.id());
+            acknowledgment.acknowledge();
+            return true;
+        }
+        return false;
+    }
+
+    private void markProcessed(Acknowledgment acknowledgment, Transaction transaction) {
+        // Mark as processed
+        seenMessageCache.markProcessed(transaction.id());
+
+        // Acknowledge message
+        acknowledgment.acknowledge();
+    }
+
+    private void processTransaction(Transaction transaction) {
+        // Update velocity counters
+        velocityService.incrementCounters(transaction);
+
+        // Persist transaction for geographic validation
+        transactionRepository.save(transaction);
+
+        // Convert to command and trigger use case
+        AssessTransactionRiskCommand command = buildAssessTransactionRiskCommand(transaction);
+        assessTransactionRiskUseCase.assess(command);
+    }
+
+    private AssessTransactionRiskCommand buildAssessTransactionRiskCommand(Transaction transaction) {
         return AssessTransactionRiskCommand.builder()
                 .transactionId(transaction.id().toUUID())
                 .accountId(transaction.accountId())
@@ -85,11 +125,24 @@ public class TransactionEventConsumer {
                 .currency(transaction.amount().currency().getCurrencyCode())
                 .type(transaction.type())
                 .channel(transaction.channel())
-                .merchantId(transaction.merchant().id().merchantId())
-                .merchantName(transaction.merchant().name())
-                .merchantCategory(transaction.merchant().category())
+                .merchantId(transaction.merchant() != null ? transaction.merchant().id().merchantId() : null)
+                .merchantName(transaction.merchant() != null ? transaction.merchant().name() : null)
+                .merchantCategory(transaction.merchant() != null ? transaction.merchant().category() : null)
+                .location(mapLocationDto(transaction.location())) // Add this
                 .deviceId(transaction.deviceId())
                 .transactionTimestamp(transaction.timestamp())
                 .build();
+    }
+
+    private LocationDto mapLocationDto(Location location) {
+        if (location == null) return null;
+
+        return new LocationDto(
+                location.latitude(),
+                location.longitude(),
+                location.country(),
+                location.city(),
+                location.timestamp()
+        );
     }
 }
