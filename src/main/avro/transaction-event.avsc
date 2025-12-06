@@ -5,7 +5,14 @@
   "fields": [
     {"name": "transactionId", "type": "string"},
     {"name": "accountId", "type": "string"},
-    {"name": "amount", "type": "double"},
+    {"name": "amount",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 19,
+        "scale": 4
+      }
+    },
     {"name": "currency", "type": "string"},
     {"name": "type", "type": "string"},
     {"name": "channel", "type": "string"},
@@ -26,10 +33,20 @@
         {"name": "longitude", "type": "double"},
         {"name": "country", "type": ["null", "string"], "default": null},
         {"name": "city", "type": ["null", "string"], "default": null},
-        {"name": "timestamp", "type": "long"}
+        {"name": "timestamp",
+          "type": {
+            "type": "long",
+            "logicalType": "timestamp-millis"
+          }
+        }
       ]
     }], "default": null},
     {"name": "deviceId", "type": ["null", "string"], "default": null},
-    {"name": "timestamp", "type": "long"}
+    {"name": "timestamp",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    }
   ]
 }

@@ -1,8 +1,8 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -11,21 +11,28 @@ import java.util.UUID;
 @Component
 public class SeenMessageCache {
 
-    private final Cache<UUID, Boolean> cache;
+    private static final String SEEN_MESSAGE_KEY_PREFIX = "seen:transaction:";
+    private final RedissonClient redissonClient;
+    private final Duration ttl;
 
-    //TODO: This cache mechanism is a simple in-memory solution. For a distributed system, consider using a distributed cache like Redis.
-    public SeenMessageCache() {
-        this.cache = Caffeine.newBuilder()
-                .maximumSize(100_000)
-                .expireAfterWrite(Duration.ofHours(24))
-                .build();
+    public SeenMessageCache(RedissonClient redissonClient,
+                            @Value("${fraud-detection.transaction-event-consumer.idempotency.ttl-minutes}")
+                            Duration ttl) {
+        this.redissonClient = redissonClient;
+        this.ttl = ttl;
     }
 
-    public boolean hasProcessed(TransactionId transactionId) {
-        return cache.getIfPresent(transactionId.toUUID()) != null;
+    public void markProcessed(UUID transactionId) {
+        getRBucket(transactionId).set(true, ttl);
     }
 
-    public void markProcessed(TransactionId transactionId) {
-        cache.put(transactionId.toUUID(), Boolean.TRUE);
+    public boolean hasProcessed(UUID transactionId) {
+        Boolean result = getRBucket(transactionId).get();
+        return result != null && result;
+    }
+
+    private RBucket<Boolean> getRBucket(UUID transactionId) {
+        return redissonClient.getBucket(SEEN_MESSAGE_KEY_PREFIX + transactionId);
     }
 }
+

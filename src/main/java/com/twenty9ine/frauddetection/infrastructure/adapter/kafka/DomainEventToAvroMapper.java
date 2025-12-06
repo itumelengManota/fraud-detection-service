@@ -10,13 +10,13 @@ public class DomainEventToAvroMapper {
 
     public Object toAvro(DomainEvent<?> event) {
         return switch(event) {
-            case RiskAssessmentCompleted e -> mapRiskAssessmentCompleted(e);
-            case HighRiskDetected e -> mapHighRiskDetected(e);
+            case RiskAssessmentCompleted e -> toRiskAssessmentCompleted(e);
+            case HighRiskDetected e -> toHighRiskDetected(e);
             default -> throw new IllegalArgumentException("Unsupported event type: " + event.getClass());
         };
     }
 
-    private RiskAssessmentCompletedAvro mapRiskAssessmentCompleted(RiskAssessmentCompleted event) {
+    private RiskAssessmentCompletedAvro toRiskAssessmentCompleted(RiskAssessmentCompleted event) {
         return RiskAssessmentCompletedAvro.newBuilder()
                 .setId(event.id().toString())
                 .setAssessmentId(event.assessmentId().toString())
@@ -27,7 +27,7 @@ public class DomainEventToAvroMapper {
                 .build();
     }
 
-    private HighRiskDetectedAvro mapHighRiskDetected(HighRiskDetected event) {
+    private HighRiskDetectedAvro toHighRiskDetected(HighRiskDetected event) {
         return HighRiskDetectedAvro.newBuilder()
                 .setId(event.id().toString())
                 .setAssessmentId(event.assessmentId().toString())

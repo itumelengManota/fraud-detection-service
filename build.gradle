@@ -55,6 +55,10 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
 
+    implementation 'org.springframework.integration:spring-integration-core'
+    implementation 'org.springframework.integration:spring-integration-kafka'
+    implementation 'org.springframework.integration:spring-integration-redis'
+
     implementation "io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-retry:$resilience4jVersion"
@@ -86,6 +90,7 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
     annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
@@ -108,6 +113,9 @@ avro {
     fieldVisibility = 'PRIVATE'
     enableDecimalLogicalType = true
 }
+
+// Task to generate Avro Java classes
+//./gradlew generateAvroJava
 
 // Configure source sets for generated Avro classes
 sourceSets {

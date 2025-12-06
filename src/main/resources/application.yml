@@ -16,14 +16,17 @@ spring:
       value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
       properties:
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
+        apicurio.registry.auto-register: true
+        apicurio.registry.find-latest: true
+        apicurio.registry.use-specific-avro-reader: true
     producer:
       acks: all
-#      transactional-id: fraud-detection-tx
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
       properties:
-        enable.idempotence: true
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
+        apicurio.registry.auto-register: true
+        enable.idempotence: true
     properties:
       max.poll.interval.ms: 300000
       isolation.level: read_committed
@@ -65,13 +68,19 @@ apicurio:
 
 kafka:
   topics:
-    transactions: transactions.normalized
+    transactions:
+      name: transactions.normalized
+      concurrency: 10
+      group-id: ${spring.kafka.consumer.group-id}
     fraud-alerts-critical: fraud.alerts.critical
     fraud-alerts-high: fraud.alerts.high
     fraud-alerts-medium: fraud.alerts.medium
     domain-events: fraud-detection.domain-events
 
 fraud-detection:
+  transaction-event-consumer:
+    idempotency:
+      ttl-minutes: 10m
   ml:
     service:
       url: ${ML_SERVICE_URL:http://ml-service:8080}

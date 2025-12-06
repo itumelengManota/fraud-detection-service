@@ -7,5 +7,14 @@ public enum Channel {
     MOBILE,
     ONLINE,
     POS,
-    ATM
+    ATM;
+
+    public static Channel fromString(String channel) {
+        for (Channel c : Channel.values()) {
+            if (c.name().equalsIgnoreCase(channel))
+                return c;
+        }
+
+        throw new IllegalArgumentException("Unknown channel: " + channel);
+    }
 }

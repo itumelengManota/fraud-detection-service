@@ -1,5 +1,6 @@
 package com.twenty9ine.frauddetection.infrastructure.config;
 
+import com.twenty9ine.frauddetection.infrastructure.adapter.kafka.TransactionAvro;
 import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
 import io.apicurio.registry.serde.avro.AvroKafkaSerializer;
 import io.apicurio.registry.serde.SerdeConfig;
@@ -30,7 +31,7 @@ public class KafkaConfig {
     private String registryUrl;
 
     @Bean
-    public ConsumerFactory<String, Object> consumerFactory() {
+    public ConsumerFactory<String, TransactionAvro> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
@@ -67,14 +68,21 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+    public ConcurrentKafkaListenerContainerFactory<String, TransactionAvro> kafkaListenerContainerFactory(
+            ConsumerFactory<String, TransactionAvro> consumerFactory) {
+
+        ConcurrentKafkaListenerContainerFactory<String, TransactionAvro> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+
+        factory.setConsumerFactory(consumerFactory);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+
+        //TODO: configure this externally
         factory.setCommonErrorHandler(new DefaultErrorHandler(
                 new FixedBackOff(1000L, 3L) // 3 retries with 1s backoff
         ));
+
         return factory;
     }
+
 }

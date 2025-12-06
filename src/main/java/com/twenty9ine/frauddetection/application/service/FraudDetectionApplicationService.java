@@ -1,5 +1,6 @@
 package com.twenty9ine.frauddetection.application.service;
 
+import com.twenty9ine.frauddetection.application.dto.LocationDto;
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.port.in.*;
 import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
@@ -10,8 +11,7 @@ import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentReposito
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;
 import com.twenty9ine.frauddetection.domain.service.RiskScoringService;
-import com.twenty9ine.frauddetection.domain.valueobject.Decision;
-import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,7 +52,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
 
     @Override
     public RiskAssessmentDto assess(AssessTransactionRiskCommand command) {
-        Transaction transaction = command.toDomain();
+        Transaction transaction = toDomain(command);
 
         log.info("Starting risk assessment for transaction: {}", transaction.id());
 
@@ -64,8 +64,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
         eventPublisher.publishAll(assessment.getDomainEvents());
         assessment.clearDomainEvents();
 
-        log.info("Completed risk assessment for transaction: {} with decision: {}",
-                transaction.id(), decision);
+        log.info("Completed risk assessment for transaction: {} with decision: {}", transaction.id(), decision);
 
         return RiskAssessmentDto.from(assessment);
     }
@@ -91,35 +90,26 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
                 .toList();
     }
 
-    // Legacy methods for backward compatibility - delegate to use case methods
+    /**
+     * Converts this command to a Transaction domain object.
+     *
+     * @return Transaction value object ready for domain processing
+     */
+    private Transaction toDomain(AssessTransactionRiskCommand command) {
+        return Transaction.builder()
+                .id(TransactionId.of(command.transactionId()))
+                .accountId(command.accountId())
+                .amount(new Money(command.amount(), java.util.Currency.getInstance(command.currency())))
+                .type(TransactionType.fromString(command.type()))
+                .channel(Channel.fromString(command.channel()))
+                .merchant(new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), command.merchantCategory()))
+                .location(command.location() != null ? toDomain(command.location()) : null)
+                .deviceId(command.deviceId())
+                .timestamp(command.transactionTimestamp())
+                .build();
+    }
 
-//    /**
-//     * @deprecated Use {@link #assess(AssessTransactionRiskCommand)} instead
-//     */
-//    @Deprecated(since = "1.0", forRemoval = true)
-//    public RiskAssessmentDto assessRisk(Transaction transaction) {
-//        AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-//                .transactionId(transaction.id().toUUID())
-//                .accountId(transaction.accountId())
-//                .amount(transaction.amount().value())
-//                .currency(transaction.amount().currency().getCurrencyCode())
-//                .type(transaction.type())
-//                .channel(transaction.channel())
-//                .merchantId(transaction.merchant().id().merchantId())
-//                .merchantName(transaction.merchant().name())
-//                .merchantCategory(transaction.merchant().category())
-//                .deviceId(transaction.deviceId())
-//                .transactionTimestamp(transaction.timestamp())
-//                .build();
-//
-//        return assess(command);
-//    }
-
-//    /**
-//     * @deprecated Use {@link #get(GetRiskAssessmentQuery)} instead
-//     */
-//    @Deprecated(since = "1.0", forRemoval = true)
-//    public Optional<RiskAssessmentDto> getAssessment(java.util.UUID transactionId) {
-//        return get(new GetRiskAssessmentQuery(transactionId));
-//    }
+    private Location toDomain(LocationDto location) {
+        return new Location(location.latitude(), location.longitude(), location.country(), location.city(), location.timestamp());
+    }
 }

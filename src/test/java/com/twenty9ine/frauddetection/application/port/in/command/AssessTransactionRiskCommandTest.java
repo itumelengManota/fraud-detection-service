@@ -1,9 +1,7 @@
 package com.twenty9ine.frauddetection.application.port.in.command;
 
 import com.twenty9ine.frauddetection.application.dto.LocationDto;
-import com.twenty9ine.frauddetection.domain.valueobject.Channel;
-import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionType;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -56,8 +54,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
@@ -74,8 +72,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
@@ -93,8 +91,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(null)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
@@ -112,8 +110,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(null)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
@@ -131,8 +129,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(null)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
@@ -151,14 +149,14 @@ class AssessTransactionRiskCommandTest {
                     .amount(amount)
                     .currency(currency)
                     .type(null)
-                    .channel(Channel.ONLINE)
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(timestamp)
                     .build();
 
             Set<ConstraintViolation<AssessTransactionRiskCommand>> violations = validator.validate(command);
 
             assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).isEqualTo("Transaction type cannot be null");
+            assertThat(violations.iterator().next().getMessage()).isEqualTo("Transaction type cannot be empty");
         }
 
         @Test
@@ -169,7 +167,7 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
+                    .type(TransactionType.PURCHASE.name())
                     .channel(null)
                     .transactionTimestamp(timestamp)
                     .build();
@@ -177,7 +175,7 @@ class AssessTransactionRiskCommandTest {
             Set<ConstraintViolation<AssessTransactionRiskCommand>> violations = validator.validate(command);
 
             assertThat(violations).hasSize(1);
-            assertThat(violations.iterator().next().getMessage()).isEqualTo("Channel cannot be null");
+            assertThat(violations.iterator().next().getMessage()).isEqualTo("Channel cannot be empty");
         }
 
         @Test
@@ -188,8 +186,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .transactionTimestamp(null)
                     .build();
 
@@ -209,8 +207,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .location(invalidLocation)
                     .transactionTimestamp(timestamp)
                     .build();
@@ -218,90 +216,6 @@ class AssessTransactionRiskCommandTest {
             Set<ConstraintViolation<AssessTransactionRiskCommand>> violations = validator.validate(command);
 
             assertThat(violations).isNotEmpty();
-        }
-    }
-
-    @Nested
-    @DisplayName("toDomain() Conversion Tests")
-    class ToDomainTests {
-
-        @Test
-        @DisplayName("Should convert to Transaction domain object with all fields")
-        void shouldConvertToDomainWithAllFields() {
-            AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-                    .transactionId(transactionId)
-                    .accountId(accountId)
-                    .amount(amount)
-                    .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
-                    .merchantId("MERCHANT123")
-                    .merchantName("Test Merchant")
-                    .merchantCategory("Retail")
-                    .location(location)
-                    .deviceId("DEVICE456")
-                    .transactionTimestamp(timestamp)
-                    .build();
-
-            Transaction transaction = command.toDomain();
-
-            assertThat(transaction).isNotNull();
-            assertThat(transaction.id().toUUID()).isEqualTo(transactionId);
-            assertThat(transaction.accountId()).isEqualTo(accountId);
-            assertThat(transaction.amount().value()).isEqualTo(amount);
-            assertThat(transaction.amount().currency().getCurrencyCode()).isEqualTo(currency);
-            assertThat(transaction.type()).isEqualTo(TransactionType.PURCHASE);
-            assertThat(transaction.channel()).isEqualTo(Channel.ONLINE);
-            assertThat(transaction.merchant().id().merchantId()).isEqualTo("MERCHANT123");
-            assertThat(transaction.merchant().name()).isEqualTo("Test Merchant");
-            assertThat(transaction.merchant().category()).isEqualTo("Retail");
-            assertThat(transaction.location()).isNotNull();
-            assertThat(transaction.deviceId()).isEqualTo("DEVICE456");
-            assertThat(transaction.timestamp()).isEqualTo(timestamp);
-        }
-
-        @Test
-        @DisplayName("Should convert to Transaction with null location")
-        void shouldConvertToDomainWithNullLocation() {
-            AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-                    .transactionId(transactionId)
-                    .accountId(accountId)
-                    .amount(amount)
-                    .currency(currency)
-                    .type(TransactionType.ATM_WITHDRAWAL)
-                    .channel(Channel.ATM)
-                    .location(null)
-                    .transactionTimestamp(timestamp)
-                    .build();
-
-            Transaction transaction = command.toDomain();
-
-            assertThat(transaction.location()).isNull();
-        }
-
-        @Test
-        @DisplayName("Should convert to Transaction with optional fields as null")
-        void shouldConvertToDomainWithOptionalFieldsNull() {
-            AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-                    .transactionId(transactionId)
-                    .accountId(accountId)
-                    .amount(amount)
-                    .currency(currency)
-                    .type(TransactionType.TRANSFER)
-                    .channel(Channel.MOBILE)
-                    .merchantId(null)
-                    .merchantName(null)
-                    .merchantCategory(null)
-                    .location(null)
-                    .deviceId(null)
-                    .transactionTimestamp(timestamp)
-                    .build();
-
-            Transaction transaction = command.toDomain();
-
-            assertThat(transaction).isNotNull();
-            assertThat(transaction.location()).isNull();
-            assertThat(transaction.deviceId()).isNull();
         }
     }
 
@@ -317,8 +231,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.PURCHASE)
-                    .channel(Channel.ONLINE)
+                    .type(TransactionType.PURCHASE.name())
+                    .channel(Channel.ONLINE.name())
                     .merchantId("MERCHANT123")
                     .merchantName("Test Merchant")
                     .merchantCategory("Retail")
@@ -331,8 +245,8 @@ class AssessTransactionRiskCommandTest {
             assertThat(command.accountId()).isEqualTo(accountId);
             assertThat(command.amount()).isEqualTo(amount);
             assertThat(command.currency()).isEqualTo(currency);
-            assertThat(command.type()).isEqualTo(TransactionType.PURCHASE);
-            assertThat(command.channel()).isEqualTo(Channel.ONLINE);
+            assertThat(command.type()).isEqualTo(TransactionType.PURCHASE.name());
+            assertThat(command.channel()).isEqualTo(Channel.ONLINE.name());
             assertThat(command.merchantId()).isEqualTo("MERCHANT123");
             assertThat(command.merchantName()).isEqualTo("Test Merchant");
             assertThat(command.merchantCategory()).isEqualTo("Retail");
@@ -349,8 +263,8 @@ class AssessTransactionRiskCommandTest {
                     .accountId(accountId)
                     .amount(amount)
                     .currency(currency)
-                    .type(TransactionType.ATM_WITHDRAWAL)
-                    .channel(Channel.ATM)
+                    .type(TransactionType.ATM_WITHDRAWAL.name())
+                    .channel(Channel.ATM.name())
                     .transactionTimestamp(timestamp)
                     .build();
 

@@ -1,84 +1,37 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
-import com.twenty9ine.frauddetection.domain.valueobject.Money;
-import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionType;
+import com.twenty9ine.frauddetection.application.dto.LocationDto;
+import com.twenty9ine.frauddetection.application.port.in.command.ProcessTransactionCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import io.apicurio.registry.serde.avro.AvroKafkaDeserializer;
-import io.apicurio.registry.serde.SerdeConfig;
-
-import com.twenty9ine.frauddetection.domain.valueobject.*;
-
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.Currency;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 @Component
 @Slf4j
 public class TransactionEventMapper {
 
-    private final AvroKafkaDeserializer<TransactionAvro> deserializer;
-
-    public TransactionEventMapper() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(SerdeConfig.REGISTRY_URL, "http://apicurio-registry:8080/apis/registry/v2");
-        config.put(SerdeConfig.AUTO_REGISTER_ARTIFACT, true);
-        config.put(SerdeConfig.FIND_LATEST_ARTIFACT, true);
-
-        this.deserializer = new AvroKafkaDeserializer<>();
-        this.deserializer.configure(config, false);
-    }
-
-    public Transaction toDomain(byte[] payload) {
-        try {
-            TransactionAvro avroTransaction = deserializer.deserialize(null, payload);
-            return toTransaction(avroTransaction);
-        } catch (Exception e) {
-            log.error("Failed to deserialize transaction event", e);
-            throw new IllegalArgumentException("Invalid transaction event payload", e);
-        }
-    }
-
-    private Transaction toTransaction(TransactionAvro avroTransaction) {
-        return Transaction.builder()
-                .id(TransactionId.of(UUID.fromString(avroTransaction.getTransactionId())))
+    public ProcessTransactionCommand toCommand(TransactionAvro avroTransaction) {
+        return ProcessTransactionCommand.builder()
+                .transactionId(UUID.fromString(avroTransaction.getTransactionId()))
                 .accountId(avroTransaction.getAccountId())
-                .amount(new Money(BigDecimal.valueOf(avroTransaction.getAmount()),
-                        Currency.getInstance(avroTransaction.getCurrency())))
-                .type(TransactionType.valueOf(avroTransaction.getType()))
-                .channel(Channel.valueOf(avroTransaction.getChannel()))
-                .merchant(mapMerchant(avroTransaction.getMerchant()))
-                .location(mapLocation(avroTransaction.getLocation()))
+                .amount(avroTransaction.getAmount())
+                .currency(avroTransaction.getCurrency())
+                .type(avroTransaction.getType())
+                .channel(avroTransaction.getChannel())
+                .merchantId(avroTransaction.getMerchant().getId())
+                .merchantName(avroTransaction.getMerchant().getName())
+                .merchantCategory(avroTransaction.getMerchant().getCategory())
+                .location(toDto(avroTransaction.getLocation()))
                 .deviceId(avroTransaction.getDeviceId())
-                .timestamp(Instant.ofEpochMilli(avroTransaction.getTimestamp()))
+                .transactionTimestamp(avroTransaction.getTimestamp())
                 .build();
     }
 
-    private Merchant mapMerchant(MerchantAvro merchantAvro) {
-        if (merchantAvro == null) return null;
-
-        return new Merchant(
-                MerchantId.of(merchantAvro.getId()),
-                merchantAvro.getName(),
-                merchantAvro.getCategory()
-        );
-    }
-
-    private Location mapLocation(LocationAvro locationAvro) {
+    private LocationDto toDto(LocationAvro locationAvro) {
         if (locationAvro == null) return null;
 
-        return new Location(
-                locationAvro.getLatitude(),
-                locationAvro.getLongitude(),
-                locationAvro.getCountry(),
-                locationAvro.getCity(),
-                Instant.ofEpochMilli(locationAvro.getTimestamp())
-        );
+        return new LocationDto(locationAvro.getLatitude(), locationAvro.getLongitude(), locationAvro.getCountry(),
+                locationAvro.getCity(), locationAvro.getTimestamp());
     }
 }

@@ -3,6 +3,7 @@ package com.twenty9ine.frauddetection.application.port.in.command;
 import com.twenty9ine.frauddetection.application.dto.LocationDto;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
@@ -33,11 +34,11 @@ public record AssessTransactionRiskCommand(
         @NotNull(message = "Currency cannot be null")
         String currency,
 
-        @NotNull(message = "Transaction type cannot be null")
-        TransactionType type,
+        @NotBlank(message = "Transaction type cannot be empty")
+        String type,
 
-        @NotNull(message = "Channel cannot be null")
-        Channel channel,
+        @NotBlank(message = "Channel cannot be empty")
+        String channel,
 
         String merchantId,
         String merchantName,
@@ -50,24 +51,4 @@ public record AssessTransactionRiskCommand(
 
         @NotNull(message = "Timestamp cannot be null")
         Instant transactionTimestamp
-) {
-
-    /**
-     * Converts this command to a Transaction domain object.
-     *
-     * @return Transaction value object ready for domain processing
-     */
-    public Transaction toDomain() {
-        return Transaction.builder()
-                .id(TransactionId.of(transactionId))
-                .accountId(accountId)
-                .amount(new Money(amount, java.util.Currency.getInstance(currency)))
-                .type(type)
-                .channel(channel)
-                .merchant(new Merchant(MerchantId.of(merchantId), merchantName, merchantCategory))
-                .location(location != null ? location.toDomain() : null)
-                .deviceId(deviceId)
-                .timestamp(transactionTimestamp)
-                .build();
-    }
-}
+) { }
