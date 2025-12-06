@@ -1,14 +1,17 @@
 package com.twenty9ine.frauddetection.application.service;
 
 import com.twenty9ine.frauddetection.application.dto.LocationDto;
+import com.twenty9ine.frauddetection.application.dto.PagedResultDto;
 import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.port.in.*;
 import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
-import com.twenty9ine.frauddetection.application.port.in.query.FindHighRiskAssessmentsQuery;
+import com.twenty9ine.frauddetection.application.port.in.query.FindRiskLeveledAssessmentsQuery;
 import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessmentQuery;
+import com.twenty9ine.frauddetection.application.port.in.query.PageRequestQuery;
 import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
+import com.twenty9ine.frauddetection.domain.exception.RiskAssessmentNotFoundException;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;
 import com.twenty9ine.frauddetection.domain.service.RiskScoringService;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
@@ -17,11 +20,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Application service that orchestrates fraud detection use cases.
- *
+ * <p>
  * Implements input ports (use case interfaces) and coordinates between
  * domain services and output ports. Acts as the application layer's
  * facade following Hexagonal Architecture principles.
@@ -71,23 +73,44 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RiskAssessmentDto> get(GetRiskAssessmentQuery query) {
+    public RiskAssessmentDto get(GetRiskAssessmentQuery query) {
         log.debug("Retrieving risk assessment for transaction: {}", query.transactionId());
 
         return repository.findByTransactionId(query.transactionId())
-                .map(RiskAssessmentDto::from);
+                .map(RiskAssessmentDto::from)
+                .orElseThrow(() -> new RiskAssessmentNotFoundException("Risk assessment not found for transaction ID: " + query.transactionId()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<RiskAssessmentDto> find(FindHighRiskAssessmentsQuery query) {
-        log.debug("Finding {} risk assessments since {}",
-                query.riskLevel(), query.since());
+    public PagedResultDto<RiskAssessmentDto> find(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
+        log.debug("Finding {} risk assessments from {}", query.riskLevels(), query.from());
+        return getRiskAssessmentDtoPagedResultDto(findRiskAssessmentsByRiskLevelSince(query, pageRequestQuery));
+    }
 
-        return repository.findByRiskLevelSince(query.riskLevel(), query.since())
+    private PagedResult<RiskAssessment> findRiskAssessmentsByRiskLevelSince(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
+        return repository.findByRiskLevelSince(query.riskLevels(), query.from(), toPageRequest(pageRequestQuery));
+    }
+
+    private static PagedResultDto<RiskAssessmentDto> getRiskAssessmentDtoPagedResultDto(PagedResult<RiskAssessment> pagedResult) {
+        return new PagedResultDto<>(toRiskAssessmentDtos(pagedResult.content()), pagedResult.pageNumber(), pagedResult.pageSize(),
+                pagedResult.totalElements(), pagedResult.totalPages());
+    }
+
+    private static List<RiskAssessmentDto> toRiskAssessmentDtos(List<RiskAssessment> riskAssessments) {
+        return riskAssessments
                 .stream()
                 .map(RiskAssessmentDto::from)
                 .toList();
+    }
+
+    private static PageRequest toPageRequest(PageRequestQuery pageRequestQuery) {
+        return new PageRequest(
+                pageRequestQuery.pageNumber(),
+                pageRequestQuery.pageSize(),
+                pageRequestQuery.sortBy(),
+                SortDirection.valueOf(pageRequestQuery.sortDirection())
+        );
     }
 
     /**

@@ -2,9 +2,11 @@ package com.twenty9ine.frauddetection.application.port.in.query;
 
 import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import lombok.Builder;
 
 import java.time.Instant;
+import java.util.Set;
 
 /**
  * Query for finding risk assessments by risk level and time period.
@@ -12,14 +14,14 @@ import java.time.Instant;
  * Encapsulates search criteria for retrieving risk assessments.
  * Supports filtering by risk level and temporal boundaries.
  *
- * @author Fraud Detection Team
+ * @author Ignatius Itumeleng Manota
  */
 @Builder
-public record FindHighRiskAssessmentsQuery(
-        @NotNull(message = "Risk level cannot be null")
-        RiskLevel riskLevel,
+public record FindRiskLeveledAssessmentsQuery(
+        Set<RiskLevel> riskLevels,
 
-        @NotNull(message = "Since transactionTimestamp cannot be null")
-        Instant since
+        @PastOrPresent(message = "From timestamp cannot be in the future")
+        @NotNull(message = "From transactionTimestamp cannot be null")
+        Instant from
 ) {
 }

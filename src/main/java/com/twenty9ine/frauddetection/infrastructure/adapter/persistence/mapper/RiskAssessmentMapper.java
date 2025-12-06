@@ -37,17 +37,14 @@ public interface RiskAssessmentMapper {
     default RiskAssessment toDomain(RiskAssessmentEntity entity) {
         if (entity == null) return null;
 
-        RiskAssessment assessment = new RiskAssessment(AssessmentId.of(entity.getId()), TransactionId.of(entity.getTransactionId()),
-                new RiskScore(entity.getRiskScoreValue()), toRuleEvaluations(entity), jsonToMlPrediction(entity.getMlPredictionJson()));
-
-//        if (entity.getMlPredictionJson() != null) {
-//            assessment.setMlPrediction(jsonToMlPrediction(entity.getMlPredictionJson()));
-//        }
-
-//        if (entity.getRuleEvaluations() != null) {
-//            entity.getRuleEvaluations().forEach(ruleEntity -> assessment.addRuleEvaluation(buildRuleEvaluation(ruleEntity)));
-//            toRuleEvaluations(entity);
-//        }
+        RiskAssessment assessment = new RiskAssessment(
+                AssessmentId.of(entity.getId()),
+                TransactionId.of(entity.getTransactionId()),
+                new RiskScore(entity.getRiskScoreValue()),
+                toRuleEvaluations(entity),
+                jsonToMlPrediction(entity.getMlPredictionJson()),
+                entity.getAssessmentTime()  // Add this parameter
+        );
 
         if (entity.getRiskScoreValue() != 0 && entity.getDecision() != null) {
             assessment.completeAssessment(
@@ -116,7 +113,8 @@ public interface RiskAssessmentMapper {
                     node.get("confidence").asDouble(),
                     objectMapper.convertValue(
                             node.get("featureImportance"),
-                            new TypeReference<Map<String, Double>>() {}
+                            new TypeReference<Map<String, Double>>() {
+                            }
                     )
             );
         } catch (JsonProcessingException e) {

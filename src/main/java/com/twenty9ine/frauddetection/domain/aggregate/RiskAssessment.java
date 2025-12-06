@@ -38,6 +38,10 @@ public class RiskAssessment {
         this(transactionId, riskScore, new ArrayList<>(), null);
     }
 
+    public RiskAssessment(TransactionId transactionId, RiskScore riskScore, Instant assessmentTime) {
+        this(AssessmentId.generate(), transactionId, riskScore, new ArrayList<>(), null, assessmentTime);
+    }
+
     public RiskAssessment(TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction) {
         this(AssessmentId.generate(), transactionId, riskScore, evaluations, mlPrediction);
     }
@@ -51,6 +55,10 @@ public class RiskAssessment {
     }
 
     public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction) {
+        this(assessmentId, transactionId, riskScore, evaluations, mlPrediction, Instant.now());
+    }
+
+    public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction, Instant assessmentTime) {
         this.assessmentId = assessmentId;
         this.transactionId = transactionId;
         this.riskScore = riskScore;
@@ -58,7 +66,7 @@ public class RiskAssessment {
         this.mlPrediction = mlPrediction;
         this.ruleEvaluations = new ArrayList<>(evaluations);
         this.domainEvents = new ArrayList<>();
-        this.assessmentTime = Instant.now();
+        this.assessmentTime = assessmentTime;
     }
 
     public void completeAssessment(Decision decision) {

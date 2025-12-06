@@ -19,6 +19,7 @@ spring:
         apicurio.registry.auto-register: true
         apicurio.registry.find-latest: true
         apicurio.registry.use-specific-avro-reader: true
+        specific.avro.reader: true  # Important for generated Avro classes
     producer:
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -27,6 +28,8 @@ spring:
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
         apicurio.registry.auto-register: true
         enable.idempotence: true
+    listener:
+      ack-mode: manual  # Required for manual acknowledgment
     properties:
       max.poll.interval.ms: 300000
       isolation.level: read_committed

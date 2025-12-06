@@ -17,10 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,14 +54,11 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldSaveRiskAssessment() {
-        // Given
         RiskAssessment assessment = createRiskAssessment(RiskScore.of(75));
         assessment.completeAssessment(Decision.REVIEW);
 
-        // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
 
-        // Then
         assertThat(saved).isNotNull();
         assertThat(saved.getAssessmentId()).isNotNull();
         assertThat(saved.getTransactionId()).isEqualTo(assessment.getTransactionId());
@@ -75,16 +69,13 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldSaveRiskAssessmentWithMLPrediction() {
-        // Given
         MLPrediction mlPrediction = new MLPrediction("modelId", "fraud_model_v1", 0.85,
                 0.85, Map.of("feature1", 0.1, "feature2", 0.9));
         RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), RiskScore.of(90), List.of(), mlPrediction);
         assessment.completeAssessment(Decision.BLOCK);
 
-        // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
 
-        // Then
         assertThat(saved.getMlPrediction()).isNotNull();
         assertThat(saved.getMlPrediction().confidence()).isEqualTo(0.85);
         assertThat(saved.getMlPrediction().modelVersion()).isEqualTo("fraud_model_v1");
@@ -92,16 +83,13 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldSaveRiskAssessmentWithRuleEvaluations() {
-        // Given
         RuleEvaluation evaluation1 = new RuleEvaluation("ruleId", "ruleName", RuleType.VELOCITY, true, 30, "High transaction velocity");
         RuleEvaluation evaluation2 = new RuleEvaluation("ruleId", "ruleName", RuleType.AMOUNT, true, 40, "Large amount threshold exceeded");
         RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), RiskScore.of(50), List.of(evaluation1, evaluation2), null);
         assessment.completeAssessment(Decision.REVIEW);
 
-        // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
 
-        // Then
         assertThat(saved.getRuleEvaluations()).hasSize(2);
         assertThat(saved.getRuleEvaluations())
                 .extracting(RuleEvaluation::ruleType)
@@ -110,16 +98,13 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldFindByTransactionId() {
-        // Given
         TransactionId transactionId = TransactionId.generate();
         RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(60));
         assessment.completeAssessment(Decision.REVIEW);
         repositoryAdapter.save(assessment);
 
-        // When
         Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(transactionId.toUUID());
 
-        // Then
         assertThat(found).isPresent();
         assertThat(found.get().getTransactionId()).isEqualTo(transactionId);
         assertThat(found.get().getRiskScore().value()).isEqualTo(60);
@@ -128,152 +113,243 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldReturnEmptyWhenTransactionIdNotFound() {
-        // When
         Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(UUID.randomUUID());
 
-        // Then
         assertThat(found).isEmpty();
     }
 
     @Test
-    void shouldFindByRiskLevelSince() {
-        // Given
-        Instant baseTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        Instant searchTime = baseTime.minus(1, ChronoUnit.HOURS);
+    void shouldFindByRiskLevelSinceWithPagination() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Instant searchTime = oneHourEarlier(now);
 
-        RiskAssessment highRisk1 = createRiskAssessmentWithTime(baseTime, RiskScore.of(90));
-        highRisk1.completeAssessment(Decision.BLOCK);
-        repositoryAdapter.save(highRisk1);
+        createAndSaveAssessment(now, RiskScore.of(90), Decision.BLOCK);
+        createAndSaveAssessment(thirtyMinutesLater(now), RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(fourtyFiveMinutesLater(now), RiskScore.of(95), Decision.BLOCK);
+        createAndSaveAssessment(now, RiskScore.of(40), Decision.REVIEW);
+        createAndSaveAssessment(threeHoursEarlier(now), RiskScore.of(88), Decision.BLOCK);
 
-        RiskAssessment highRisk2 = createRiskAssessmentWithTime(baseTime.plus(30, ChronoUnit.MINUTES), RiskScore.of(90));
-        highRisk2.completeAssessment(Decision.BLOCK);
-        repositoryAdapter.save(highRisk2);
+        PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.DESC);
 
-        RiskAssessment mediumRisk = createRiskAssessmentWithTime(baseTime, RiskScore.of(40));
-        mediumRisk.completeAssessment(Decision.REVIEW);
-        repositoryAdapter.save(mediumRisk);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH, RiskLevel.CRITICAL), searchTime, pageRequest);
 
-        RiskAssessment oldHighRisk = createRiskAssessmentWithTime(searchTime.minus(2, ChronoUnit.HOURS), RiskScore.of(80));
-        oldHighRisk.completeAssessment(Decision.BLOCK);
-        repositoryAdapter.save(oldHighRisk);
-
-        // When
-        List<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(RiskLevel.HIGH, searchTime);
-
-        // Then
-        assertThat(results).hasSize(2)
-                .allMatch(r -> r.getRiskLevel() == RiskLevel.HIGH)
-                .allMatch(r -> r.getAssessmentTime().compareTo(searchTime) >= 0);
+        assertThat(results.totalElements()).isEqualTo(3);
+        assertThat(results.content())
+                .hasSize(3)
+                .allMatch(r -> r.getRiskLevel() == RiskLevel.HIGH || r.getRiskLevel() == RiskLevel.CRITICAL)
+                .allMatch(r -> r.getAssessmentTime().isAfter(searchTime));
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoMatchingRiskLevelSince() {
-        // Given
+    void shouldHandlePaginationCorrectly() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+
+        for (int i = 0; i < 5; i++) {
+            createAndSaveAssessment(now.plus(i, ChronoUnit.MINUTES), RiskScore.of(85), Decision.BLOCK);
+        }
+
+        PageRequest firstPage = PageRequest.of(0, 2, SortDirection.DESC);
+        PageRequest secondPage = PageRequest.of(1, 2, SortDirection.DESC);
+
+        PagedResult<RiskAssessment> page1 = repositoryAdapter.findByRiskLevelSince(
+                Set.of(RiskLevel.HIGH),
+                now.minus(10, ChronoUnit.MINUTES),
+                firstPage
+        );
+
+        PagedResult<RiskAssessment> page2 = repositoryAdapter.findByRiskLevelSince(
+                Set.of(RiskLevel.HIGH),
+                now.minus(10, ChronoUnit.MINUTES),
+                secondPage
+        );
+
+        assertThat(page1.content()).hasSize(2);
+        assertThat(page1.totalElements()).isEqualTo(5);
+        assertThat(page1.totalPages()).isEqualTo(3);
+        assertThat(page2.content()).hasSize(2);
+        assertThat(page1.content().getFirst().getAssessmentId())
+                .isNotEqualTo(page2.content().getFirst().getAssessmentId());
+    }
+
+    @Test
+    void shouldSortResultsByAssessmentTimeDescending() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Instant searchTime = threeHoursEarlier(now);
+
+        createAndSaveAssessment(now, RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(oneHourLater(now), RiskScore.of(87), Decision.BLOCK);
+        createAndSaveAssessment(twoHoursLater(now), RiskScore.of(89), Decision.BLOCK);
+
+        PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.DESC);
+
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH), searchTime, pageRequest);
+
+        assertThat(results.content()).hasSize(3);
+        assertThat(results.content().get(0).getAssessmentTime())
+                .isAfter(results.content().get(1).getAssessmentTime());
+        assertThat(results.content().get(1).getAssessmentTime())
+                .isAfter(results.content().get(2).getAssessmentTime());
+    }
+
+    @Test
+    void shouldSortResultsByAssessmentTimeAscending() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Instant searchTime = threeHoursEarlier(now);
+
+        createAndSaveAssessment(now, RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(oneHourLater(now), RiskScore.of(87), Decision.BLOCK);
+        createAndSaveAssessment(twoHoursLater(now), RiskScore.of(89), Decision.BLOCK);
+
+        PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.ASC);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH), searchTime, pageRequest);
+
+        assertThat(results.content()).hasSize(3);
+        assertThat(results.content().get(0).getAssessmentTime())
+                .isBefore(results.content().get(1).getAssessmentTime());
+        assertThat(results.content().get(1).getAssessmentTime())
+                .isBefore(results.content().get(2).getAssessmentTime());
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenNoMatchingRiskLevelAndTime() {
         Instant futureTime = Instant.now().plus(10, ChronoUnit.DAYS);
+        PageRequest pageRequest = PageRequest.of(0, 10);
 
-        // When
-        List<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(RiskLevel.HIGH, futureTime);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(
+                Set.of(RiskLevel.HIGH),
+                futureTime,
+                pageRequest
+        );
 
-        // Then
-        assertThat(results).isEmpty();
+        assertThat(results.content()).isEmpty();
+        assertThat(results.totalElements()).isZero();
     }
 
     @Test
-    void shouldFindCriticalRiskLevelSince() {
-        // Given
-        Instant now = Instant.now();
-        Instant searchTime = now.minus(1, ChronoUnit.HOURS);
+    void shouldFindMultipleRiskLevels() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+        Instant searchTime = oneHourEarlier(now);
 
-        RiskAssessment criticalRisk = createRiskAssessmentWithTime(now, RiskScore.of(91));
-        criticalRisk.completeAssessment(Decision.BLOCK);
-        repositoryAdapter.save(criticalRisk);
+        createAndSaveAssessment(now, RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(now, RiskScore.of(50), Decision.REVIEW);
+        createAndSaveAssessment(now, RiskScore.of(95), Decision.BLOCK);
+        createAndSaveAssessment(now, RiskScore.of(10), Decision.ALLOW);
 
-        RiskAssessment highRisk = createRiskAssessmentWithTime(now, RiskScore.of(90));
-        highRisk.completeAssessment(Decision.BLOCK);
-        repositoryAdapter.save(highRisk);
+        PageRequest pageRequest = PageRequest.of(0, 10);
 
-        // When
-        List<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(RiskLevel.CRITICAL, searchTime);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(
+                Set.of(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL), searchTime, pageRequest);
 
-        // Then
-        assertThat(results).hasSize(1);
-        assertThat(results.getFirst().getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(results.content()).hasSize(3);
+        assertThat(results.content()).extracting(RiskAssessment::getRiskLevel)
+                .containsExactlyInAnyOrder(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL);
     }
 
     @Test
-    void shouldFindLowRiskLevelSince() {
-        // Given
-        Instant searchTime = Instant.now().minus(1, ChronoUnit.HOURS);
+    void shouldFindAllRiskLevelsWhenEmptySetProvided() {
+        Instant baseTime = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
-        RiskAssessment lowRisk1 = createRiskAssessment(RiskScore.of(10));
-        lowRisk1.completeAssessment(Decision.ALLOW);
-        repositoryAdapter.save(lowRisk1);
+        createAndSaveAssessment(baseTime, RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(baseTime, RiskScore.of(50), Decision.REVIEW);
+        createAndSaveAssessment(baseTime, RiskScore.of(95), Decision.BLOCK);
+        createAndSaveAssessment(baseTime, RiskScore.of(10), Decision.ALLOW);
 
-        RiskAssessment lowRisk2 = createRiskAssessment(RiskScore.of(10));
-        lowRisk2.completeAssessment(Decision.ALLOW);
-        repositoryAdapter.save(lowRisk2);
+        PageRequest pageRequest = PageRequest.of(0, 10);
 
-        RiskAssessment mediumRisk = createRiskAssessment(RiskScore.of(50));
-        mediumRisk.completeAssessment(Decision.REVIEW);
-        repositoryAdapter.save(mediumRisk);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(), oneHourEarlier(baseTime), pageRequest);
 
-        // When
-        List<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(RiskLevel.LOW, searchTime);
+        assertThat(results.content()).hasSize(4);
+        assertThat(results.content()).extracting(RiskAssessment::getRiskLevel)
+                .containsExactlyInAnyOrder(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL, RiskLevel.LOW);
+    }
 
-        // Then
-        assertThat(results).hasSize(2);
-        assertThat(results).allMatch(r -> r.getRiskLevel() == RiskLevel.LOW);
+    @Test
+    void shouldFindAllRiskLevelsWhenNullSetProvided() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+
+        createAndSaveAssessment(now, RiskScore.of(85), Decision.BLOCK);
+        createAndSaveAssessment(now, RiskScore.of(50), Decision.REVIEW);
+
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(null, oneHourEarlier(now), pageRequest);
+
+        assertThat(results.content()).hasSize(2);
+    }
+
+    @Test
+    void shouldHandleUnpagedRequest() {
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+
+        for (int i = 0; i < 3; i++) {
+            createAndSaveAssessment(now.plus(i, ChronoUnit.MINUTES), RiskScore.of(85), Decision.BLOCK);
+        }
+
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH),
+                now.minus(10, ChronoUnit.MINUTES), null);
+
+        assertThat(results.content()).hasSize(3);
     }
 
     @Test
     void shouldPreserveDomainEventsWhenSaving() {
-        // Given
         RiskAssessment assessment = createRiskAssessment(RiskScore.of(90));
         assessment.completeAssessment(Decision.BLOCK);
         int eventCountBeforeSave = assessment.getDomainEvents().size();
 
-        // When
         RiskAssessment saved = repositoryAdapter.save(assessment);
 
-        // Then
-        assertThat(saved.getDomainEvents()).isEmpty(); // Events are cleared after persistence
+        assertThat(saved.getDomainEvents()).isEmpty();
         assertThat(eventCountBeforeSave).isGreaterThan(0);
     }
 
     @Test
     void shouldHandleMultipleSavesCorrectly() {
-        // Given
         RiskAssessment assessment = createRiskAssessment(RiskScore.of(10));
         assessment.completeAssessment(Decision.REVIEW);
 
-        // When
         RiskAssessment saved1 = repositoryAdapter.save(assessment);
         RiskAssessment saved2 = repositoryAdapter.save(saved1);
 
-        // Then
         Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(assessment.getTransactionId().toUUID());
         assertThat(found).isPresent();
         assertThat(found.get().getAssessmentId()).isEqualTo(saved2.getAssessmentId());
-    }
-
-    private RiskAssessment createRiskAssessment() {
-        return RiskAssessment.of(TransactionId.generate());
     }
 
     private RiskAssessment createRiskAssessment(RiskScore score) {
         return new RiskAssessment(TransactionId.generate(), score);
     }
 
-    private RiskAssessment createRiskAssessmentWithTime(Instant time, RiskScore riskScore) {
-        try {
-            RiskAssessment assessment = new RiskAssessment(TransactionId.generate(), riskScore);
-            java.lang.reflect.Field assessmentTimeField = RiskAssessment.class.getDeclaredField("assessmentTime");
-            assessmentTimeField.setAccessible(true);
-            assessmentTimeField.set(assessment, time);
+    private void createAndSaveAssessment(Instant time, RiskScore score, Decision decision) {
+        RiskAssessment assessment = createRiskAssessmentWithTime(time, score);
+        assessment.completeAssessment(decision);
+        repositoryAdapter.save(assessment);
+    }
 
-            return assessment;
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException("Failed to set assessment time via reflection", e);
-        }
+    private RiskAssessment createRiskAssessmentWithTime(Instant time, RiskScore riskScore) {
+        return new RiskAssessment(TransactionId.generate(), riskScore, time);
+    }
+
+    private static Instant thirtyMinutesLater(Instant now) {
+        return now.plus(30, ChronoUnit.MINUTES);
+    }
+
+    private static Instant fourtyFiveMinutesLater(Instant now) {
+        return now.plus(45, ChronoUnit.MINUTES);
+    }
+
+    private static Instant oneHourLater(Instant now) {
+        return now.plus(1, ChronoUnit.HOURS);
+    }
+
+    private static Instant twoHoursLater(Instant baseTime) {
+        return baseTime.plus(2, ChronoUnit.HOURS);
+    }
+
+    private static Instant oneHourEarlier(Instant now) {
+        return now.minus(1, ChronoUnit.HOURS);
+    }
+
+    private static Instant threeHoursEarlier(Instant now) {
+        return now.minus(3, ChronoUnit.HOURS);
     }
 }

@@ -2,11 +2,14 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -14,5 +17,5 @@ public interface RiskAssessmentJdbcRepository extends CrudRepository<RiskAssessm
 
     Optional<RiskAssessmentEntity> findByTransactionId(UUID transactionId);
 
-    List<RiskAssessmentEntity> findByRiskLevelAndAssessmentTimeGreaterThanEqualOrderByAssessmentTimeDesc(String riskLevel, Instant assessmentTime);
+    Page<RiskAssessmentEntity> findByRiskLevelInAndAssessmentTimeGreaterThanEqual(Set<String> riskLevels, Instant assessmentTime, Pageable pageable);
 }
