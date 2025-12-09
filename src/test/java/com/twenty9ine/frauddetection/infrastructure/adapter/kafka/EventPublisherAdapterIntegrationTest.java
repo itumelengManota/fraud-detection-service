@@ -146,7 +146,7 @@ class EventPublisherAdapterIntegrationTest {
         assertThat(avroEvent.getAssessmentId()).isEqualTo(event.assessmentId().toString());
         assertThat(avroEvent.getId()).isEqualTo(event.id().toString());
         assertThat(avroEvent.getFinalScore()).isEqualTo(event.finalScore().value());
-        assertThat(avroEvent.getRiskLevel()).isEqualTo(event.riskLevel().name());
+        assertThat(avroEvent.getRiskLevel()).isEqualTo(event.transactionRiskLevel().name());
         assertThat(avroEvent.getDecision()).isEqualTo(event.decision().name());
     }
 
@@ -173,7 +173,7 @@ class EventPublisherAdapterIntegrationTest {
         HighRiskDetectedAvro avroEvent = (HighRiskDetectedAvro) record.value();
         assertThat(avroEvent.getAssessmentId()).isEqualTo(event.assessmentId().toString());
         assertThat(avroEvent.getId()).isEqualTo(event.id().toString());
-        assertThat(avroEvent.getRiskLevel()).isEqualTo(event.riskLevel().name());
+        assertThat(avroEvent.getRiskLevel()).isEqualTo(event.transactionRiskLevel().name());
     }
 
     private ConsumerRecords<String, Object> poolConsumerRecord() {
@@ -344,7 +344,7 @@ class EventPublisherAdapterIntegrationTest {
         return new RiskAssessmentCompleted(
                 transactionId, AssessmentId.generate(),
                 RiskScore.of(90),
-                RiskLevel.HIGH,
+                TransactionRiskLevel.HIGH,
                 Decision.BLOCK,
                 Instant.now()
         );
@@ -353,7 +353,7 @@ class EventPublisherAdapterIntegrationTest {
     private HighRiskDetected createHighRiskDetectedEvent(TransactionId transactionId) {
         return new HighRiskDetected(
                 transactionId, AssessmentId.generate(),
-                RiskLevel.HIGH,
+                TransactionRiskLevel.HIGH,
                 Instant.now()
         );
     }

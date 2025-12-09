@@ -13,7 +13,7 @@ import com.twenty9ine.frauddetection.application.port.in.query.PageRequestQuery;
  *
  * @author Ignatius Itumeleng Manota
  */
-public interface FindHighRiskAssessmentsUseCase {
+public interface FindRiskLeveledAssessmentsUseCase {
 
     /**
      * Finds all risk assessments matching the specified risk level from a given time.

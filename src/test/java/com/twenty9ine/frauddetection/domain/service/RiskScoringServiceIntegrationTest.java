@@ -311,7 +311,7 @@ class RiskScoringServiceIntegrationTest {
                 .isLessThanOrEqualTo(57);
 
         // Verify risk level based on score (56 should be MEDIUM: 41-70)
-        assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+        assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.MEDIUM);
     }
 
 

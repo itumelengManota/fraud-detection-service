@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 @Slf4j
-public class GeographicValidator {
+public final class GeographicValidator {
 
     private static final double IMPOSSIBLE_TRAVEL_THRESHOLD_KMH = 965.0; //average cruising speed for a commercial jet
 

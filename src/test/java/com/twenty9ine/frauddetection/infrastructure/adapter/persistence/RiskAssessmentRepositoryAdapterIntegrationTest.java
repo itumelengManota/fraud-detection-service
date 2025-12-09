@@ -63,7 +63,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         assertThat(saved.getAssessmentId()).isNotNull();
         assertThat(saved.getTransactionId()).isEqualTo(assessment.getTransactionId());
         assertThat(saved.getRiskScore().value()).isEqualTo(75);
-        assertThat(saved.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(saved.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.HIGH);
         assertThat(saved.getDecision()).isEqualTo(Decision.REVIEW);
     }
 
@@ -131,12 +131,12 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
         PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.DESC);
 
-        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH, RiskLevel.CRITICAL), searchTime, pageRequest);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(TransactionRiskLevel.HIGH, TransactionRiskLevel.CRITICAL), searchTime, pageRequest);
 
         assertThat(results.totalElements()).isEqualTo(3);
         assertThat(results.content())
                 .hasSize(3)
-                .allMatch(r -> r.getRiskLevel() == RiskLevel.HIGH || r.getRiskLevel() == RiskLevel.CRITICAL)
+                .allMatch(r -> r.getTransactionRiskLevel() == TransactionRiskLevel.HIGH || r.getTransactionRiskLevel() == TransactionRiskLevel.CRITICAL)
                 .allMatch(r -> r.getAssessmentTime().isAfter(searchTime));
     }
 
@@ -152,13 +152,13 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         PageRequest secondPage = PageRequest.of(1, 2, SortDirection.DESC);
 
         PagedResult<RiskAssessment> page1 = repositoryAdapter.findByRiskLevelSince(
-                Set.of(RiskLevel.HIGH),
+                Set.of(TransactionRiskLevel.HIGH),
                 now.minus(10, ChronoUnit.MINUTES),
                 firstPage
         );
 
         PagedResult<RiskAssessment> page2 = repositoryAdapter.findByRiskLevelSince(
-                Set.of(RiskLevel.HIGH),
+                Set.of(TransactionRiskLevel.HIGH),
                 now.minus(10, ChronoUnit.MINUTES),
                 secondPage
         );
@@ -182,7 +182,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
         PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.DESC);
 
-        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH), searchTime, pageRequest);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(TransactionRiskLevel.HIGH), searchTime, pageRequest);
 
         assertThat(results.content()).hasSize(3);
         assertThat(results.content().get(0).getAssessmentTime())
@@ -201,7 +201,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         createAndSaveAssessment(twoHoursLater(now), RiskScore.of(89), Decision.BLOCK);
 
         PageRequest pageRequest = PageRequest.of(0, 10, SortDirection.ASC);
-        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH), searchTime, pageRequest);
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(TransactionRiskLevel.HIGH), searchTime, pageRequest);
 
         assertThat(results.content()).hasSize(3);
         assertThat(results.content().get(0).getAssessmentTime())
@@ -216,7 +216,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         PageRequest pageRequest = PageRequest.of(0, 10);
 
         PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(
-                Set.of(RiskLevel.HIGH),
+                Set.of(TransactionRiskLevel.HIGH),
                 futureTime,
                 pageRequest
         );
@@ -238,11 +238,11 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         PageRequest pageRequest = PageRequest.of(0, 10);
 
         PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(
-                Set.of(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL), searchTime, pageRequest);
+                Set.of(TransactionRiskLevel.HIGH, TransactionRiskLevel.MEDIUM, TransactionRiskLevel.CRITICAL), searchTime, pageRequest);
 
         assertThat(results.content()).hasSize(3);
-        assertThat(results.content()).extracting(RiskAssessment::getRiskLevel)
-                .containsExactlyInAnyOrder(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL);
+        assertThat(results.content()).extracting(RiskAssessment::getTransactionRiskLevel)
+                .containsExactlyInAnyOrder(TransactionRiskLevel.HIGH, TransactionRiskLevel.MEDIUM, TransactionRiskLevel.CRITICAL);
     }
 
     @Test
@@ -259,8 +259,8 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(), oneHourEarlier(baseTime), pageRequest);
 
         assertThat(results.content()).hasSize(4);
-        assertThat(results.content()).extracting(RiskAssessment::getRiskLevel)
-                .containsExactlyInAnyOrder(RiskLevel.HIGH, RiskLevel.MEDIUM, RiskLevel.CRITICAL, RiskLevel.LOW);
+        assertThat(results.content()).extracting(RiskAssessment::getTransactionRiskLevel)
+                .containsExactlyInAnyOrder(TransactionRiskLevel.HIGH, TransactionRiskLevel.MEDIUM, TransactionRiskLevel.CRITICAL, TransactionRiskLevel.LOW);
     }
 
     @Test
@@ -284,7 +284,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
             createAndSaveAssessment(now.plus(i, ChronoUnit.MINUTES), RiskScore.of(85), Decision.BLOCK);
         }
 
-        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(RiskLevel.HIGH),
+        PagedResult<RiskAssessment> results = repositoryAdapter.findByRiskLevelSince(Set.of(TransactionRiskLevel.HIGH),
                 now.minus(10, ChronoUnit.MINUTES), null);
 
         assertThat(results.content()).hasSize(3);

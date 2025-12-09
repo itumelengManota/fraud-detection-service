@@ -21,7 +21,7 @@ public class DomainEventToAvroMapper {
                 .setId(event.id().toString())
                 .setAssessmentId(event.assessmentId().toString())
                 .setFinalScore(event.finalScore().value())
-                .setRiskLevel(event.riskLevel().name())
+                .setRiskLevel(event.transactionRiskLevel().name())
                 .setDecision(event.decision().name())
                 .setOccurredAt(event.getOccurredAt().toEpochMilli())
                 .build();
@@ -31,7 +31,7 @@ public class DomainEventToAvroMapper {
         return HighRiskDetectedAvro.newBuilder()
                 .setId(event.id().toString())
                 .setAssessmentId(event.assessmentId().toString())
-                .setRiskLevel(event.riskLevel().name())
+                .setRiskLevel(event.transactionRiskLevel().name())
                 .setOccurredAt(event.getOccurredAt().toEpochMilli())
                 .build();
     }

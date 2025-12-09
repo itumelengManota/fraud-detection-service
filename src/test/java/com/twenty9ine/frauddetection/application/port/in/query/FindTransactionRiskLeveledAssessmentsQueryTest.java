@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.application.port.in.query;
 
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -17,7 +17,7 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("FindHighRiskAssessmentsQuery Tests")
-class FindRiskLeveledAssessmentsQueryTest {
+class FindTransactionRiskLeveledAssessmentsQueryTest {
 
     private Validator validator;
     private Instant since;
@@ -79,16 +79,16 @@ class FindRiskLeveledAssessmentsQueryTest {
         @Test
         @DisplayName("Should be equal when fields are equal")
         void shouldBeEqualWhenFieldsAreEqual() {
-            RiskLevel riskLevel = RiskLevel.CRITICAL;
+            TransactionRiskLevel transactionRiskLevel = TransactionRiskLevel.CRITICAL;
             Instant timestamp = Instant.now();
 
             FindRiskLeveledAssessmentsQuery query1 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(riskLevel))
+                    .transactionRiskLevels(Set.of(transactionRiskLevel))
                     .from(timestamp)
                     .build();
 
             FindRiskLeveledAssessmentsQuery query2 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(riskLevel))
+                    .transactionRiskLevels(Set.of(transactionRiskLevel))
                     .from(timestamp)
                     .build();
 
@@ -102,12 +102,12 @@ class FindRiskLeveledAssessmentsQueryTest {
             Instant timestamp = Instant.now();
 
             FindRiskLeveledAssessmentsQuery query1 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(null)
+                    .transactionRiskLevels(null)
                     .from(timestamp)
                     .build();
 
             FindRiskLeveledAssessmentsQuery query2 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(null)
+                    .transactionRiskLevels(null)
                     .from(timestamp)
                     .build();
 
@@ -121,12 +121,12 @@ class FindRiskLeveledAssessmentsQueryTest {
             Instant timestamp = Instant.now();
 
             FindRiskLeveledAssessmentsQuery query1 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(RiskLevel.HIGH))
+                    .transactionRiskLevels(Set.of(TransactionRiskLevel.HIGH))
                     .from(timestamp)
                     .build();
 
             FindRiskLeveledAssessmentsQuery query2 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(RiskLevel.CRITICAL))
+                    .transactionRiskLevels(Set.of(TransactionRiskLevel.CRITICAL))
                     .from(timestamp)
                     .build();
 
@@ -136,15 +136,15 @@ class FindRiskLeveledAssessmentsQueryTest {
         @Test
         @DisplayName("Should not be equal when timestamps differ")
         void shouldNotBeEqualWhenTimestampsDiffer() {
-            RiskLevel riskLevel = RiskLevel.HIGH;
+            TransactionRiskLevel transactionRiskLevel = TransactionRiskLevel.HIGH;
 
             FindRiskLeveledAssessmentsQuery query1 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(riskLevel))
+                    .transactionRiskLevels(Set.of(transactionRiskLevel))
                     .from(Instant.now())
                     .build();
 
             FindRiskLeveledAssessmentsQuery query2 = FindRiskLeveledAssessmentsQuery.builder()
-                    .riskLevels(Set.of(riskLevel))
+                    .transactionRiskLevels(Set.of(transactionRiskLevel))
                     .from(Instant.now().minus(1, ChronoUnit.HOURS))
                     .build();
 

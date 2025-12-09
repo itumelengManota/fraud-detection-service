@@ -1,6 +1,6 @@
 package com.twenty9ine.frauddetection.application.port.in.query;
 
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PastOrPresent;
 import lombok.Builder;
@@ -18,7 +18,7 @@ import java.util.Set;
  */
 @Builder
 public record FindRiskLeveledAssessmentsQuery(
-        Set<RiskLevel> riskLevels,
+        Set<TransactionRiskLevel> transactionRiskLevels,
 
         @PastOrPresent(message = "From timestamp cannot be in the future")
         @NotNull(message = "From transactionTimestamp cannot be null")

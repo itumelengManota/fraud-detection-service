@@ -41,7 +41,7 @@ public class FraudDetectionController {
 
     private final AssessTransactionRiskUseCase assessTransactionRiskUseCase;
     private final GetRiskAssessmentUseCase getRiskAssessmentUseCase;
-    private final FindHighRiskAssessmentsUseCase findHighRiskAssessmentsUseCase;
+    private final FindRiskLeveledAssessmentsUseCase findRiskLeveledAssessmentsUseCase;
 
     @PostMapping("/assessments")
     @Operation(summary = "Analyze transaction for fraud", description = "Performs real-time fraud analysis on a transaction")
@@ -69,7 +69,7 @@ public class FraudDetectionController {
     }
 
     private PagedResultDto<RiskAssessmentDto> findAssessmentsByQuery(FindRiskLeveledAssessmentsQuery query, Pageable pageable) {
-        return findHighRiskAssessmentsUseCase.find(query, buildPageRequestQuery(pageable));
+        return findRiskLeveledAssessmentsUseCase.find(query, buildPageRequestQuery(pageable));
     }
 
     private static PageRequestQuery buildPageRequestQuery(Pageable pageable) {

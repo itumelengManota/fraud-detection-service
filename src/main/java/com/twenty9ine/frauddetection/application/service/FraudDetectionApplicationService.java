@@ -28,13 +28,13 @@ import java.util.List;
  * domain services and output ports. Acts as the application layer's
  * facade following Hexagonal Architecture principles.
  *
- * @author Fraud Detection Team
+ * @author Ignatius Itumeleng Manota
  */
 @Service
 @Transactional
 @Slf4j
 public class FraudDetectionApplicationService implements AssessTransactionRiskUseCase, GetRiskAssessmentUseCase,
-        FindHighRiskAssessmentsUseCase {
+        FindRiskLeveledAssessmentsUseCase {
 
     private final RiskScoringService riskScoringService;
     private final DecisionService decisionService;
@@ -84,12 +84,12 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
     @Override
     @Transactional(readOnly = true)
     public PagedResultDto<RiskAssessmentDto> find(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
-        log.debug("Finding {} risk assessments from {}", query.riskLevels(), query.from());
+        log.debug("Finding {} risk assessments from {}", query.transactionRiskLevels(), query.from());
         return getRiskAssessmentDtoPagedResultDto(findRiskAssessmentsByRiskLevelSince(query, pageRequestQuery));
     }
 
     private PagedResult<RiskAssessment> findRiskAssessmentsByRiskLevelSince(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
-        return repository.findByRiskLevelSince(query.riskLevels(), query.from(), toPageRequest(pageRequestQuery));
+        return repository.findByRiskLevelSince(query.transactionRiskLevels(), query.from(), toPageRequest(pageRequestQuery));
     }
 
     private static PagedResultDto<RiskAssessmentDto> getRiskAssessmentDtoPagedResultDto(PagedResult<RiskAssessment> pagedResult) {

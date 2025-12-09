@@ -19,7 +19,7 @@ public class RiskAssessment {
     private final AssessmentId assessmentId;
     private final TransactionId transactionId;
     private final RiskScore riskScore;
-    private final RiskLevel riskLevel;
+    private final TransactionRiskLevel transactionRiskLevel;
     private Decision decision;
     private final List<RuleEvaluation> ruleEvaluations;
     private final MLPrediction mlPrediction;
@@ -62,7 +62,7 @@ public class RiskAssessment {
         this.assessmentId = assessmentId;
         this.transactionId = transactionId;
         this.riskScore = riskScore;
-        this.riskLevel = determineRiskLevel(riskScore);
+        this.transactionRiskLevel = determineRiskLevel(riskScore);
         this.mlPrediction = mlPrediction;
         this.ruleEvaluations = new ArrayList<>(evaluations);
         this.domainEvents = new ArrayList<>();
@@ -73,10 +73,10 @@ public class RiskAssessment {
         this.decision = decision;
         validateDecisionAlignment();
 
-        publishEvent(RiskAssessmentCompleted.of(this.transactionId, this.assessmentId, this.riskScore, this.riskLevel, decision));
+        publishEvent(RiskAssessmentCompleted.of(this.transactionId, this.assessmentId, this.riskScore, this.transactionRiskLevel, decision));
 
         if (hasHighRisk()) {
-            publishEvent(HighRiskDetected.of(this.transactionId, this.assessmentId, this.riskLevel));
+            publishEvent(HighRiskDetected.of(this.transactionId, this.assessmentId, this.transactionRiskLevel));
         }
     }
 
@@ -105,29 +105,29 @@ public class RiskAssessment {
     }
 
     private boolean hasLowRisk() {
-        return determineRiskLevel(this.riskScore) == RiskLevel.LOW;
+        return determineRiskLevel(this.riskScore) == TransactionRiskLevel.LOW;
     }
 
     private boolean hasCriticalRisk() {
-        return determineRiskLevel(this.riskScore) == RiskLevel.CRITICAL;
+        return determineRiskLevel(this.riskScore) == TransactionRiskLevel.CRITICAL;
     }
 
     private boolean hasHighRisk() {
-        return determineRiskLevel(this.riskScore) == RiskLevel.HIGH ||
-                determineRiskLevel(this.riskScore) == RiskLevel.CRITICAL;
+        return determineRiskLevel(this.riskScore) == TransactionRiskLevel.HIGH ||
+                determineRiskLevel(this.riskScore) == TransactionRiskLevel.CRITICAL;
     }
 
-    private RiskLevel determineRiskLevel(RiskScore riskScore) {
+    private TransactionRiskLevel determineRiskLevel(RiskScore riskScore) {
         int score = riskScore.value();
 
         if (score <= 40) {
-            return RiskLevel.LOW;
+            return TransactionRiskLevel.LOW;
         } else if (score <= 70) {
-            return RiskLevel.MEDIUM;
+            return TransactionRiskLevel.MEDIUM;
         } else if (score <= 90) {
-            return RiskLevel.HIGH;
+            return TransactionRiskLevel.HIGH;
         } else {
-            return RiskLevel.CRITICAL;
+            return TransactionRiskLevel.CRITICAL;
         }
     }
 }

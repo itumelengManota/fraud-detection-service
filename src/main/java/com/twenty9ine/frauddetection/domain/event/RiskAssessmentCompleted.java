@@ -5,17 +5,17 @@ import com.twenty9ine.frauddetection.domain.valueobject.*;
 import java.time.Instant;
 
 public record RiskAssessmentCompleted(TransactionId id, AssessmentId assessmentId,
-                                      RiskScore finalScore, RiskLevel riskLevel, Decision decision,
+                                      RiskScore finalScore, TransactionRiskLevel transactionRiskLevel, Decision decision,
                                       Instant occurredAt) implements DomainEvent<TransactionId> {
 
     public RiskAssessmentCompleted(TransactionId id, AssessmentId assessmentId, RiskScore finalScore,
-                                   RiskLevel riskLevel, Decision decision) {
-        this(id, assessmentId, finalScore, riskLevel, decision, Instant.now());
+                                   TransactionRiskLevel transactionRiskLevel, Decision decision) {
+        this(id, assessmentId, finalScore, transactionRiskLevel, decision, Instant.now());
     }
 
     public static RiskAssessmentCompleted of(TransactionId id, AssessmentId assessmentId,
-                                             RiskScore finalScore, RiskLevel riskLevel, Decision decision) {
-        return new RiskAssessmentCompleted(id, assessmentId, finalScore, riskLevel, decision);
+                                             RiskScore finalScore, TransactionRiskLevel transactionRiskLevel, Decision decision) {
+        return new RiskAssessmentCompleted(id, assessmentId, finalScore, transactionRiskLevel, decision);
     }
 
     @Override

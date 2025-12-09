@@ -59,7 +59,7 @@ class RiskAssessmentTest {
             assertThat(assessment.getRuleEvaluations()).isEmpty();
             assertThat(assessment.getDomainEvents()).isEmpty();
             assertThat(assessment.getRiskScore()).isNotNull();
-            assertThat(assessment.getRiskLevel()).isNotNull();
+            assertThat(assessment.getTransactionRiskLevel()).isNotNull();
             assertThat(assessment.getDecision()).isNull();
         }
 
@@ -100,7 +100,7 @@ class RiskAssessmentTest {
             assessment.completeAssessment(decision);
 
             assertThat(assessment.getRiskScore()).isEqualTo(lowScore);
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.LOW);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.LOW);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(1);
             assertThat(assessment.getDomainEvents().getFirst()).isInstanceOf(RiskAssessmentCompleted.class);
@@ -116,7 +116,7 @@ class RiskAssessmentTest {
             assessment.completeAssessment(decision);
 
             assertThat(assessment.getRiskScore()).isEqualTo(lowScore);
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.LOW);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.LOW);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(1);
         }
@@ -131,7 +131,7 @@ class RiskAssessmentTest {
             assessment.completeAssessment(decision);
 
             assertThat(assessment.getRiskScore()).isEqualTo(mediumScore);
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.MEDIUM);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(1);
         }
@@ -144,7 +144,7 @@ class RiskAssessmentTest {
 
             assessment.completeAssessment(decision);
 
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.MEDIUM);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(1);
         }
@@ -159,7 +159,7 @@ class RiskAssessmentTest {
             assessment.completeAssessment(decision);
 
             assertThat(assessment.getRiskScore()).isEqualTo(highScore);
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.HIGH);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(2);
             assertThat(assessment.getDomainEvents().get(0)).isInstanceOf(RiskAssessmentCompleted.class);
@@ -174,7 +174,7 @@ class RiskAssessmentTest {
 
             assessment.completeAssessment(decision);
 
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.HIGH);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(2);
         }
@@ -189,7 +189,7 @@ class RiskAssessmentTest {
             assessment.completeAssessment(decision);
 
             assertThat(assessment.getRiskScore()).isEqualTo(criticalScore);
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.CRITICAL);
             assertThat(assessment.getDecision()).isEqualTo(decision);
             assertThat(assessment.getDomainEvents()).hasSize(2);
         }
@@ -257,7 +257,7 @@ class RiskAssessmentTest {
 
             riskAssessment.completeAssessment(decision);
 
-            assertThat(riskAssessment.getRiskLevel()).isEqualTo(RiskLevel.LOW);
+            assertThat(riskAssessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.LOW);
             assertThat(riskAssessment.getDomainEvents()).hasSize(1);
         }
 
@@ -269,7 +269,7 @@ class RiskAssessmentTest {
 
             assessment.completeAssessment(decision);
 
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.MEDIUM);
             assertThat(assessment.getDomainEvents()).hasSize(1);
         }
 
@@ -281,7 +281,7 @@ class RiskAssessmentTest {
 
             assessment.completeAssessment(decision);
 
-            assertThat(assessment.getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+            assertThat(assessment.getTransactionRiskLevel()).isEqualTo(TransactionRiskLevel.HIGH);
             assertThat(assessment.getDomainEvents()).hasSize(2);
         }
     }
@@ -441,7 +441,7 @@ class RiskAssessmentTest {
             publishMethod.setAccessible(true);
 
             DomainEvent event = RiskAssessmentCompleted.of(riskAssessment.getTransactionId(), riskAssessment.getAssessmentId(),
-                    new RiskScore(50), RiskLevel.MEDIUM, Decision.REVIEW
+                    new RiskScore(50), TransactionRiskLevel.MEDIUM, Decision.REVIEW
             );
 
             publishMethod.invoke(riskAssessment, event);

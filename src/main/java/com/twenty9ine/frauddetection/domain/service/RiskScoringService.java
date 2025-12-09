@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public class RiskScoringService {
+public final class RiskScoringService {
 
     private final RuleEngineService ruleEngine;
     private final MLServicePort mlService;

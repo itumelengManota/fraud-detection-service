@@ -88,7 +88,7 @@ class RuleEvaluationMapperTest {
                 RuleType.VELOCITY,
                 false,
                 0,
-                "No score impact"
+                "No score ruleViolationSeverity"
         );
 
         RuleEvaluationEntity entity = mapper.toEntity(evaluation);
@@ -345,7 +345,7 @@ class RuleEvaluationMapperTest {
                 RuleType.MERCHANT,
                 true,
                 100,
-                "Maximum impact"
+                "Maximum ruleViolationSeverity"
         );
 
         RuleEvaluationEntity entity = mapper.toEntity(evaluation);

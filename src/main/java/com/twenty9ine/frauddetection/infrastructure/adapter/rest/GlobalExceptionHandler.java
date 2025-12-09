@@ -16,6 +16,8 @@ import java.time.Instant;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    //TODO: Add a handler for RiskAssessmentNotFoundException
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(ConstraintViolationException exception) {
 

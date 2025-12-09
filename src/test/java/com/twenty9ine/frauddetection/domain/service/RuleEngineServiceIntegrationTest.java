@@ -56,7 +56,7 @@ class RuleEngineServiceIntegrationTest {
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
             .containsExactly("Large Amount");
-        assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.MEDIUM);
+        assertThat(result.getTriggers().getFirst().ruleViolationSeverity()).isEqualTo(RuleViolationSeverity.MEDIUM);
         assertThat(result.aggregateScore()).isEqualTo(25.0);
     }
 
@@ -114,7 +114,7 @@ class RuleEngineServiceIntegrationTest {
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
             .containsExactly("High Velocity 5min");
-        assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.HIGH);
+        assertThat(result.getTriggers().getFirst().ruleViolationSeverity()).isEqualTo(RuleViolationSeverity.HIGH);
         assertThat(result.aggregateScore()).isEqualTo(40.0);
     }
 
@@ -185,7 +185,7 @@ class RuleEngineServiceIntegrationTest {
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
             .containsExactly("Impossible Travel");
-        assertThat(result.getTriggers().getFirst().impact()).isEqualTo(RiskImpact.CRITICAL);
+        assertThat(result.getTriggers().getFirst().ruleViolationSeverity()).isEqualTo(RuleViolationSeverity.CRITICAL);
         assertThat(result.getTriggers().getFirst().triggeredValue()).isEqualTo(11140.0);
         assertThat(result.aggregateScore()).isEqualTo(60.0);
     }

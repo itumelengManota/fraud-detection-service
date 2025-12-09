@@ -1,21 +1,21 @@
 package com.twenty9ine.frauddetection.domain.event;
 
 import com.twenty9ine.frauddetection.domain.valueobject.AssessmentId;
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 
 import java.time.Instant;
 
 public record HighRiskDetected(TransactionId id, AssessmentId assessmentId,
-                               RiskLevel riskLevel,
+                               TransactionRiskLevel transactionRiskLevel,
                                Instant occurredAt) implements DomainEvent<TransactionId> {
 
-    public HighRiskDetected(TransactionId id, AssessmentId assessmentId, RiskLevel riskLevel) {
-        this(id, assessmentId, riskLevel, Instant.now());
+    public HighRiskDetected(TransactionId id, AssessmentId assessmentId, TransactionRiskLevel transactionRiskLevel) {
+        this(id, assessmentId, transactionRiskLevel, Instant.now());
     }
 
-    public static HighRiskDetected of(TransactionId id, AssessmentId assessmentId, RiskLevel riskLevel) {
-        return new HighRiskDetected(id, assessmentId, riskLevel);
+    public static HighRiskDetected of(TransactionId id, AssessmentId assessmentId, TransactionRiskLevel transactionRiskLevel) {
+        return new HighRiskDetected(id, assessmentId, transactionRiskLevel);
     }
 
 

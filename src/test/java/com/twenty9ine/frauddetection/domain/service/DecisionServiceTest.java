@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.domain.service;
 
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.Decision;
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import com.twenty9ine.frauddetection.domain.valueobject.RiskScore;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,7 +41,7 @@ class DecisionServiceTest {
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.ALLOW, decision);
-            assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
         }
 
         @Test
@@ -51,7 +51,7 @@ class DecisionServiceTest {
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.CHALLENGE, decision);
-            assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
         }
 
         @Test
@@ -61,7 +61,7 @@ class DecisionServiceTest {
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.REVIEW, decision);
-            assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
         }
 
         @Test
@@ -71,13 +71,13 @@ class DecisionServiceTest {
             Decision decision = decisionService.makeDecision(assessment);
 
             assertEquals(Decision.BLOCK, decision);
-            assertEquals(RiskLevel.CRITICAL, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.CRITICAL, assessment.getTransactionRiskLevel());
         }
     }
 
     @Nested
     @DisplayName("Risk Level Boundary Tests")
-    class RiskLevelBoundaryTests {
+    class TransactionRiskLevelBoundaryTests {
 
         @Test
         @DisplayName("Should classify score 0 as LOW")
@@ -85,7 +85,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(0));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
             assertEquals(Decision.ALLOW, decision);
         }
 
@@ -95,7 +95,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(29));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
             assertEquals(Decision.ALLOW, decision);
         }
 
@@ -105,7 +105,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(30));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.LOW, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
             assertEquals(Decision.ALLOW, decision);
         }
 
@@ -115,7 +115,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(59));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
             assertEquals(Decision.CHALLENGE, decision);
         }
 
@@ -125,7 +125,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.CHALLENGE, RiskScore.of(60));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
             assertEquals(Decision.CHALLENGE, decision);
         }
 
@@ -135,7 +135,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(84));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
             assertEquals(Decision.REVIEW, decision);
         }
 
@@ -145,7 +145,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.REVIEW, RiskScore.of(85));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
             assertEquals(Decision.REVIEW, decision);
         }
 
@@ -155,7 +155,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.BLOCK, RiskScore.of(100));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.CRITICAL, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.CRITICAL, assessment.getTransactionRiskLevel());
             assertEquals(Decision.BLOCK, decision);
         }
     }
@@ -167,13 +167,13 @@ class DecisionServiceTest {
         @Test
         @DisplayName("Should find correct strategy for each risk level")
         void shouldFindCorrectStrategyForEachRiskLevel() {
-            assertDecisionForLevel(RiskLevel.LOW, Decision.ALLOW);
-            assertDecisionForLevel(RiskLevel.MEDIUM, Decision.CHALLENGE);
-            assertDecisionForLevel(RiskLevel.HIGH, Decision.REVIEW);
-            assertDecisionForLevel(RiskLevel.CRITICAL, Decision.BLOCK);
+            assertDecisionForLevel(TransactionRiskLevel.LOW, Decision.ALLOW);
+            assertDecisionForLevel(TransactionRiskLevel.MEDIUM, Decision.CHALLENGE);
+            assertDecisionForLevel(TransactionRiskLevel.HIGH, Decision.REVIEW);
+            assertDecisionForLevel(TransactionRiskLevel.CRITICAL, Decision.BLOCK);
         }
 
-        private void assertDecisionForLevel(RiskLevel level, Decision expectedDecision) {
+        private void assertDecisionForLevel(TransactionRiskLevel level, Decision expectedDecision) {
             RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(50));
             assessment.completeAssessment(Decision.ALLOW);
 
@@ -205,7 +205,7 @@ class DecisionServiceTest {
             RiskAssessment assessment = createAssessment(Decision.CHALLENGE, RiskScore.of(70));
             decisionService.makeDecision(assessment);
 
-            assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
             assertEquals(Decision.CHALLENGE, assessment.getDecision());
         }
 
@@ -256,7 +256,7 @@ class DecisionServiceTest {
             Decision decision = decisionService.makeDecision(assessment);
 
             assertNotNull(decision);
-            assertEquals(RiskLevel.MEDIUM, assessment.getRiskLevel());
+            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
         }
 
         @Test

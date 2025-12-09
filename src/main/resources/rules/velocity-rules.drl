@@ -1,9 +1,9 @@
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction
 import com.twenty9ine.frauddetection.domain.valueobject.TimeWindow
-import com.twenty9ine.frauddetection.domain.service.RuleEvaluationResult
+import com.twenty9ine.frauddetection.domain.valueobject.RuleEvaluationResult
 import com.twenty9ine.frauddetection.domain.valueobject.RuleTrigger
-import com.twenty9ine.frauddetection.domain.valueobject.RiskImpact
+import com.twenty9ine.frauddetection.domain.valueobject.RuleViolationSeverity
 
 global RuleEvaluationResult ruleEvaluationResult;
 
@@ -17,7 +17,7 @@ rule "High Velocity - 5 Minute Window"
             new RuleTrigger(
                 "VELOCITY_5MIN",
                 "High Velocity 5min",
-                RiskImpact.HIGH,
+                RuleViolationSeverity.HIGH,
                 "More than 5 transactions in 5 minutes",
                 $count
             )
@@ -34,7 +34,7 @@ rule "Extreme Velocity - 1 Hour Window"
             new RuleTrigger(
                 "VELOCITY_1HOUR",
                 "Extreme Velocity 1hr",
-                RiskImpact.CRITICAL,
+                RuleViolationSeverity.CRITICAL,
                 "More than 20 transactions in 1 hour",
                 $count
             )

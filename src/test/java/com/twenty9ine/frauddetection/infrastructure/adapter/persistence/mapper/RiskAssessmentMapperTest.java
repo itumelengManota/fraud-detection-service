@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static com.twenty9ine.frauddetection.domain.valueobject.RiskLevel.LOW;
+import static com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel.LOW;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJdbcTest
@@ -211,7 +211,7 @@ class RiskAssessmentMapperTest {
         assertEquals(assessmentId, assessment.getAssessmentId().toUUID());
         assertEquals(transactionId, assessment.getTransactionId().toUUID());
         assertEquals(80, assessment.getRiskScore().value());
-        assertEquals(RiskLevel.HIGH, assessment.getRiskLevel());
+        assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
         assertEquals(Decision.REVIEW, assessment.getDecision());
         // Use tolerance-based comparison for timestamps (within 10ms)
         assertTrue(Math.abs(timestamp.toEpochMilli() - assessment.getAssessmentTime().toEpochMilli()) < 10,
@@ -254,7 +254,7 @@ class RiskAssessmentMapperTest {
 
         assertNotNull(assessment);
         assertEquals(25, assessment.getRiskScore().value());
-        assertEquals(LOW, assessment.getRiskLevel());
+        assertEquals(LOW, assessment.getTransactionRiskLevel());
         assertEquals(Decision.ALLOW, assessment.getDecision());
         assertNull(assessment.getMlPrediction());
         assertTrue(assessment.getRuleEvaluations().isEmpty());
@@ -280,7 +280,7 @@ class RiskAssessmentMapperTest {
 
                 RiskAssessment assessment = mapper.toDomain(entity);
 
-                assertEquals(RiskLevel.valueOf(riskLevel), assessment.getRiskLevel());
+                assertEquals(TransactionRiskLevel.valueOf(riskLevel), assessment.getTransactionRiskLevel());
             });
         });
     }
@@ -393,7 +393,7 @@ class RiskAssessmentMapperTest {
         assertEquals(originalAssessment.getAssessmentId(), roundTripAssessment.getAssessmentId());
         assertEquals(originalAssessment.getTransactionId(), roundTripAssessment.getTransactionId());
         assertEquals(originalAssessment.getRiskScore().value(), roundTripAssessment.getRiskScore().value());
-        assertEquals(originalAssessment.getRiskLevel(), roundTripAssessment.getRiskLevel());
+        assertEquals(originalAssessment.getTransactionRiskLevel(), roundTripAssessment.getTransactionRiskLevel());
         assertEquals(originalAssessment.getDecision(), roundTripAssessment.getDecision());
         assertEquals(originalAssessment.getRuleEvaluations().size(), roundTripAssessment.getRuleEvaluations().size());
     }
@@ -469,9 +469,9 @@ class RiskAssessmentMapperTest {
 
     @Test
     void testRiskLevelMapping_ToStringAndBack_WorksCorrectly() {
-        for (RiskLevel level : RiskLevel.values()) {
+        for (TransactionRiskLevel level : TransactionRiskLevel.values()) {
             String levelString = mapper.riskLevelToString(level);
-            RiskLevel mappedLevel = RiskLevel.fromString(levelString);
+            TransactionRiskLevel mappedLevel = TransactionRiskLevel.fromString(levelString);
 
             assertEquals(level, mappedLevel);
         }

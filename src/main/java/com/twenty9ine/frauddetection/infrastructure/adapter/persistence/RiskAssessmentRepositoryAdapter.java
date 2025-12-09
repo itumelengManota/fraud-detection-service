@@ -3,7 +3,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.PageRequest;
 import com.twenty9ine.frauddetection.domain.valueobject.PagedResult;
-import com.twenty9ine.frauddetection.domain.valueobject.RiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.domain.valueobject.SortDirection;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
@@ -59,7 +59,7 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
     }
 
     @Override
-    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<RiskLevel> levels, Instant since, PageRequest pageRequest) {
+    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
 
         Page<RiskAssessmentEntity> page = jdbcRepository
                 .findByRiskLevelInAndAssessmentTimeGreaterThanEqual(toRiskLevelStrings(levels), since, toSpringPageable(pageRequest));
@@ -83,9 +83,9 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                 .toList();
     }
 
-    private static Set<String> toRiskLevelStrings(Set<RiskLevel> levels) {
+    private static Set<String> toRiskLevelStrings(Set<TransactionRiskLevel> levels) {
         return resolveRiskLevels(levels).stream()
-                .map(RiskLevel::name)
+                .map(TransactionRiskLevel::name)
                 .collect(Collectors.toSet());
     }
 
@@ -103,11 +103,11 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                 : Sort.by(pageRequest.sortBy()).descending();
     }
 
-    private static Set<RiskLevel> resolveRiskLevels(Set<RiskLevel> levels) {
+    private static Set<TransactionRiskLevel> resolveRiskLevels(Set<TransactionRiskLevel> levels) {
         return (levels == null || levels.isEmpty()) ? getDefaultRiskLevels(): levels;
     }
 
-    private static Set<RiskLevel> getDefaultRiskLevels() {
-        return Arrays.stream(RiskLevel.values()).collect(Collectors.toSet());
+    private static Set<TransactionRiskLevel> getDefaultRiskLevels() {
+        return Arrays.stream(TransactionRiskLevel.values()).collect(Collectors.toSet());
     }
 }

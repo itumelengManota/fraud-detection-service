@@ -25,7 +25,7 @@ public interface RiskAssessmentMapper {
     @Mapping(target = "id", source = "assessmentId", qualifiedByName = "assessmentIdToUuid")
     @Mapping(target = "transactionId", source = "transactionId", qualifiedByName = "transactionIdToUuid")
     @Mapping(target = "riskScoreValue", source = "riskScore.value")
-    @Mapping(target = "riskLevel", source = "riskLevel", qualifiedByName = "riskLevelToString")
+    @Mapping(target = "riskLevel", source = "transactionRiskLevel", qualifiedByName = "riskLevelToString")
     @Mapping(target = "decision", source = "decision", qualifiedByName = "decisionToString")
     @Mapping(target = "mlPredictionJson", source = "mlPrediction", qualifiedByName = "mlPredictionToJson")
     @Mapping(target = "ruleEvaluations", source = "ruleEvaluations", qualifiedByName = "mapToEntitySet")
@@ -78,7 +78,7 @@ public interface RiskAssessmentMapper {
     }
 
     @Named("riskLevelToString")
-    default String riskLevelToString(RiskLevel level) {
+    default String riskLevelToString(TransactionRiskLevel level) {
         return level != null ? level.name() : null;
     }
 
