@@ -84,10 +84,10 @@ fraud-detection:
   transaction-event-consumer:
     idempotency:
       ttl-minutes: 10m
-  ml:
-    service:
-      url: ${ML_SERVICE_URL:http://ml-service:8080}
-      timeout-ms: 100
+#  ml:
+#    service:
+#      url: ${ML_SERVICE_URL:http://ml-service:8080}
+#      timeout-ms: 100
 
   scoring:
     ml-weight: 0.6
@@ -98,16 +98,25 @@ fraud-detection:
     high: 70
     medium: 40
 
+aws:
+  region: ${AWS_REGION:us-east-1}
+  sagemaker:
+    enabled: ${AWS_SAGEMAKER_ENABLED:true}  # Disable by default
+    endpoint-name: ${SAGEMAKER_ENDPOINT_NAME:fraud-detection-endpoint}
+    model-version: ${SAGEMAKER_MODEL_VERSION:1.0.0}
+    api-call-timeout: 2s
+    api-call-attempt-timeout: 1s
+
 resilience4j:
   circuitbreaker:
     instances:
-      mlService:
+      sagemakerML:
         register-health-indicator: true
         sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        wait-duration-in-open-state: 30s
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 60s
         failure-rate-threshold: 50
         slow-call-rate-threshold: 50
         slow-call-duration-threshold: 100ms
@@ -115,25 +124,25 @@ resilience4j:
 
   retry:
     instances:
-      mlService:
-        max-attempts: 3
-        wait-duration: 100ms
+      sagemakerML:
+        max-attempts: 2
+        wait-duration: 50ms
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
         retry-exceptions:
-          - java.net.SocketTimeoutException
-          - java.io.IOException
+          - software.amazon.awssdk.services.sagemakerruntime.model.ModelNotReadyException
+          - software.amazon.awssdk.core.exception.SdkClientException
 
   timelimiter:
     instances:
-      mlService:
+      sagemakerML:
         timeout-duration: 100ms
 
   bulkhead:
     instances:
-      mlService:
-        max-concurrent-calls: 25
-        max-wait-duration: 50ms
+      sagemakerML:
+        max-concurrent-calls: 50
+        max-wait-duration: 25ms
 
 management:
   endpoints:

@@ -39,3 +39,20 @@ rule "Very Large Amount Transaction"
         );
         ruleEvaluationResult.addTrigger(trigger);
 end
+
+rule "Excessively Large Amount Transaction"
+    when
+        $tx : Transaction(
+            $money : amount,
+            amount.value().doubleValue() > 100000.0
+        )
+    then
+        RuleTrigger trigger = new RuleTrigger(
+            "EXCESSIVELY_LARGE_AMOUNT",
+            "Excessively Large Amount",
+            RuleViolationSeverity.CRITICAL,
+            "Transaction value exceeds $100,000",
+            $money.value().doubleValue()
+        );
+        ruleEvaluationResult.addTrigger(trigger);
+end

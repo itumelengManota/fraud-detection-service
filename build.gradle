@@ -82,6 +82,14 @@ dependencies {
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
 
+    // AWS SageMaker Runtime
+    implementation platform('software.amazon.awssdk:bom:2.28.11')
+    implementation 'software.amazon.awssdk:sagemakerruntime'
+    implementation 'software.amazon.awssdk:sagemakerfeaturestoreruntime'
+    implementation 'software.amazon.awssdk:sagemaker'
+    implementation 'software.amazon.awssdk:auth'
+    implementation 'software.amazon.awssdk:sts'
+
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -100,6 +108,9 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
     testImplementation 'org.testcontainers:kafka'
     testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:localstack:1.19.3'
+    testImplementation 'cloud.localstack:localstack-utils:0.2.23'
+
     testImplementation 'org.awaitility:awaitility:4.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 

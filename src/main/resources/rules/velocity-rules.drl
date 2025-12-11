@@ -7,7 +7,7 @@ import com.twenty9ine.frauddetection.domain.valueobject.RuleViolationSeverity
 
 global RuleEvaluationResult ruleEvaluationResult;
 
-rule "High Velocity - 5 Minute Window"
+rule "Medium Velocity - 5 Minute Window"
     when
         $velocity : VelocityMetrics(getTransactionCount(TimeWindow.FIVE_MINUTES) > 5,
                                    $count : getTransactionCount(TimeWindow.FIVE_MINUTES))
@@ -16,15 +16,15 @@ rule "High Velocity - 5 Minute Window"
         ruleEvaluationResult.addTrigger(
             new RuleTrigger(
                 "VELOCITY_5MIN",
-                "High Velocity 5min",
-                RuleViolationSeverity.HIGH,
+                "Medium Velocity 5min",
+                RuleViolationSeverity.MEDIUM,
                 "More than 5 transactions in 5 minutes",
                 $count
             )
         );
 end
 
-rule "Extreme Velocity - 1 Hour Window"
+rule "High Velocity - 1 Hour Window"
     when
         $velocity : VelocityMetrics(getTransactionCount(TimeWindow.ONE_HOUR) > 20,
                                    $count : getTransactionCount(TimeWindow.ONE_HOUR))
@@ -33,9 +33,26 @@ rule "Extreme Velocity - 1 Hour Window"
         ruleEvaluationResult.addTrigger(
             new RuleTrigger(
                 "VELOCITY_1HOUR",
-                "Extreme Velocity 1hr",
-                RuleViolationSeverity.CRITICAL,
+                "High Velocity 1hr",
+                RuleViolationSeverity.HIGH,
                 "More than 20 transactions in 1 hour",
+                $count
+            )
+        );
+end
+
+rule "Excessive Velocity - 24 Hours Window"
+    when
+        $velocity : VelocityMetrics(getTransactionCount(TimeWindow.TWENTY_FOUR_HOURS) > 80,
+                                   $count : getTransactionCount(TimeWindow.TWENTY_FOUR_HOURS))
+        $tx : Transaction()
+    then
+        ruleEvaluationResult.addTrigger(
+            new RuleTrigger(
+                "VELOCITY_24HOURS",
+                "Excessive Velocity 24hrs",
+                RuleViolationSeverity.CRITICAL,
+                "More than 80 transactions in 24 hours",
                 $count
             )
         );

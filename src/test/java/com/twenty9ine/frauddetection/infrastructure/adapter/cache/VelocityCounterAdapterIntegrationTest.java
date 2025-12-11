@@ -22,6 +22,9 @@ import java.util.Currency;
 import java.util.Map;
 import java.util.Objects;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.awaitility.Awaitility.await;
+
 import static org.assertj.core.api.Assertions.*;
 
 import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
@@ -177,6 +180,7 @@ class VelocityCounterAdapterIntegrationTest {
 
         // Act - First fetch from Redis
         VelocityMetrics metrics1 = adapter.findVelocityMetricsByTransaction(transaction);
+        assertThat(metrics1).isNotNull();
 
         // Clear Redis but keep cache
         redissonClient.getKeys().flushall();
@@ -349,7 +353,7 @@ class VelocityCounterAdapterIntegrationTest {
     @Test
     @Order(14)
     @DisplayName("Should set correct expiration times for transaction counters")
-    void shouldSetCorrectExpirationTimesForTransactionCounters() throws Exception {
+    void shouldSetCorrectExpirationTimesForTransactionCounters() {
         // Arrange
         Transaction transaction = createTestTransaction("ACC-014", "MERCH-001");
 
@@ -439,15 +443,15 @@ class VelocityCounterAdapterIntegrationTest {
         long initialTtl = findTransactionCounter(transaction, FIVE_MINUTES).remainTimeToLive();
 
         // Wait 2 seconds
-        Thread.sleep(2000);
+        await().pollDelay(2, SECONDS).until(() -> true);
 
         // Second increment - should refresh TTL
         adapter.incrementCounters(transaction);
         long refreshedTtl = findTransactionCounter(transaction, FIVE_MINUTES).remainTimeToLive();
 
         // Assert - Refreshed TTL should be greater than (initial TTL - 2 seconds)
-        assertThat(refreshedTtl).isGreaterThan(initialTtl - 2000);
-        assertThat(refreshedTtl).isCloseTo(FIVE_MINUTES.getDuration().toMillis(), within(10000L));
+        assertThat(refreshedTtl).isGreaterThan(initialTtl - 2000)
+                                .isCloseTo(FIVE_MINUTES.getDuration().toMillis(), within(10000L));
     }
 
     private RAtomicLong findTransactionCounter(Transaction transaction, TimeWindow timeWindow) {

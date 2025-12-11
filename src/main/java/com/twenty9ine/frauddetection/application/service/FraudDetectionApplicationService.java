@@ -10,11 +10,13 @@ import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessment
 import com.twenty9ine.frauddetection.application.port.in.query.PageRequestQuery;
 import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.exception.RiskAssessmentNotFoundException;
 import com.twenty9ine.frauddetection.domain.service.DecisionService;
 import com.twenty9ine.frauddetection.domain.service.RiskScoringService;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ import java.util.List;
  *
  * @author Ignatius Itumeleng Manota
  */
+@RequiredArgsConstructor
 @Service
 @Transactional
 @Slf4j
@@ -40,17 +43,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
     private final DecisionService decisionService;
     private final RiskAssessmentRepository repository;
     private final EventPublisherPort eventPublisher;
-
-    public FraudDetectionApplicationService(
-            RiskScoringService riskScoringService,
-            DecisionService decisionService,
-            RiskAssessmentRepository repository,
-            EventPublisherPort eventPublisher) {
-        this.riskScoringService = riskScoringService;
-        this.decisionService = decisionService;
-        this.repository = repository;
-        this.eventPublisher = eventPublisher;
-    }
+    private final VelocityServicePort velocityService;
 
     @Override
     public RiskAssessmentDto assess(AssessTransactionRiskCommand command) {
@@ -65,6 +58,8 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
         repository.save(assessment);
         eventPublisher.publishAll(assessment.getDomainEvents());
         assessment.clearDomainEvents();
+
+        velocityService.incrementCounters(transaction);
 
         log.info("Completed risk assessment for transaction: {} with decision: {}", transaction.id(), decision);
 

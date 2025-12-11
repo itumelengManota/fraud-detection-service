@@ -45,6 +45,16 @@ public class VelocityCounterAdapter implements VelocityServicePort {
         return metrics;
     }
 
+    @Override
+    public void incrementCounters(Transaction transaction) {
+        incrementTransactionCounters(transaction);
+        incrementTotalAmounts(transaction);
+        incrementMerchantCounters(transaction);
+        incrementLocationCounters(transaction);
+
+        evictCache(transaction.accountId());
+    }
+
     private static void updateCache(String accountId, Cache cache, VelocityMetrics metrics) {
         if (cache != null) {
             cache.put(accountId, metrics);
@@ -90,16 +100,6 @@ public class VelocityCounterAdapter implements VelocityServicePort {
         return Map.of(FIVE_MINUTES, findLocationCounter(transaction, FIVE_MINUTES).count(),
                       ONE_HOUR, findLocationCounter(transaction, ONE_HOUR).count(),
                       TWENTY_FOUR_HOURS, findLocationCounter(transaction, TWENTY_FOUR_HOURS).count());
-    }
-
-    @Override
-    public void incrementCounters(Transaction transaction) {
-        incrementTransactionCounters(transaction);
-        incrementTotalAmounts(transaction);
-        incrementMerchantCounters(transaction);
-        incrementLocationCounters(transaction);
-
-        evictCache(transaction.accountId());
     }
 
     private void incrementTotalAmounts(Transaction transaction) {

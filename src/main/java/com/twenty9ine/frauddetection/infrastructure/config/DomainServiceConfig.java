@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.Optional;
 
 @Configuration
 public class DomainServiceConfig {
@@ -31,9 +32,9 @@ public class DomainServiceConfig {
     }
 
     @Bean
-    public RiskScoringService riskScoringService(RuleEngineService ruleEngine, MLServicePort mlService, VelocityServicePort velocityService,
-            GeographicValidator geographicValidator) {
-        return new RiskScoringService(ruleEngine, mlService, velocityService, geographicValidator, mlWeight, ruleWeight);
+    public RiskScoringService riskScoringService(RuleEngineService ruleEngine, Optional<MLServicePort> mlService, VelocityServicePort velocityService,
+                                                 GeographicValidator geographicValidator) {
+        return new RiskScoringService(ruleEngine, mlService.orElse(null), velocityService, geographicValidator, mlWeight, ruleWeight);
     }
 
     @Bean

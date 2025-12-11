@@ -79,29 +79,47 @@ class RuleEngineServiceIntegrationTest {
     }
 
     @Test
-    void evaluateRules_withHighVelocity5Minutes_shouldTriggerVelocityRule() {
+    void evaluateRules_withExcessivelyLargeAmount_shouldTriggerBothAmountRules() {
+        // Given
+        Transaction transaction = createTestTransaction(BigDecimal.valueOf(100001));
+        VelocityMetrics velocity = VelocityMetrics.empty();
+        GeographicContext geographic = GeographicContext.normal();
+
+        // When
+        RuleEvaluationResult result = ruleEngineService.evaluateRules(transaction, velocity, geographic);
+
+        // Then
+        assertThat(result.getTriggers())
+                .hasSize(3)
+                .extracting(RuleTrigger::ruleName)
+                .containsExactlyInAnyOrder("Large Amount", "Very Large Amount", "Excessively Large Amount");
+        assertThat(result.aggregateScore()).isEqualTo(125); // MEDIUM (25) + HIGH (40) + CRITICAL (60)
+    }
+
+    @Test
+    void evaluateRules_withMediumVelocity5Minutes_shouldTriggerVelocityRule() {
         // Given
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
             .transactionCounts(Map.of(
-                FIVE_MINUTES, 8L,
+                FIVE_MINUTES, 15L,
                 ONE_HOUR, 10L,
-                TWENTY_FOUR_HOURS, 15L
-            ))
-            .totalAmounts(Map.of(
-                FIVE_MINUTES, BigDecimal.valueOf(800),
-                ONE_HOUR, BigDecimal.valueOf(1000),
-                TWENTY_FOUR_HOURS, BigDecimal.valueOf(1500)
-            ))
-            .uniqueMerchants(Map.of(
-                FIVE_MINUTES, 3L,
-                ONE_HOUR, 5L,
                 TWENTY_FOUR_HOURS, 8L
             ))
+            .totalAmounts(Map.of(
+                FIVE_MINUTES, BigDecimal.valueOf(1500),
+                ONE_HOUR, BigDecimal.valueOf(1000),
+                TWENTY_FOUR_HOURS, BigDecimal.valueOf(800)
+            ))
+            .uniqueMerchants(Map.of(
+                FIVE_MINUTES, 8L,
+                ONE_HOUR, 5L,
+                TWENTY_FOUR_HOURS, 3L
+            ))
             .uniqueLocations(Map.of(
-                FIVE_MINUTES, 2L,
+                FIVE_MINUTES, 6L,
                 ONE_HOUR, 4L,
-                TWENTY_FOUR_HOURS, 6L
+                TWENTY_FOUR_HOURS, 2L
             ))
             .build();
         GeographicContext geographic = GeographicContext.normal();
@@ -113,13 +131,13 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("High Velocity 5min");
-        assertThat(result.getTriggers().getFirst().ruleViolationSeverity()).isEqualTo(RuleViolationSeverity.HIGH);
-        assertThat(result.aggregateScore()).isEqualTo(40.0);
+            .containsExactly("Medium Velocity 5min");
+        assertThat(result.getTriggers().getFirst().ruleViolationSeverity()).isEqualTo(RuleViolationSeverity.MEDIUM);
+        assertThat(result.aggregateScore()).isEqualTo(25.0); // MEDIUM(25)
     }
 
     @Test
-    void evaluateRules_withExtremeVelocity1Hour_shouldTriggerCriticalVelocityRule() {
+    void evaluateRules_withHighVelocity1Hour_shouldTriggerCriticalVelocityRule() {
         // Given
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.builder()
@@ -153,8 +171,47 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("High Velocity 5min", "Extreme Velocity 1hr");
-        assertThat(result.aggregateScore()).isEqualTo(100.0); // HIGH (40) + CRITICAL (60)
+            .containsExactlyInAnyOrder("Medium Velocity 5min", "High Velocity 1hr");
+        assertThat(result.aggregateScore()).isEqualTo(65); // MEDIUM(25) + HIGH (40)
+    }
+
+    @Test
+    void evaluateRules_withExcessiveVelocity24Hours_shouldTriggerCriticalVelocityRule() {
+        // Given
+        Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
+        VelocityMetrics velocity = VelocityMetrics.builder()
+                .transactionCounts(Map.of(
+                        FIVE_MINUTES, 8L,
+                        ONE_HOUR, 25L,
+                        TWENTY_FOUR_HOURS, 81L
+                ))
+                .totalAmounts(Map.of(
+                        FIVE_MINUTES, BigDecimal.valueOf(2000),
+                        ONE_HOUR, BigDecimal.valueOf(10000),
+                        TWENTY_FOUR_HOURS, BigDecimal.valueOf(25000)
+                ))
+                .uniqueMerchants(Map.of(
+                        FIVE_MINUTES, 5L,
+                        ONE_HOUR, 15L,
+                        TWENTY_FOUR_HOURS, 30L
+                ))
+                .uniqueLocations(Map.of(
+                        FIVE_MINUTES, 3L,
+                        ONE_HOUR, 10L,
+                        TWENTY_FOUR_HOURS, 20L
+                ))
+                .build();
+        GeographicContext geographic = GeographicContext.normal();
+
+        // When
+        RuleEvaluationResult result = ruleEngineService.evaluateRules(transaction, velocity, geographic);
+
+        // Then
+        assertThat(result.getTriggers())
+                .hasSize(3)
+                .extracting(RuleTrigger::ruleName)
+                .containsExactlyInAnyOrder("Medium Velocity 5min", "High Velocity 1hr", "Excessive Velocity 24hrs");
+        assertThat(result.aggregateScore()).isEqualTo(125.0); // MEDIUM(25) + HIGH (40) + CRITICAL (60)
     }
 
     @Test
@@ -198,7 +255,7 @@ class RuleEngineServiceIntegrationTest {
             .transactionCounts(Map.of(
                 FIVE_MINUTES, 10L,
                 ONE_HOUR, 30L,
-                TWENTY_FOUR_HOURS, 80L
+                TWENTY_FOUR_HOURS, 81L
             ))
             .totalAmounts(Map.of(
                 FIVE_MINUTES, BigDecimal.valueOf(5000),
@@ -235,17 +292,18 @@ class RuleEngineServiceIntegrationTest {
 
         // Then
         assertThat(result.getTriggers())
-            .hasSize(5)
+            .hasSize(6)
             .extracting(RuleTrigger::ruleName)
             .containsExactlyInAnyOrder(
                 "Large Amount",
                 "Very Large Amount",
-                "High Velocity 5min",
-                "Extreme Velocity 1hr",
+                "Medium Velocity 5min",
+                "High Velocity 1hr",
+                "Excessive Velocity 24hrs",
                 "Impossible Travel"
             );
-        assertThat(result.aggregateScore()).isEqualTo(225.0);
-        // MEDIUM (25) + HIGH (40) + HIGH (40) + CRITICAL (60) + CRITICAL (60)
+        assertThat(result.aggregateScore()).isEqualTo(250.0);
+        // MEDIUM (25) + HIGH (40) + MEDIUM(25) + HIGH (40) + CRITICAL (60) +
     }
 
     @Test
@@ -317,7 +375,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(1)
             .extracting(RuleTrigger::ruleName)
-            .containsExactly("High Velocity 5min");
+            .containsExactly("Medium Velocity 5min");
     }
 
     @Test
@@ -355,7 +413,7 @@ class RuleEngineServiceIntegrationTest {
         assertThat(result.getTriggers())
             .hasSize(2)
             .extracting(RuleTrigger::ruleName)
-            .containsExactlyInAnyOrder("High Velocity 5min", "Extreme Velocity 1hr");
+            .containsExactlyInAnyOrder("Medium Velocity 5min", "High Velocity 1hr");
     }
 
     private Transaction createTestTransaction(BigDecimal amount) {

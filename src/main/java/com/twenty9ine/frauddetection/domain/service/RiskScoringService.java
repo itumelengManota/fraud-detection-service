@@ -27,8 +27,20 @@ public final class RiskScoringService {
         this.mlService = mlService;
         this.velocityService = velocityService;
         this.geographicValidator = geographicValidator;
-        this.mlWeight = mlWeight;
-        this.ruleWeight = ruleWeight;
+
+        if(mlWeight + ruleWeight != 1.0) {
+            throw new IllegalArgumentException("ML weight and Rule weight must sum up to 1.0");
+        }
+
+        if(mlService != null) {
+            this.mlWeight = mlWeight;
+            this.ruleWeight = ruleWeight;
+        } else {
+            this.mlWeight = 0.0;
+            this.ruleWeight = 1.0;
+
+            log.warn("ML Service is not available, but ML weight is set to {}. Adjusting ML weight to 0.0 and Rule weight to 1.0", mlWeight);
+        }
     }
 
     public RiskAssessment assessRisk(Transaction transaction) {
@@ -62,15 +74,20 @@ public final class RiskScoringService {
 
     private static RuleType determineRuleType(RuleTrigger ruleTrigger) {
         return switch (ruleTrigger.ruleId()) {
-            case "VELOCITY_5MIN", "VELOCITY_1HOUR" -> RuleType.VELOCITY;
+            case "VELOCITY_5MIN", "VELOCITY_1HOUR", "VELOCITY_24HOURS" -> RuleType.VELOCITY;
             case "IMPOSSIBLE_TRAVEL" -> RuleType.GEOGRAPHIC;
-            case "LARGE_AMOUNT", "VERY_LARGE_AMOUNT" -> RuleType.AMOUNT;
+            case "LARGE_AMOUNT", "VERY_LARGE_AMOUNT", "EXCESSIVELY_LARGE_AMOUNT" -> RuleType.AMOUNT;
             default -> throw new IllegalStateException("Unexpected value: " + ruleTrigger.ruleId());
         };
     }
 
     private CompletableFuture<MLPrediction> predict(Transaction transaction) {
-        return CompletableFuture.supplyAsync(() -> mlService.predict(transaction));
+        return CompletableFuture.supplyAsync(() -> {
+            if (mlService == null) {
+                return MLPrediction.unavailable();
+            }
+            return mlService.predict(transaction);
+        });
     }
 
     private CompletableFuture<GeographicContext> validateGeographical(Transaction transaction) {
