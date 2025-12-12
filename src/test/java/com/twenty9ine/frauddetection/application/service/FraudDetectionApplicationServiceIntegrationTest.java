@@ -20,6 +20,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -47,25 +49,30 @@ import static org.mockito.Mockito.when;
 @SpringBootTest
 @Testcontainers
 @DisplayName("FraudDetectionApplicationService Integration Tests")
+@Execution(ExecutionMode.SAME_THREAD)
 class FraudDetectionApplicationServiceIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
             .withDatabaseName("frauddetection_test")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withReuse(true);
 
     @Container
-    static org.testcontainers.kafka.KafkaContainer kafka = new org.testcontainers.kafka.KafkaContainer(DockerImageName.parse("apache/kafka:latest"));
+    static org.testcontainers.kafka.KafkaContainer kafka = new org.testcontainers.kafka.KafkaContainer(DockerImageName.parse("apache/kafka:latest"))
+            .withReuse(true);
 
     @Container
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withReuse(true);
 
     @Container
     static GenericContainer<?> schemaRegistry = new GenericContainer<>(DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
             .withExposedPorts(8080)
-            .dependsOn(kafka);
+            .dependsOn(kafka)
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -84,6 +91,10 @@ class FraudDetectionApplicationServiceIntegrationTest {
 
         registry.add("aws.sagemaker.enabled", () -> "false");
     }
+
+//    private String uniqueAccountId(String base) {
+//        return base + "-" + System.currentTimeMillis();
+//    }
 
     private static String getApicurioUrl() {
         return "http://" + schemaRegistry.getHost() + ":" + schemaRegistry.getFirstMappedPort() + "/apis/registry/v2";

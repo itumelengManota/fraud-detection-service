@@ -4,6 +4,9 @@ import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
 import org.springframework.context.annotation.ComponentScan;
@@ -25,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @DisabledInAotMode
 @ComponentScan(basePackages = "com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper")
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("postgres")
 class TransactionMapperTest {
 
     @Container

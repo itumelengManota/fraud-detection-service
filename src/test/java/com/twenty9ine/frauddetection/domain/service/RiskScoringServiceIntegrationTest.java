@@ -7,6 +7,9 @@ import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.cache.VelocityCounterAdapter;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
@@ -44,17 +47,21 @@ import static org.mockito.Mockito.when;
 @Testcontainers
 @DisabledInAotMode
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Execution(ExecutionMode.SAME_THREAD)
+@ResourceLock("redis")
 class RiskScoringServiceIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withReuse(true);
 
     @Container
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -74,7 +81,6 @@ class RiskScoringServiceIntegrationTest {
     })
     static class TestConfig {
 
-
         @Bean
         public RedissonClient redissonClient() {
             Config config = new Config();
@@ -93,13 +99,6 @@ class RiskScoringServiceIntegrationTest {
         public VelocityServicePort velocityServicePort(RedissonClient redissonClient, CacheManager cacheManager) {
             return new VelocityCounterAdapter(redissonClient, cacheManager);
         }
-
-//        @Primary
-//        @Bean
-//        public MLServicePort mlServicePort() {
-//            return transaction -> new MLPrediction("test-model", "v1.0.0", 0.5,
-//                    0.9, Map.of("amount", 0.3, "velocity", 0.4, "location", 0.3));
-//        }
     }
 
     @Autowired
@@ -119,8 +118,14 @@ class RiskScoringServiceIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // Clean up Redis before each test
-        redissonClient.getKeys().flushall();
+        if (redissonClient != null) {
+            // Clean up Redis before each test
+            redissonClient.getKeys().flushall();
+        }
+    }
+
+    private String uniqueAccountId(String base) {
+        return base + "-" + System.nanoTime();
     }
 
     @Test
@@ -131,7 +136,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-001", BigDecimal.valueOf(50.00));
+        String accountId = uniqueAccountId("ACC-001");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(50.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -152,7 +158,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-002", BigDecimal.valueOf(15000.00));
+        String accountId = uniqueAccountId("ACC-002");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(15000.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -172,7 +179,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-003", BigDecimal.valueOf(60000.00));
+        String accountId = uniqueAccountId("ACC-003");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(60000.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -193,7 +201,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-004";
+        String accountId = uniqueAccountId("ACC-004");
         Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // Simulate high velocity by incrementing counters multiple times
@@ -221,7 +229,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-005";
+        String accountId = uniqueAccountId("ACC-005");
         Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // Simulate extreme velocity
@@ -249,7 +257,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-006";
+        String accountId = uniqueAccountId("ACC-006");
         Instant now = Instant.now();
 
         // First transaction in New York
@@ -280,7 +288,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-007";
+        String accountId = uniqueAccountId("ACC-007");
         Instant now = Instant.now();
 
         // Setup impossible travel
@@ -318,7 +326,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-008", BigDecimal.valueOf(55000.00));
+        String accountId = uniqueAccountId("ACC-008");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(55000.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -351,7 +360,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-NEW-001", BigDecimal.valueOf(100.00));
+        String accountId = uniqueAccountId("ACC-009");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -370,7 +380,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-010", BigDecimal.ZERO);
+        String accountId = uniqueAccountId("ACC-010");
+        Transaction transaction = createTransaction(accountId, BigDecimal.ZERO);
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -389,7 +400,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-011", BigDecimal.valueOf(10001.00));
+        String accountId = uniqueAccountId("ACC-011");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(10001.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -397,7 +409,7 @@ class RiskScoringServiceIntegrationTest {
         // Then
         assertThat(assessment).isNotNull();
         assertThat(assessment.getRuleEvaluations()).hasSize(1);
-        assertThat(assessment.getRuleEvaluations().get(0).ruleName()).contains("Large Amount");
+        assertThat(assessment.getRuleEvaluations().getFirst().ruleName()).contains("Large Amount");
     }
 
     @Test
@@ -408,7 +420,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-012", BigDecimal.valueOf(50001.00));
+        String accountId = uniqueAccountId("ACC-012");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(50001.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -426,7 +439,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-013";
+        String accountId = uniqueAccountId("ACC-013");
         Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // Simulate exactly 6 transactions
@@ -451,7 +464,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-014";
+        String accountId = uniqueAccountId("ACC-014");
         Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // Simulate exactly 21 transactions
@@ -476,7 +489,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-015";
+        String accountId = uniqueAccountId("ACC-015");
 
         // When - simulate concurrent transactions
         Thread thread1 = new Thread(() -> {
@@ -538,7 +551,8 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        Transaction transaction = createTransaction("ACC-018", BigDecimal.valueOf(100.00));
+        String accountId = uniqueAccountId("ACC-018");
+        Transaction transaction = createTransaction(accountId, BigDecimal.valueOf(100.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -559,7 +573,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-019";
+        String accountId = uniqueAccountId("ACC-019");
         Location location = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
 
         Transaction transaction1 = createTransactionWithLocation(accountId, location);
@@ -585,7 +599,7 @@ class RiskScoringServiceIntegrationTest {
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
 
-        String accountId = "ACC-020";
+        String accountId = uniqueAccountId("ACC-020");
         Instant now = Instant.now();
 
         // Transaction in New York 10 hours ago

@@ -4,12 +4,15 @@ import com.twenty9ine.frauddetection.domain.valueobject.Location;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.LocationEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.mapstruct.factory.Mappers;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Execution(ExecutionMode.CONCURRENT)
 class LocationMapperTest {
 
     private LocationMapper mapper;

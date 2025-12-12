@@ -4,6 +4,9 @@ import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -29,13 +32,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @DisabledInAotMode
 @Import({TransactionRepositoryAdapter.class, TransactionMapperImpl.class, LocationMapperImpl.class, MerchantMapperImpl.class})
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("postgres")
 class TransactionRepositoryAdapterIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

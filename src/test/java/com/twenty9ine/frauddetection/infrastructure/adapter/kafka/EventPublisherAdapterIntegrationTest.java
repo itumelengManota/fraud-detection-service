@@ -18,6 +18,8 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.containers.GenericContainer;
@@ -37,6 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Execution(ExecutionMode.SAME_THREAD)
 class EventPublisherAdapterIntegrationTest {
 
     private static final Network NETWORK = Network.newNetwork();
@@ -44,15 +47,18 @@ class EventPublisherAdapterIntegrationTest {
     @Container
     static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"))
             .withNetwork(NETWORK)
-            .withNetworkAliases("kafka");
+            .withNetworkAliases("kafka")
+            .withReuse(true);
 
     @Container
     static GenericContainer<?> apicurioRegistry = new GenericContainer<>(
             DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
             .withNetwork(NETWORK)
+            .dependsOn(kafka)
             .withNetworkAliases("apicurio")
             .withExposedPorts(8080)
-            .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092");
+            .withEnv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
+            .withReuse(true);
 
     private EventPublisherAdapter eventPublisher;
     private KafkaConsumer<String, Object> testConsumer;

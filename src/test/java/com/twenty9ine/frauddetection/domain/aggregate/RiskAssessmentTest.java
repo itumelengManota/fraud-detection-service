@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.lang.reflect.Method;
 import java.time.Instant;
@@ -16,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
+@Execution(ExecutionMode.CONCURRENT)
 class RiskAssessmentTest {
 
     private TransactionId transactionId;

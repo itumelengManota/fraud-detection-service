@@ -5,6 +5,8 @@ import com.twenty9ine.frauddetection.domain.valueobject.RuleType;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.mapstruct.factory.Mappers;
 import org.springframework.test.context.aot.DisabledInAotMode;
 
@@ -16,6 +18,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisabledInAotMode
+@Execution(ExecutionMode.CONCURRENT)
 class RuleEvaluationMapperTest {
 
     private RuleEvaluationMapper mapper;

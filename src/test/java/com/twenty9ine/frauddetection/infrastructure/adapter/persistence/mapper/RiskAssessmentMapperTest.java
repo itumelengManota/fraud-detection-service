@@ -7,6 +7,9 @@ import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.R
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
@@ -30,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @DisabledInAotMode
 @ComponentScan(basePackages = "com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper")
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("postgres")
 class RiskAssessmentMapperTest {
 
     @Container

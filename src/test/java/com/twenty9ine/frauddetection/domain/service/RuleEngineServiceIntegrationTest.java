@@ -3,6 +3,8 @@ package com.twenty9ine.frauddetection.domain.service;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.kie.api.KieServices;
 import org.kie.api.runtime.KieContainer;
 
@@ -14,6 +16,7 @@ import java.util.Map;
 import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Execution(ExecutionMode.CONCURRENT)
 class RuleEngineServiceIntegrationTest {
 
     private RuleEngineService ruleEngineService;

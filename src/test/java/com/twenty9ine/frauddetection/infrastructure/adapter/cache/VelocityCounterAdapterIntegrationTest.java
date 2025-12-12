@@ -2,6 +2,9 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.cache;
 
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.redisson.Redisson;
 import org.redisson.api.RAtomicDouble;
 import org.redisson.api.RAtomicLong;
@@ -21,6 +24,7 @@ import java.time.Instant;
 import java.util.Currency;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
@@ -30,12 +34,15 @@ import static org.assertj.core.api.Assertions.*;
 import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 
 @Testcontainers
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+//@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("redis")
 class VelocityCounterAdapterIntegrationTest {
 
     @Container
     private static final GenericContainer<?> redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withReuse(true);
 
     private static RedissonClient redissonClient;
     private static CacheManager cacheManager;
@@ -64,12 +71,17 @@ class VelocityCounterAdapterIntegrationTest {
         cacheManager.getCacheNames().forEach(name -> Objects.requireNonNull(cacheManager.getCache(name)).clear());
     }
 
+    // Generate unique identifiers per test
+    private String uniqueAccountId(String base) {
+        return base + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
     @Test
-    @Order(1)
     @DisplayName("Should return empty metrics when no data exists in Redis")
     void shouldReturnEmptyMetricsWhenNoDataExists() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-001", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-001");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         VelocityMetrics metrics = adapter.findVelocityMetricsByTransaction(transaction);
@@ -85,11 +97,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(2)
     @DisplayName("Should increment all counters correctly")
     void shouldIncrementAllCountersCorrectly() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-002", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-002");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction);
@@ -105,11 +117,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(3)
     @DisplayName("Should track multiple transactions correctly")
     void shouldTrackMultipleTransactionsCorrectly() {
         // Arrange
-        String accountId = "ACC-003";
+        String accountId = uniqueAccountId("ACC-003");
         Transaction transaction1 = createTestTransaction(accountId, "MERCH-001");
         Transaction transaction2 = createTestTransaction(accountId, "MERCH-002");
         Transaction transaction3 = createTestTransaction(accountId, "MERCH-003");
@@ -129,11 +140,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(4)
     @DisplayName("Should track unique merchants using HyperLogLog")
     void shouldTrackUniqueMerchantsUsingHyperLogLog() {
         // Arrange
-        String accountId = "ACC-004";
+        String accountId = uniqueAccountId("ACC-004");
         Transaction transaction1 = createTestTransaction(accountId, "MERCH-001");
         Transaction transaction2 = createTestTransaction(accountId, "MERCH-001"); // Same merchant
         Transaction transaction3 = createTestTransaction(accountId, "MERCH-002");
@@ -150,11 +160,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(5)
     @DisplayName("Should track unique locations using HyperLogLog")
     void shouldTrackUniqueLocationsUsingHyperLogLog() {
         // Arrange
-        String accountId = "ACC-005";
+        String accountId = uniqueAccountId("ACC-005");
         Transaction transaction1 = createTransactionWithLocation(accountId, 40.7128, -74.0060);
         Transaction transaction2 = createTransactionWithLocation(accountId, 40.7128, -74.0060); // Same location
         Transaction transaction3 = createTransactionWithLocation(accountId, 51.5074, -0.1278);
@@ -171,11 +180,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(6)
     @DisplayName("Should cache velocity metrics after first fetch")
     void shouldCacheVelocityMetricsAfterFirstFetch() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-006", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-006");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
         adapter.incrementCounters(transaction);
 
         // Act - First fetch from Redis
@@ -195,11 +204,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(7)
     @DisplayName("Should evict cache after incrementing counters")
     void shouldEvictCacheAfterIncrementingCounters() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-007", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-007");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
         adapter.incrementCounters(transaction);
 
         // Cache the metrics
@@ -215,11 +224,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(8)
     @DisplayName("Should track amounts correctly with different values")
     void shouldTrackAmountsCorrectlyWithDifferentValues() {
         // Arrange
-        String accountId = "ACC-008";
+        String accountId = uniqueAccountId("ACC-008");
         Transaction transaction1 = createTransactionWithAmount(accountId, new BigDecimal("50.00"));
         Transaction transaction2 = createTransactionWithAmount(accountId, new BigDecimal("75.50"));
         Transaction transaction3 = createTransactionWithAmount(accountId, new BigDecimal("124.99"));
@@ -236,11 +244,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(9)
     @DisplayName("Should test private method findTransactionCounts using reflection")
     void shouldTestFindTransactionCountsUsingReflection() throws Exception {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-009", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-009");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
         adapter.incrementCounters(transaction);
 
         // Act - Use reflection to access private method
@@ -260,11 +268,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(10)
     @DisplayName("Should test private method findTotalAmounts using reflection")
     void shouldTestFindTotalAmountsUsingReflection() throws Exception {
         // Arrange
-        Transaction transaction = createTransactionWithAmount("ACC-010", new BigDecimal("150.75"));
+        String accountId = uniqueAccountId("ACC-010");
+        Transaction transaction = createTransactionWithAmount(accountId, new BigDecimal("150.75"));
         adapter.incrementCounters(transaction);
 
         // Act - Use reflection to access private method
@@ -282,11 +290,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(11)
     @DisplayName("Should test private method findMerchantCounts using reflection")
     void shouldTestFindMerchantCountsUsingReflection() throws Exception {
         // Arrange
-        String accountId = "ACC-011";
+        String accountId = uniqueAccountId("ACC-011");
         adapter.incrementCounters(createTestTransaction(accountId, "MERCH-001"));
         adapter.incrementCounters(createTestTransaction(accountId, "MERCH-002"));
         Transaction transaction = createTestTransaction(accountId, "MERCH-003");
@@ -306,11 +313,10 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(12)
     @DisplayName("Should test private method findLocationCounts using reflection")
     void shouldTestFindLocationCountsUsingReflection() throws Exception {
         // Arrange
-        String accountId = "ACC-012";
+        String accountId = uniqueAccountId("ACC-012");
         adapter.incrementCounters(createTransactionWithLocation(accountId, 40.7128, -74.0060));
         adapter.incrementCounters(createTransactionWithLocation(accountId, 51.5074, -0.1278));
         Transaction transaction = createTransactionWithLocation(accountId, 48.8566, 2.3522);
@@ -330,12 +336,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(13)
     @DisplayName("Should separate metrics by account ID")
     void shouldSeparateMetricsByAccountId() {
         // Arrange
-        Transaction transaction1 = createTestTransaction("ACC-013-A", "MERCH-001");
-        Transaction transaction2 = createTestTransaction("ACC-013-B", "MERCH-001");
+        Transaction transaction1 = createTestTransaction(uniqueAccountId("ACC-013-A"), "MERCH-001");
+        Transaction transaction2 = createTestTransaction(uniqueAccountId("ACC-013-B"), "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction1);
@@ -351,11 +356,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(14)
     @DisplayName("Should set correct expiration times for transaction counters")
     void shouldSetCorrectExpirationTimesForTransactionCounters() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-014", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-014");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction);
@@ -372,11 +377,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(15)
     @DisplayName("Should set correct expiration times for total amount counters")
     void shouldSetCorrectExpirationTimesForTotalAmountCounters() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-015", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-015");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction);
@@ -392,11 +397,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(16)
     @DisplayName("Should set correct expiration times for merchant HyperLogLog")
     void shouldSetCorrectExpirationTimesForMerchantHyperLogLog() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-016", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-016");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction);
@@ -412,11 +417,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(17)
     @DisplayName("Should set correct expiration times for location HyperLogLog")
     void shouldSetCorrectExpirationTimesForLocationHyperLogLog() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-017", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-017");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act
         adapter.incrementCounters(transaction);
@@ -432,11 +437,11 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     @Test
-    @Order(18)
     @DisplayName("Should refresh expiration time on subsequent increments")
-    void shouldRefreshExpirationTimeOnSubsequentIncrements() throws InterruptedException {
+    void shouldRefreshExpirationTimeOnSubsequentIncrements() {
         // Arrange
-        Transaction transaction = createTestTransaction("ACC-018", "MERCH-001");
+        String accountId = uniqueAccountId("ACC-018");
+        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
 
         // Act - First increment
         adapter.incrementCounters(transaction);

@@ -3,6 +3,9 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.postgresql.util.PGobject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
@@ -30,13 +33,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 @DisabledInAotMode
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("postgres")
 class RiskAssessmentJdbcRepositoryIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

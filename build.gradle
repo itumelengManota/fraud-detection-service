@@ -153,6 +153,44 @@ processResources.finalizedBy generateDroolsMetadata
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // Enable parallel execution at Gradle level
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+
+    // Increase memory for parallel tests
+    minHeapSize = "512m"
+    maxHeapSize = "2g"
+
+    // JVM arguments for better performance
+    jvmArgs = [
+            '-XX:+UseParallelGC',
+            '-XX:MaxGCPauseMillis=200'
+    ]
+
+    // Enable Testcontainers reuse
+    systemProperties = [
+            'testcontainers.reuse.enable': 'true'
+    ]
+
+    // Better test output
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat = 'full'
+        showStandardStreams = false
+
+        afterSuite { desc, result ->
+            if (!desc.parent) {
+                println "\n═══════════════════════════════════════════"
+                println "Test Results: ${result.resultType}"
+                println "  Total Tests: ${result.testCount}"
+                println "  Passed: ${result.successfulTestCount}"
+                println "  Failed: ${result.failedTestCount}"
+                println "  Skipped: ${result.skippedTestCount}"
+                println "  Duration: ${(result.endTime - result.startTime) / 1000}s"
+                println "═══════════════════════════════════════════\n"
+            }
+        }
+    }
 }
 
 tasks.named("bootBuildImage") {

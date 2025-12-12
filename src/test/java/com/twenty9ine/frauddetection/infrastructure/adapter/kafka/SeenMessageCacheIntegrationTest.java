@@ -14,6 +14,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -24,11 +27,14 @@ import static org.awaitility.Awaitility.await;
 @DataRedisTest
 @Testcontainers
 @Import({SeenMessageCache.class, SeenMessageCacheIntegrationTest.RedisTestConfig.class})
+@Execution(ExecutionMode.CONCURRENT)
+@ResourceLock("redis")
 class SeenMessageCacheIntegrationTest {
 
     @Container
     static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
-            .withExposedPorts(6379);
+            .withExposedPorts(6379)
+            .withReuse(true);
 
     @DynamicPropertySource
     static void registerRedisProperties(DynamicPropertyRegistry registry) {
@@ -41,8 +47,7 @@ class SeenMessageCacheIntegrationTest {
         @Bean
         public RedissonClient redissonClient() {
             Config config = new Config();
-            config.useSingleServer()
-                    .setAddress("redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
+            config.useSingleServer().setAddress("redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
             return Redisson.create(config);
         }
     }
