@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProcessTransactionApplicationService implements ProcessTransactionUseCase {
 
     private final AssessTransactionRiskUseCase assessTransactionRisk;
-    private final VelocityServicePort velocityService;
     private final TransactionRepository transactionRepository;
 
     @Override
@@ -28,15 +27,8 @@ public class ProcessTransactionApplicationService implements ProcessTransactionU
         log.debug("Processing transaction: {}", command.transactionId());
 
         Transaction transaction = toDomain(command);
-
-        // Save transaction
         transactionRepository.save(transaction);
-
-        // Assess risk
         assessTransactionRisk.assess(toCommand(transaction));
-
-        // Update velocity counters
-        velocityService.incrementCounters(transaction);
 
         log.debug("Successfully processed transaction: {}", command.transactionId());
     }

@@ -4,6 +4,7 @@ import com.twenty9ine.frauddetection.domain.valueobject.TimeWindow;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RAtomicDouble;
 import org.redisson.api.RAtomicLong;
@@ -18,17 +19,19 @@ import java.util.Map;
 
 import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 
+@RequiredArgsConstructor
 @Component
 @Slf4j
 public class VelocityCounterAdapter implements VelocityServicePort {
 
+    private static final String VELOCITY_METRICS = "velocityMetrics";
+    static final String TOTAL_AMOUNT_COUNTER_KEY = "velocity:amount";
+    static final String MERCHANTS_COUNTER_KEY = "velocity:merchants";
+    static final String TRANSACTION_COUNTER_KEY = "velocity:transaction:counter";
+    static final String LOCATIONS_COUNTER_KEY = "velocity:locations";
+
     private final RedissonClient redissonClient;
     private final CacheManager cacheManager;
-
-    public VelocityCounterAdapter(RedissonClient redissonClient, CacheManager cacheManager) {
-        this.redissonClient = redissonClient;
-        this.cacheManager = cacheManager;
-    }
 
     @Override
     public VelocityMetrics findVelocityMetricsByTransaction(Transaction transaction) {
@@ -66,7 +69,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     }
 
     private Cache getCache() {
-        return cacheManager.getCache("velocityMetrics");
+        return cacheManager.getCache(VELOCITY_METRICS);
     }
 
     private VelocityMetrics fetchFromRedis(Transaction transaction) {
@@ -115,7 +118,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     }
 
     private RAtomicDouble findTotalAmountCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicDouble("velocity:amount:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getAtomicDouble((TOTAL_AMOUNT_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private void incrementMerchantCounters(Transaction transaction) {
@@ -131,7 +134,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     }
 
     private RHyperLogLog<String> findMerchantCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog("velocity:merchants:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getHyperLogLog((MERCHANTS_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private void incrementTransactionCounters(Transaction transaction) {
@@ -147,7 +150,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     }
 
     private RAtomicLong findTransactionCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicLong("velocity:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getAtomicLong((TRANSACTION_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private void incrementLocationCounters(Transaction transaction) {
@@ -163,7 +166,7 @@ public class VelocityCounterAdapter implements VelocityServicePort {
     }
 
     private RHyperLogLog<String> findLocationCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog("velocity:locations:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getHyperLogLog((LOCATIONS_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private void evictCache(String accountId) {

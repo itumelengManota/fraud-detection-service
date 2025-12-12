@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import static com.twenty9ine.frauddetection.infrastructure.adapter.cache.VelocityCounterAdapter.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.awaitility.Awaitility.await;
 
@@ -460,19 +461,19 @@ class VelocityCounterAdapterIntegrationTest {
     }
 
     private RAtomicLong findTransactionCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicLong("velocity:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getAtomicLong(TRANSACTION_COUNTER_KEY + ":%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private RHyperLogLog<String> findMerchantCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog("velocity:merchants:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getHyperLogLog(MERCHANTS_COUNTER_KEY + ":%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private RHyperLogLog<String> findLocationCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog("velocity:locations:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getHyperLogLog(LOCATIONS_COUNTER_KEY + ":%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private RAtomicDouble findTotalAmountCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicDouble("velocity:amount:%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
+        return redissonClient.getAtomicDouble(TOTAL_AMOUNT_COUNTER_KEY + ":%s:%s".formatted(timeWindow.getLabel(), transaction.accountId()));
     }
 
     private Transaction createTestTransaction(String accountId, String merchantId) {
