@@ -33,7 +33,7 @@ import java.util.UUID;
  */
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/v1/fraud")
+@RequestMapping("/fraud")
 @Validated
 @Tag(name = "Fraud Detection", description = "Real-time fraud detection operations")
 @Slf4j
