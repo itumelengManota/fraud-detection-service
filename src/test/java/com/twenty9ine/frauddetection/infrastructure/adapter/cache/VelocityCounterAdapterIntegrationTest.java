@@ -188,14 +188,14 @@ class VelocityCounterAdapterIntegrationTest {
         Transaction transaction = createTestTransaction(accountId, "MERCH-001");
         adapter.incrementCounters(transaction);
 
-        // Act - First fetch from Redis
+        // Act - First fetch fromDate Redis
         VelocityMetrics metrics1 = adapter.findVelocityMetricsByTransaction(transaction);
         assertThat(metrics1).isNotNull();
 
         // Clear Redis but keep cache
         redissonClient.getKeys().flushall();
 
-        // Act - Second fetch from cache
+        // Act - Second fetch fromDate cache
         VelocityMetrics metrics2 = adapter.findVelocityMetricsByTransaction(transaction);
 
         // Assert - Should still return cached data
@@ -219,7 +219,7 @@ class VelocityCounterAdapterIntegrationTest {
         // Act - Increment again (should evict cache)
         adapter.incrementCounters(transaction);
 
-        // Assert - Should fetch fresh data from Redis
+        // Assert - Should fetch fresh data fromDate Redis
         VelocityMetrics metrics2 = adapter.findVelocityMetricsByTransaction(transaction);
         assertThat(metrics2.getTransactionCount(FIVE_MINUTES)).isEqualTo(2L);
     }

@@ -1,11 +1,8 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.persistence;
 
 import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
-import com.twenty9ine.frauddetection.domain.valueobject.PageRequest;
-import com.twenty9ine.frauddetection.domain.valueobject.PagedResult;
-import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
+import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
-import com.twenty9ine.frauddetection.domain.valueobject.SortDirection;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.mapper.RiskAssessmentMapper;
 import org.springframework.data.domain.Page;
@@ -53,19 +50,24 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
     }
 
     @Override
-    public Optional<RiskAssessment> findByTransactionId(UUID transactionId) {
-        return jdbcRepository.findByTransactionId(transactionId)
+    public Optional<RiskAssessment> findByTransactionId(TransactionId transactionId) {
+        return jdbcRepository.findByTransactionId(transactionId.toUUID())
                              .map(mapper::toDomain);
     }
 
     @Override
     public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
+        Set<String> riskLevelStrings = toRiskLevelStrings(levels);
+        Instant fromTime = since != null ? since : Instant.EPOCH;
+        Pageable pageable = toSpringPageable(pageRequest);
 
-        Page<RiskAssessmentEntity> page = jdbcRepository
-                .findByRiskLevelInAndAssessmentTimeGreaterThanEqual(toRiskLevelStrings(levels), since, toSpringPageable(pageRequest));
+        Page<RiskAssessmentEntity> page = riskLevelStrings.isEmpty()
+                ? jdbcRepository.findByAssessmentTimeGreaterThanEqual(fromTime, pageable)
+                : jdbcRepository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(riskLevelStrings, fromTime, pageable);
 
         return toPagedResult(toRiskAssessments(page), page);
     }
+
 
     private static PagedResult<RiskAssessment> toPagedResult(List<RiskAssessment> assessments, Page<RiskAssessmentEntity> page) {
         return PagedResult.of(
@@ -84,6 +86,10 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
     }
 
     private static Set<String> toRiskLevelStrings(Set<TransactionRiskLevel> levels) {
+        if(levels == null || levels.isEmpty()) {
+            return Collections.emptySet();
+        }
+
         return resolveRiskLevels(levels).stream()
                 .map(TransactionRiskLevel::name)
                 .collect(Collectors.toSet());

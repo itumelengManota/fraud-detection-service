@@ -7,13 +7,17 @@ import com.twenty9ine.frauddetection.application.port.in.command.AssessTransacti
 import com.twenty9ine.frauddetection.application.port.in.query.FindRiskLeveledAssessmentsQuery;
 import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessmentQuery;
 import com.twenty9ine.frauddetection.application.port.in.query.PageRequestQuery;
+import com.twenty9ine.frauddetection.infrastructure.adapter.rest.dto.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -48,7 +52,7 @@ public class FraudDetectionController {
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Analysis completed successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request"),
             @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
-            @ApiResponse(responseCode = "503", description = "Service unavailable")})
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public RiskAssessmentDto assessTransaction(@Valid @RequestBody AssessTransactionRiskCommand command) {
         return assessTransactionRiskUseCase.assess(command);
     }
@@ -56,15 +60,57 @@ public class FraudDetectionController {
     @GetMapping("/assessments/{transactionId}")
     @Operation(summary = "Get risk assessment by transaction ID", description = "Retrieves a previously completed risk assessment")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Assessment found"),
-                   @ApiResponse(responseCode = "404", description = "Assessment not found")})
+                   @ApiResponse(responseCode = "404", description = "Assessment not found"),
+                   @ApiResponse(responseCode = "500", description = "Internal server error")})
     public RiskAssessmentDto getAssessment(@PathVariable UUID transactionId) {
         return getRiskAssessmentUseCase.get(new GetRiskAssessmentQuery(transactionId));
     }
 
-    @GetMapping("/assessments")
-    @Operation(summary = "Find high-risk assessments", description = "Retrieves risk assessments with HIGH or CRITICAL risk levels from a specified time")
-    @ApiResponses({@ApiResponse(responseCode = "200", description = "Assessments retrieved successfully")})
-    public Page<RiskAssessmentDto> findAssessmentsByRiskLevelAndFromDate(@RequestParam FindRiskLeveledAssessmentsQuery query, Pageable pageable) {
+    /**
+     * Search risk assessments by risk levels and/or assessment timestamp with pagination.
+     * Both query parameters are optional - omitted parameters won't filter results.
+     *
+     * @param query Search criteria containing optional risk levels and from date
+     * @param pageable Pagination and sorting parameters
+     * @return Page of matching risk assessments ordered by assessment time (newest first)
+     */
+    @GetMapping
+    @Operation(
+            summary = "Search risk assessments",
+            description = "Find risk assessments filtered by risk levels and/or assessment timestamp. " +
+                    "Both parameters are optional. Results are paginated and sorted by assessment time (newest first)."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Successfully retrieved risk assessments",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = Page.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid query parameters",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Authentication required",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            )
+    })
+    public Page<RiskAssessmentDto> findAssessmentsByRiskLevelAndFromDate(@ModelAttribute
+                                                                             @Valid
+                                                                             FindRiskLeveledAssessmentsQuery query,
+                                                                         @ParameterObject
+                                                                         Pageable pageable) {
         return toPage(pageable, findAssessmentsByQuery(query, pageable));
     }
 

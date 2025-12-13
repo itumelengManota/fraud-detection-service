@@ -36,7 +36,7 @@ public class FeatureStoreAdapter {
                             FeatureValue::valueAsString
                     ));
         } catch (Exception e) {
-            log.error("Failed to get features from Feature Store", e);
+            log.error("Failed to get features fromDate Feature Store", e);
             throw new RuntimeException("Feature retrieval failed", e);
         }
     }

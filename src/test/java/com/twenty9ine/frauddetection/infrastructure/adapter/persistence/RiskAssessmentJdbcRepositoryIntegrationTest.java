@@ -134,8 +134,7 @@ class RiskAssessmentJdbcRepositoryIntegrationTest {
         PageRequest firstPage = PageRequest.of(0, 2, Sort.by("assessmentTime").descending());
         PageRequest secondPage = PageRequest.of(1, 2, Sort.by("assessmentTime").descending());
 
-        Page<RiskAssessmentEntity> page1 = repository
-                .findByRiskLevelInAndAssessmentTimeGreaterThanEqual(
+        Page<RiskAssessmentEntity> page1 = repository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(
                         Set.of("HIGH"),
                         baseTime.minus(10, ChronoUnit.MINUTES),
                         firstPage

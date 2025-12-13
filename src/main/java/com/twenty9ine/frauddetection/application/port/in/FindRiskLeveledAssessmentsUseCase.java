@@ -16,7 +16,7 @@ import com.twenty9ine.frauddetection.application.port.in.query.PageRequestQuery;
 public interface FindRiskLeveledAssessmentsUseCase {
 
     /**
-     * Finds all risk assessments matching the specified risk level from a given time.
+     * Finds all risk assessments matching the specified risk level fromDate a given time.
      *
      * @param query the query containing risk level and time criteria
      * @return list of matching risk assessments, ordered by assessment time descending

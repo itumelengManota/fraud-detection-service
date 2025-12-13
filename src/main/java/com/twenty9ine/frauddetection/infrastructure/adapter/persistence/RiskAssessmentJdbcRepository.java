@@ -17,5 +17,23 @@ public interface RiskAssessmentJdbcRepository extends CrudRepository<RiskAssessm
 
     Optional<RiskAssessmentEntity> findByTransactionId(UUID transactionId);
 
-    Page<RiskAssessmentEntity> findByRiskLevelInAndAssessmentTimeGreaterThanEqual(Set<String> riskLevels, Instant assessmentTime, Pageable pageable);
+    /**
+     * Find risk assessments by risk levels and assessment time greater than or equal.
+     *
+     * @param riskLevels Set of risk levels to filter by
+     * @param assessmentTime Minimum assessment timestamp
+     * @param pageable Pagination information
+     * @return Page of matching risk assessments
+     */
+    Page<RiskAssessmentEntity> findByRiskLevelInAndAssessmentTimeGreaterThanEqual(
+            Set<String> riskLevels,
+            Instant assessmentTime,
+            Pageable pageable
+    );
+
+    Page<RiskAssessmentEntity> findByAssessmentTimeGreaterThanEqual(
+            Instant assessmentTime,
+            Pageable pageable
+    );
+
 }

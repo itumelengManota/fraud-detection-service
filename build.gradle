@@ -36,6 +36,7 @@ ext {
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '2.7.0'
     uuidGeneratorVersion = '5.1.1'
+    keycloakTestcontainersVersion = '3.4.0'
 }
 
 dependencies {
@@ -101,6 +102,7 @@ dependencies {
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
@@ -110,6 +112,7 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:localstack:1.19.3'
     testImplementation 'cloud.localstack:localstack-utils:0.2.23'
+    testImplementation "com.github.dasniko:testcontainers-keycloak:$keycloakTestcontainersVersion"
 
     testImplementation 'org.awaitility:awaitility:4.2.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

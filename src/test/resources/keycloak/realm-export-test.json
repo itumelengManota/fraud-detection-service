@@ -1,0 +1,117 @@
+{
+  "realm": "fraud-detection",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "fraud-detection-service",
+      "name": "Fraud Detection Service",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "fraud-detection-secret",
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "300"
+      }
+    },
+    {
+      "clientId": "test-client",
+      "name": "Test Client",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "test-secret",
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "attributes": {
+        "access.token.lifespan": "300"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [],
+    "client": {
+      "fraud-detection-service": [
+        {
+          "name": "fraud:detect",
+          "description": "Permission to detect fraud"
+        },
+        {
+          "name": "fraud:read",
+          "description": "Permission to read fraud assessments"
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "username": "test-detector",
+      "enabled": true,
+      "email": "detector@test.com",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Detector",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "fraud-detection-service": ["fraud:detect", "fraud:read"]
+      }
+    },
+    {
+      "username": "test-analyst",
+      "enabled": true,
+      "email": "analyst@test.com",
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Analyst",
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test123",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "fraud-detection-service": ["fraud:read"]
+      }
+    }
+  ],
+  "clientScopeMappings": {
+    "fraud-detection-service": [
+      {
+        "client": "test-client",
+        "roles": ["fraud:detect", "fraud:read"]
+      }
+    ]
+  }
+}

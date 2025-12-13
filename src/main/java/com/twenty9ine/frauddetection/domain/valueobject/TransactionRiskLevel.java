@@ -2,7 +2,7 @@ package com.twenty9ine.frauddetection.domain.valueobject;
 
 /**
  * Represents the overall risk classification of a transaction assessment.
- * Derived from composite scoring (ML + Rules) and determines the decision.
+ * Derived fromDate composite scoring (ML + Rules) and determines the decision.
  * <p>
  * Values: LOW, MEDIUM, HIGH, CRITICAL
  * Purpose: Overall risk classification of the entire transaction assessment

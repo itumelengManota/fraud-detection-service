@@ -109,7 +109,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         assessment.completeAssessment(Decision.REVIEW);
         repositoryAdapter.save(assessment);
 
-        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(transactionId.toUUID());
+        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(transactionId);
 
         assertThat(found).isPresent();
         assertThat(found.get().getTransactionId()).isEqualTo(transactionId);
@@ -119,7 +119,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
 
     @Test
     void shouldReturnEmptyWhenTransactionIdNotFound() {
-        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(UUID.randomUUID());
+        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(TransactionId.generate());
 
         assertThat(found).isEmpty();
     }
@@ -316,7 +316,7 @@ class RiskAssessmentRepositoryAdapterIntegrationTest {
         RiskAssessment saved1 = repositoryAdapter.save(assessment);
         RiskAssessment saved2 = repositoryAdapter.save(saved1);
 
-        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(assessment.getTransactionId().toUUID());
+        Optional<RiskAssessment> found = repositoryAdapter.findByTransactionId(assessment.getTransactionId());
         assertThat(found).isPresent();
         assertThat(found.get().getAssessmentId()).isEqualTo(saved2.getAssessmentId());
     }

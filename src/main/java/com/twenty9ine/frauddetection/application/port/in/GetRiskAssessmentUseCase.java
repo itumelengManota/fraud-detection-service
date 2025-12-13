@@ -8,7 +8,7 @@ import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessment
  *
  * Read-only query use case that retrieves a previously completed risk assessment
  * by its transaction ID. Follows CQRS pattern by separating query operations
- * from command operations.
+ * fromDate command operations.
  *
  * @author Fraud Detection Team
  */

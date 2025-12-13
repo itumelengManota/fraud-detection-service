@@ -141,7 +141,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
                     .thenReturn(mockLowRiskPrediction());
 
             // When
-            UUID transactionId = UUID.randomUUID();
+            TransactionId transactionId = TransactionId.generate();
             AssessTransactionRiskCommand command = FraudDetectionApplicationServiceIntegrationTest.this.buildLowRiskCommand(transactionId);
             RiskAssessmentDto result = applicationService.assess(command);
             
@@ -170,7 +170,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
                     .thenReturn(mockMediumRiskPrediction());
 
             // When
-            UUID transactionId = UUID.randomUUID();
+            TransactionId transactionId = TransactionId.generate();
             AssessTransactionRiskCommand command = buildHighRiskCommand(transactionId);
             RiskAssessmentDto result = applicationService.assess(command);
 
@@ -199,7 +199,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
 
 
             // When
-            UUID transactionId = UUID.randomUUID();
+            TransactionId transactionId = TransactionId.generate();
 
             int expectedFinalScore = 73;
             TransactionRiskLevel expectedTransactionRiskLevel = TransactionRiskLevel.HIGH;
@@ -227,7 +227,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
                     .thenReturn(mockCriticalRiskPrediction());
 
             // When
-            UUID transactionId = UUID.randomUUID();
+            TransactionId transactionId = TransactionId.generate();
 
             int expectedFinalScore = 100;  //Risk score is capped at 100
             TransactionRiskLevel expectedTransactionRiskLevel = TransactionRiskLevel.CRITICAL;
@@ -260,7 +260,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
                     .thenReturn(mockMediumRiskPrediction());
 
             String accountId = "ACC-VEL-001";
-            List<UUID> transactionIds = new ArrayList<>();
+            List<TransactionId> transactionIds = new ArrayList<>();
             List<AssessTransactionRiskCommand> commands = new ArrayList<>();
 
             int expectedFinalScore = 37;
@@ -269,7 +269,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
 
             // Create 5 transactions in quick succession
             for (int i = 0; i < 6; i++) {
-                transactionIds.add(UUID.randomUUID());
+                transactionIds.add(TransactionId.generate());
                 commands.add(buildCommandForAccount(accountId, transactionIds.get(i)));
                 applicationService.assess(commands.get(i));
             }
@@ -280,7 +280,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
             }
 
             // When - 6th transaction should trigger velocity rule
-            transactionIds.add(UUID.randomUUID());
+            transactionIds.add(TransactionId.generate());
             AssessTransactionRiskCommand finalCommand = buildCommandForAccount(accountId, transactionIds.getLast());
             RiskAssessmentDto result = applicationService.assess(finalCommand);
 
@@ -333,10 +333,10 @@ class FraudDetectionApplicationServiceIntegrationTest {
                     .thenReturn(mockHighRiskPrediction());
 
             Instant now = Instant.now();
-            List<UUID> transactionIds = new ArrayList<>();
+            List<TransactionId> transactionIds = new ArrayList<>();
 
             for (int i = 0; i < 3; i++) {
-                transactionIds.add(UUID.randomUUID());
+                transactionIds.add(TransactionId.generate());
                 applicationService.assess(buildHighRiskCommand(transactionIds.get(i)));
             }
 
@@ -346,8 +346,8 @@ class FraudDetectionApplicationServiceIntegrationTest {
 
             // When
             FindRiskLeveledAssessmentsQuery query = FindRiskLeveledAssessmentsQuery.builder()
-                    .transactionRiskLevels(Set.of(TransactionRiskLevel.HIGH))
-                    .from(now.minus(Duration.ofHours(1)))
+                    .transactionRiskLevels(Set.of(TransactionRiskLevel.HIGH.name()))
+                    .fromDate(now.minus(Duration.ofHours(1)))
                     .build();
 
             PagedResultDto<RiskAssessmentDto> result = applicationService.find(query, PageRequestQuery.of(0, 10));
@@ -358,16 +358,16 @@ class FraudDetectionApplicationServiceIntegrationTest {
         }
     }
 
-    private void assertRiskAssessmentIsPresent(UUID transactionId) {
+    private void assertRiskAssessmentIsPresent(TransactionId transactionId) {
         assertThat(repository.findByTransactionId(transactionId)).isPresent();
     }
 
-    private void assertRiskAssessmentsArePresent(List<UUID> transactionIds) {
+    private void assertRiskAssessmentsArePresent(List<TransactionId> transactionIds) {
         transactionIds.forEach(this::assertRiskAssessmentIsPresent);
     }
 
 
-    private void assertRiskAssessmentCompletedAvroPublished(UUID transactionId, UUID assessmentId, double finalScore, TransactionRiskLevel transactionRiskLevel, Decision decision) {
+    private void assertRiskAssessmentCompletedAvroPublished(TransactionId transactionId, UUID assessmentId, double finalScore, TransactionRiskLevel transactionRiskLevel, Decision decision) {
         // Create a fresh consumer for this specific assertion
         KafkaConsumer<String, RiskAssessmentCompletedAvro> testConsumer = createTestConsumer();
         testConsumer.subscribe(Collections.singletonList("fraud-detection.risk-assessments"));
@@ -445,9 +445,9 @@ class FraudDetectionApplicationServiceIntegrationTest {
     }
 
     // Command builders
-    private AssessTransactionRiskCommand buildLowRiskCommand(UUID transactionId) {
+    private AssessTransactionRiskCommand buildLowRiskCommand(TransactionId transactionId) {
         return AssessTransactionRiskCommand.builder()
-                .transactionId(transactionId)
+                .transactionId(transactionId.toUUID())
                 .accountId("ACC-001")
                 .amount(new BigDecimal("50.00"))
                 .currency("USD")
@@ -477,9 +477,9 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildHighRiskCommand(UUID transactionId) {
+    private AssessTransactionRiskCommand buildHighRiskCommand(TransactionId transactionId) {
         return AssessTransactionRiskCommand.builder()
-                .transactionId(transactionId)
+                .transactionId(transactionId.toUUID())
                 .accountId("ACC-003")
                 .amount(new BigDecimal("50000.01"))
                 .currency("USD")
@@ -493,9 +493,9 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildCriticalRiskCommand(UUID transactionId) {
+    private AssessTransactionRiskCommand buildCriticalRiskCommand(TransactionId transactionId) {
         return AssessTransactionRiskCommand.builder()
-                .transactionId(transactionId)
+                .transactionId(transactionId.toUUID())
                 .accountId("ACC-004")
                 .amount(new BigDecimal("100000.01"))
                 .currency("USD")
@@ -509,9 +509,9 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildCommandForAccount(String accountId, UUID transactionId) {
+    private AssessTransactionRiskCommand buildCommandForAccount(String accountId, TransactionId transactionId) {
         return AssessTransactionRiskCommand.builder()
-                .transactionId(transactionId)
+                .transactionId(transactionId.toUUID())
                 .accountId(accountId)
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")

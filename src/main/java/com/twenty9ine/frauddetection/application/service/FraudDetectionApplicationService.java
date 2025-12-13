@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Application service that orchestrates fraud detection use cases.
@@ -71,7 +72,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
     public RiskAssessmentDto get(GetRiskAssessmentQuery query) {
         log.debug("Retrieving risk assessment for transaction: {}", query.transactionId());
 
-        return repository.findByTransactionId(query.transactionId())
+        return repository.findByTransactionId(TransactionId.of(query.transactionId()))
                 .map(RiskAssessmentDto::from)
                 .orElseThrow(() -> new RiskAssessmentNotFoundException("Risk assessment not found for transaction ID: " + query.transactionId()));
     }
@@ -79,12 +80,22 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
     @Override
     @Transactional(readOnly = true)
     public PagedResultDto<RiskAssessmentDto> find(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
-        log.debug("Finding {} risk assessments from {}", query.transactionRiskLevels(), query.from());
-        return getRiskAssessmentDtoPagedResultDto(findRiskAssessmentsByRiskLevelSince(query, pageRequestQuery));
+        log.debug("Finding {} risk assessments fromDate {}", query.transactionRiskLevels(), query.fromDate());
+        return getRiskAssessmentDtoPagedResultDto(findAssessmentsByRiskLevelsAndFromDate(query, pageRequestQuery));
     }
 
-    private PagedResult<RiskAssessment> findRiskAssessmentsByRiskLevelSince(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
-        return repository.findByRiskLevelSince(query.transactionRiskLevels(), query.from(), toPageRequest(pageRequestQuery));
+    private PagedResult<RiskAssessment> findAssessmentsByRiskLevelsAndFromDate(FindRiskLeveledAssessmentsQuery query, PageRequestQuery pageRequestQuery) {
+        return repository.findByRiskLevelSince(toTransactionRiskLevels(query.transactionRiskLevels()), query.fromDate(), toPageRequest(pageRequestQuery));
+    }
+
+    private static Set<TransactionRiskLevel> toTransactionRiskLevels(Set<String> riskLevelStrings) {
+        if(riskLevelStrings == null || riskLevelStrings.isEmpty()) {
+            return Set.of();
+        }
+
+        return riskLevelStrings.stream()
+                .map(TransactionRiskLevel::fromString)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     private static PagedResultDto<RiskAssessmentDto> getRiskAssessmentDtoPagedResultDto(PagedResult<RiskAssessment> pagedResult) {
