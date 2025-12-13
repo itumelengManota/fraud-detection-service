@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.context.request.WebRequest;
 
 import java.time.Instant;
 
@@ -73,6 +74,32 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                              .body(buildInternalServerError());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            WebRequest request) {
+
+        // Check if it's an invalid risk level error
+        if (ex.getMessage() != null && ex.getMessage().contains("Unknown risk level")) {
+            log.warn("Invalid risk level provided: {}", ex.getMessage());
+            ErrorResponse errorResponse = ErrorResponse.builder()
+                    .code("INVALID_RISK_LEVEL")
+                    .message("Invalid transaction risk level. Valid values are: LOW, MEDIUM, HIGH, CRITICAL")
+                    .timestamp(Instant.now())
+                    .build();
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        // For other IllegalArgumentExceptions, return 500
+        log.error("Unexpected IllegalArgumentException", ex);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .code("INTERNAL_SERVER_ERROR")
+                .message("An unexpected error occurred")
+                .timestamp(Instant.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 
     private static ErrorResponse buildMethodArgumentNotValid(MethodArgumentNotValidException ex) {

@@ -74,7 +74,7 @@ public class FraudDetectionController {
      * @param pageable Pagination and sorting parameters
      * @return Page of matching risk assessments ordered by assessment time (newest first)
      */
-    @GetMapping
+    @GetMapping("/assessments")
     @Operation(
             summary = "Search risk assessments",
             description = "Find risk assessments filtered by risk levels and/or assessment timestamp. " +

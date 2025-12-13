@@ -14,6 +14,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -135,6 +136,9 @@ class FraudDetectionControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @MockitoBean
     private MLServicePort mlServicePort;
 
@@ -162,6 +166,13 @@ class FraudDetectionControllerIntegrationTest {
         // Configure ML service mock with default behavior
         when(mlServicePort.predict(any(Transaction.class)))
                 .thenReturn(mockLowRiskPrediction());
+    }
+
+    @AfterEach
+    void cleanupDatabase() {
+        jdbcTemplate.execute("DELETE FROM rule_evaluations");
+        jdbcTemplate.execute("DELETE FROM risk_assessments");
+        jdbcTemplate.execute("DELETE FROM transaction");
     }
 
     @Nested
@@ -468,10 +479,10 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.content.length()").isEqualTo(2)
                     .jsonPath("$.content[0].transactionRiskLevel").isEqualTo("HIGH")
                     .jsonPath("$.content[1].transactionRiskLevel").isEqualTo("HIGH")
-                    .jsonPath("$.totalElements").isEqualTo(2)
-                    .jsonPath("$.totalPages").isEqualTo(1)
-                    .jsonPath("$.size").isEqualTo(10)
-                    .jsonPath("$.number").isEqualTo(0);
+                    .jsonPath("$.page.totalElements").isEqualTo(2)
+                    .jsonPath("$.page.totalPages").isEqualTo(1)
+                    .jsonPath("$.page.size").isEqualTo(10)
+                    .jsonPath("$.page.number").isEqualTo(0);
         }
 
         @Test
@@ -499,7 +510,7 @@ class FraudDetectionControllerIntegrationTest {
                     .expectBody()
                     .jsonPath("$.content").isArray()
                     .jsonPath("$.content.length()").isEqualTo(2)
-                    .jsonPath("$.totalElements").isEqualTo(2);
+                    .jsonPath("$.page.totalElements").isEqualTo(2);
         }
 
         @Test
@@ -534,7 +545,7 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.content.length()").isEqualTo(2)
                     .jsonPath("$.content[0].transactionRiskLevel").isEqualTo("HIGH")
                     .jsonPath("$.content[1].transactionRiskLevel").isEqualTo("HIGH")
-                    .jsonPath("$.totalElements").isEqualTo(2);
+                    .jsonPath("$.page.totalElements").isEqualTo(2);
         }
 
         @Test
@@ -558,12 +569,12 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content.length()").isEqualTo(2)
-                    .jsonPath("$.totalElements").isEqualTo(5)
-                    .jsonPath("$.totalPages").isEqualTo(3)
-                    .jsonPath("$.size").isEqualTo(2)
-                    .jsonPath("$.number").isEqualTo(0)
-                    .jsonPath("$.first").isEqualTo(true)
-                    .jsonPath("$.last").isEqualTo(false);
+                    .jsonPath("$.page.totalElements").isEqualTo(5)
+                    .jsonPath("$.page.totalPages").isEqualTo(3)
+                    .jsonPath("$.page.size").isEqualTo(2)
+                    .jsonPath("$.page.number").isEqualTo(0)
+                    .jsonPath("$.page.first").isEqualTo(true)
+                    .jsonPath("$.page.last").isEqualTo(false);
 
             // When & Then - Request second page
             webTestClient.get()
@@ -578,9 +589,9 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content.length()").isEqualTo(2)
-                    .jsonPath("$.number").isEqualTo(1)
-                    .jsonPath("$.first").isEqualTo(false)
-                    .jsonPath("$.last").isEqualTo(false);
+                    .jsonPath("$.page.number").isEqualTo(1)
+                    .jsonPath("$.page.first").isEqualTo(false)
+                    .jsonPath("$.page.last").isEqualTo(false);
 
             // When & Then - Request last page
             webTestClient.get()
@@ -595,9 +606,9 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content.length()").isEqualTo(1)
-                    .jsonPath("$.number").isEqualTo(2)
-                    .jsonPath("$.first").isEqualTo(false)
-                    .jsonPath("$.last").isEqualTo(true);
+                    .jsonPath("$.page.number").isEqualTo(2)
+                    .jsonPath("$.page.first").isEqualTo(false)
+                    .jsonPath("$.page.last").isEqualTo(true);
         }
 
         @Test
@@ -654,9 +665,9 @@ class FraudDetectionControllerIntegrationTest {
                     .expectBody()
                     .jsonPath("$.content").isArray()
                     .jsonPath("$.content.length()").isEqualTo(0)
-                    .jsonPath("$.totalElements").isEqualTo(0)
-                    .jsonPath("$.totalPages").isEqualTo(0)
-                    .jsonPath("$.empty").isEqualTo(true);
+                    .jsonPath("$.page.totalElements").isEqualTo(0)
+                    .jsonPath("$.page.totalPages").isEqualTo(0)
+                    .jsonPath("$.content.length()").isEqualTo(0);
         }
 
         @Test
@@ -749,9 +760,9 @@ class FraudDetectionControllerIntegrationTest {
                     .expectBody()
                     .jsonPath("$.content").isArray()
                     .jsonPath("$.content.length()").isEqualTo(0)
-                    .jsonPath("$.totalElements").isEqualTo(2)
-                    .jsonPath("$.number").isEqualTo(10)
-                    .jsonPath("$.empty").isEqualTo(true);
+                    .jsonPath("$.page.totalElements").isEqualTo(2)
+                    .jsonPath("$.page.number").isEqualTo(10)
+                    .jsonPath("$.content.length()").isEqualTo(0);
         }
 
         @Test
@@ -775,7 +786,7 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content").isArray()
-                    .jsonPath("$.totalElements").value(count ->
+                    .jsonPath("$.page.totalElements").value(count ->
                             assertThat((Integer) count).isGreaterThanOrEqualTo(2));
         }
     }
@@ -867,7 +878,8 @@ class FraudDetectionControllerIntegrationTest {
     }
 
     private static @NonNull MLPrediction mockMediumRiskPrediction() {
-        return new MLPrediction("test-endpoint", "1.0.0", 0.45, 0.92,
+        // Score: 0.70 * 100 * 0.6 = 42 (MEDIUM range: 41-70)
+        return new MLPrediction("test-endpoint", "1.0.0", 0.70, 0.92,
                 Map.of("amount", 0.4, "velocity", 0.3));
     }
 
@@ -920,26 +932,52 @@ class FraudDetectionControllerIntegrationTest {
 
         when(mlServicePort.predict(any(Transaction.class))).thenReturn(prediction);
 
-        AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-                .transactionId(UUID.randomUUID())
-                .accountId("ACC-" + System.currentTimeMillis())
-                .amount(new BigDecimal("1500.00"))
-                .currency("USD")
-                .type("PURCHASE")
-                .channel("ONLINE")
-                .merchantId("MERCHANT-001")
-                .merchantName("Test Merchant")
-                .merchantCategory("RETAIL")
-                .location(new LocationDto(
-                        40.7128,
-                        -74.0060,
-                        "US",
-                        "New York",
-                        timestamp
-                ))
-                .deviceId("DEVICE-001")
-                .transactionTimestamp(timestamp)
-                .build();
+        // Use appropriate command builder based on risk level
+        // HIGH and CRITICAL require transaction characteristics that trigger business rules
+        AssessTransactionRiskCommand command = switch (riskLevel) {
+            case "HIGH" -> AssessTransactionRiskCommand.builder()
+                    .transactionId(UUID.randomUUID())
+                    .accountId("ACC-HIGH-" + System.currentTimeMillis())
+                    .amount(new BigDecimal("50000.01"))  // Triggers high amount rule
+                    .currency("USD")
+                    .type("TRANSFER")
+                    .channel("ONLINE")
+                    .merchantId("MERCHANT-003")
+                    .merchantName("Unknown Vendor")
+                    .merchantCategory("OTHER")
+                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+                    .deviceId("DEVICE-003")
+                    .transactionTimestamp(timestamp)
+                    .build();
+            case "CRITICAL" -> AssessTransactionRiskCommand.builder()
+                    .transactionId(UUID.randomUUID())
+                    .accountId("ACC-CRITICAL-" + System.currentTimeMillis())
+                    .amount(new BigDecimal("100000.01"))  // Triggers very high amount rule
+                    .currency("USD")
+                    .type("TRANSFER")
+                    .channel("ONLINE")
+                    .merchantId("MERCHANT-UNKNOWN")
+                    .merchantName("Suspicious Vendor")
+                    .merchantCategory("HIGH_RISK")
+                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+                    .deviceId("DEVICE-CRITICAL")
+                    .transactionTimestamp(timestamp)
+                    .build();
+            default -> AssessTransactionRiskCommand.builder()
+                    .transactionId(UUID.randomUUID())
+                    .accountId("ACC-" + System.currentTimeMillis())
+                    .amount(new BigDecimal("1500.00"))  // Normal amount, no rules triggered
+                    .currency("USD")
+                    .type("PURCHASE")
+                    .channel("ONLINE")
+                    .merchantId("MERCHANT-001")
+                    .merchantName("Test Merchant")
+                    .merchantCategory("RETAIL")
+                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+                    .deviceId("DEVICE-001")
+                    .transactionTimestamp(timestamp)
+                    .build();
+        };
 
         webTestClient.post()
                 .uri("/fraud/assessments")
