@@ -34,7 +34,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
-import static com.twenty9ine.frauddetection.infrastructure.KafkaTestConsumerFactory.closeCurrentThreadConsumer;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -59,8 +58,9 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("FraudDetectionApplicationService Integration Tests")
-@Execution(ExecutionMode.CONCURRENT)
+@Execution(ExecutionMode.SAME_THREAD)
 @ResourceLock(value = "database", mode = ResourceAccessMode.READ_WRITE)
+@ResourceLock(value = "kafka", mode = ResourceAccessMode.READ_WRITE)
 class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
@@ -78,7 +78,6 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
     @MockitoBean
     private MLServicePort mlServicePort;
 
-    //    private KafkaConsumer<String, RiskAssessmentCompletedAvro> testConsumer;
     private KafkaConsumer<String, Object> testConsumer;
 
     @BeforeAll
@@ -107,8 +106,7 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
     void tearDownClass() {
         // Final cleanup after all tests
         DatabaseTestUtils.fastCleanup(jdbcTemplate);
-
-        closeCurrentThreadConsumer();
+        KafkaTestConsumerFactory.closeConsumer();
     }
 
     // ========================================

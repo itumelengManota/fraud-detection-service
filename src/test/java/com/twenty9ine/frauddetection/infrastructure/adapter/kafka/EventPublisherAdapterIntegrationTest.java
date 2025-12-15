@@ -30,7 +30,6 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static com.twenty9ine.frauddetection.infrastructure.KafkaTestConsumerFactory.closeCurrentThreadConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -49,8 +48,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @DisplayName("EventPublisherAdapter Integration Tests")
-@Execution(ExecutionMode.CONCURRENT)
-@ResourceLock(value = "kafka-topics", mode = ResourceAccessMode.READ)
+@Execution(ExecutionMode.SAME_THREAD)
+@ResourceLock(value = "kafka-topics", mode = ResourceAccessMode.READ_WRITE)
 class EventPublisherAdapterIntegrationTest extends AbstractIntegrationTest {
 
     private EventPublisherAdapter eventPublisher;
@@ -87,12 +86,7 @@ class EventPublisherAdapterIntegrationTest extends AbstractIntegrationTest {
 
     @AfterAll
     void tearDownClass() {
-        // Consumer is returned to pool, not closed - enables reuse across test classes
-//        if (kafkaTemplate != null) {
-//            kafkaTemplate.destroy();
-//        }
-
-        closeCurrentThreadConsumer();
+        KafkaTestConsumerFactory.closeConsumer();
     }
 
     // ========================================
