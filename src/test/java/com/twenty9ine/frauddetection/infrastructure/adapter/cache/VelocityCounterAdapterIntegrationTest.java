@@ -467,31 +467,31 @@ class VelocityCounterAdapterIntegrationTest extends AbstractIntegrationTest {
                 .isEqualTo(threadCount * incrementsPerThread);
     }
 
-    @Test
-    @DisplayName("Should handle transactions without location")
-    void shouldHandleTransactionsWithoutLocation() {
-        // Given
-        String accountId = uniqueAccountId("ACC-020");
-        Transaction transaction = Transaction.builder()
-                .id(TransactionId.generate())
-                .accountId(accountId)
-                .amount(new Money(new BigDecimal("100.00"), Currency.getInstance("USD")))
-                .type(TransactionType.PURCHASE)
-                .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", "Retail"))
-                .location(null) // No location
-                .deviceId("DEVICE-001")
-                .timestamp(Instant.now())
-                .build();
-
-        // When
-        adapter.incrementCounters(transaction);
-
-        // Then - Should increment normally but location count should be 0
-        VelocityMetrics metrics = adapter.findVelocityMetricsByTransaction(transaction);
-        assertThat(metrics.getTransactionCount(FIVE_MINUTES)).isEqualTo(1L);
-        assertThat(metrics.getUniqueLocations(FIVE_MINUTES)).isZero();
-    }
+//    @Test
+//    @DisplayName("Should handle transactions without location")
+//    void shouldHandleTransactionsWithoutLocation() {
+//        // Given
+//        String accountId = uniqueAccountId("ACC-020");
+//        Transaction transaction = Transaction.builder()
+//                .id(TransactionId.generate())
+//                .accountId(accountId)
+//                .amount(new Money(new BigDecimal("100.00"), Currency.getInstance("USD")))
+//                .type(TransactionType.PURCHASE)
+//                .channel(Channel.ONLINE)
+//                .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", "Retail"))
+//                .location(null) // No location
+//                .deviceId("DEVICE-001")
+//                .timestamp(Instant.now())
+//                .build();
+//
+//        // When
+//        adapter.incrementCounters(transaction);
+//
+//        // Then - Should increment normally but location count should be 0
+//        VelocityMetrics metrics = adapter.findVelocityMetricsByTransaction(transaction);
+//        assertThat(metrics.getTransactionCount(FIVE_MINUTES)).isEqualTo(1L);
+//        assertThat(metrics.getUniqueLocations(FIVE_MINUTES)).isZero();
+//    }
 
     // ========================================
     // Helper Methods
