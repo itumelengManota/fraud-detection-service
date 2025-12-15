@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
+import static com.twenty9ine.frauddetection.infrastructure.KafkaTestConsumerFactory.closeCurrentThreadConsumer;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -41,7 +42,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Integration tests for FraudDetectionApplicationService with optimized performance.
- *
+ * <p>
  * Performance Optimizations:
  * - Extends AbstractIntegrationTest for shared container infrastructure
  * - Uses TestDataFactory for static mock objects (eliminates duplication)
@@ -50,7 +51,7 @@ import static org.mockito.Mockito.when;
  * - Database cleanup via fast truncation in @BeforeAll/@AfterAll
  * - Parallel execution with proper resource locking
  * - Spring context caching through consistent configuration
- *
+ * <p>
  * Expected performance gain: 60-70% faster than original implementation
  */
 @DisabledInAotMode
@@ -77,7 +78,8 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
     @MockitoBean
     private MLServicePort mlServicePort;
 
-    private KafkaConsumer<String, RiskAssessmentCompletedAvro> testConsumer;
+    //    private KafkaConsumer<String, RiskAssessmentCompletedAvro> testConsumer;
+    private KafkaConsumer<String, Object> testConsumer;
 
     @BeforeAll
     void setUpClass() {
@@ -85,11 +87,7 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
         DatabaseTestUtils.fastCleanup(jdbcTemplate);
 
         // Get pooled Kafka consumer - saves 500-1000ms per test class
-        testConsumer = (KafkaConsumer<String, RiskAssessmentCompletedAvro>)
-                (KafkaConsumer<?, ?>) KafkaTestConsumerFactory.getConsumer(
-                        KAFKA.getBootstrapServers(),
-                        getApicurioUrl()
-                );
+        testConsumer = KafkaTestConsumerFactory.getConsumer(KAFKA.getBootstrapServers(), getApicurioUrl());
     }
 
     @BeforeEach
@@ -102,13 +100,15 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
     @AfterEach
     void resetKafkaConsumer() {
         // Reset consumer state for next test - much faster than creating new consumer
-        KafkaTestConsumerFactory.resetConsumer((KafkaConsumer<String, Object>) (KafkaConsumer<?, ?>) testConsumer);
+        KafkaTestConsumerFactory.resetConsumer(testConsumer);
     }
 
     @AfterAll
     void tearDownClass() {
         // Final cleanup after all tests
         DatabaseTestUtils.fastCleanup(jdbcTemplate);
+
+        closeCurrentThreadConsumer();
     }
 
     // ========================================
@@ -409,16 +409,15 @@ class FraudDetectionApplicationServiceIntegrationTest extends AbstractIntegratio
         }
 
         // Poll for messages
-        ConsumerRecords<String, RiskAssessmentCompletedAvro> records =
-                testConsumer.poll(Duration.ofSeconds(10));
+        ConsumerRecords<String, Object> records = testConsumer.poll(Duration.ofSeconds(10));
         assertThat(records.isEmpty()).isFalse();
 
         // Find matching event
         RiskAssessmentCompletedAvro matchingEvent = null;
-        for (ConsumerRecord<String, RiskAssessmentCompletedAvro> record : records) {
+        for (ConsumerRecord<String, Object> record : records) {
             if (record.key().equals(transactionId.toString())) {
                 assertThat(record.topic()).isEqualTo("fraud-detection.risk-assessments");
-                matchingEvent = record.value();
+                matchingEvent = (RiskAssessmentCompletedAvro) record.value();
                 break;
             }
         }

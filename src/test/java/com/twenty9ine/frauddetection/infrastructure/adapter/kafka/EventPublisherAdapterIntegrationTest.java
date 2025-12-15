@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static com.twenty9ine.frauddetection.infrastructure.KafkaTestConsumerFactory.closeCurrentThreadConsumer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -75,10 +76,7 @@ class EventPublisherAdapterIntegrationTest extends AbstractIntegrationTest {
         eventPublisher = new EventPublisherAdapter(kafkaTemplate, avroMapper);
 
         // Get pooled consumer - saves 500-1000ms per test
-        testConsumer = KafkaTestConsumerFactory.getConsumer(
-                KAFKA.getBootstrapServers(),
-                registryUrl
-        );
+        testConsumer = KafkaTestConsumerFactory.getConsumer(KAFKA.getBootstrapServers(), registryUrl);
     }
 
     @AfterEach
@@ -90,9 +88,11 @@ class EventPublisherAdapterIntegrationTest extends AbstractIntegrationTest {
     @AfterAll
     void tearDownClass() {
         // Consumer is returned to pool, not closed - enables reuse across test classes
-        if (kafkaTemplate != null) {
-            kafkaTemplate.destroy();
-        }
+//        if (kafkaTemplate != null) {
+//            kafkaTemplate.destroy();
+//        }
+
+        closeCurrentThreadConsumer();
     }
 
     // ========================================
