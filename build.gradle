@@ -6,7 +6,7 @@ plugins {
     id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
     id 'org.sonarqube' version '7.2.0.6526'
     id 'jacoco'
-    id 'org.gradle.test-retry' version '1.6.0'
+    id 'org.gradle.test-retry' version '1.6.4'
 }
 
 group = 'com.twenty9ine'
@@ -156,6 +156,30 @@ tasks.register('generateDroolsMetadata') {
 }
 
 processResources.finalizedBy generateDroolsMetadata
+
+// JaCoCo configuration - exclude problematic classes
+jacoco {
+    toolVersion = "0.8.13"
+}
+
+tasks.named('jacocoTestReport') {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+
+    // Exclude Drools and other generated code from coverage
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    '**/org/drools/**',
+                    '**/org/kie/**',
+                    '**/*MapperImpl.class',  // MapStruct generated
+                    '**/avro/**'  // Avro generated
+            ])
+        }))
+    }
+}
 
 tasks.named('test') {
     useJUnitPlatform()
