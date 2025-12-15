@@ -596,9 +596,9 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should support sorting by timestamp descending")
         void shouldSupportSortingByTimestamp() {
-            Instant time1 = Instant.now().minus(3, ChronoUnit.HOURS);
-            Instant time2 = Instant.now().minus(2, ChronoUnit.HOURS);
-            Instant time3 = Instant.now().minus(1, ChronoUnit.HOURS);
+            Instant time1 = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+            Instant time2 = Instant.now().minus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+            Instant time3 = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
 
             createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time1);
             createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time3);
@@ -623,6 +623,8 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.content.length()").isEqualTo(3)
                     .jsonPath("$.content[0].assessmentTime").value(timestamp ->
                             assertThat(Instant.parse(timestamp.toString())).isEqualTo(time3))
+                    .jsonPath("$.content[1].assessmentTime").value(timestamp ->
+                            assertThat(Instant.parse(timestamp.toString())).isEqualTo(time2))
                     .jsonPath("$.content[2].assessmentTime").value(timestamp ->
                             assertThat(Instant.parse(timestamp.toString())).isEqualTo(time1));
         }
