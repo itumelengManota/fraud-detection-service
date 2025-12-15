@@ -50,7 +50,7 @@ import static org.mockito.Mockito.when;
 @Testcontainers
 @DisplayName("FraudDetectionApplicationService Integration Tests")
 @Execution(ExecutionMode.SAME_THREAD)
-class FraudDetectionApplicationServiceIntegrationTest {
+public class FraudDetectionApplicationServiceIntegrationTest {
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
@@ -404,7 +404,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
 
     //TODO: Add more tests for when ML service is down
     // Mock prediction helpers
-    private MLPrediction mockLowRiskPrediction() {
+    public static  MLPrediction mockLowRiskPrediction() {
         return new MLPrediction(
                 "test-endpoint",
                 "1.0.0",
@@ -414,7 +414,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
         );
     }
 
-    private MLPrediction mockMediumRiskPrediction() {
+    public static  MLPrediction mockMediumRiskPrediction() {
         return new MLPrediction(
                 "test-endpoint",
                 "1.0.0",
@@ -424,7 +424,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
         );
     }
 
-    private MLPrediction mockHighRiskPrediction() {
+    public static MLPrediction mockHighRiskPrediction() {
         return new MLPrediction(
                 "test-endpoint",
                 "1.0.0",
@@ -434,7 +434,7 @@ class FraudDetectionApplicationServiceIntegrationTest {
         );
     }
 
-    private MLPrediction mockCriticalRiskPrediction() {
+    public static  MLPrediction mockCriticalRiskPrediction() {
         return new MLPrediction(
                 "test-endpoint",
                 "1.0.0",
@@ -445,7 +445,11 @@ class FraudDetectionApplicationServiceIntegrationTest {
     }
 
     // Command builders
-    private AssessTransactionRiskCommand buildLowRiskCommand(TransactionId transactionId) {
+    public static  AssessTransactionRiskCommand buildLowRiskCommand(TransactionId transactionId) {
+        return buildLowRiskCommand(transactionId, Instant.now());
+    }
+
+    public static  AssessTransactionRiskCommand buildLowRiskCommand(TransactionId transactionId, Instant timestamp) {
         return AssessTransactionRiskCommand.builder()
                 .transactionId(transactionId.toUUID())
                 .accountId("ACC-001")
@@ -456,14 +460,20 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Safe Store")
                 .merchantCategory("RETAIL")
-                .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .transactionTimestamp(timestamp)
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildMediumRiskCommand(UUID transactionId) {
+    //TODO: Adjust parameters to better reflect medium risk since it is currently not generating medium risk in tests
+    public static  AssessTransactionRiskCommand buildMediumRiskCommand(TransactionId transactionId) {
+        return buildMediumRiskCommand(transactionId, Instant.now());
+    }
+
+    //TODO: Adjust parameters to better reflect medium risk since it is currently not generating medium risk in tests
+    public static  AssessTransactionRiskCommand buildMediumRiskCommand(TransactionId transactionId, Instant timestamp) {
         return AssessTransactionRiskCommand.builder()
-                .transactionId(transactionId)
+                .transactionId(transactionId.toUUID())
                 .accountId("ACC-002")
                 .amount(new BigDecimal("10000.01"))
                 .currency("USD")
@@ -472,12 +482,16 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantId("MER-002")
                 .merchantName("Electronics Store")
                 .merchantCategory("ELECTRONICS")
-                .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .transactionTimestamp(timestamp)
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildHighRiskCommand(TransactionId transactionId) {
+    public static AssessTransactionRiskCommand buildHighRiskCommand(TransactionId transactionId) {
+        return buildHighRiskCommand(transactionId, Instant.now());
+    }
+
+    public static AssessTransactionRiskCommand buildHighRiskCommand(TransactionId transactionId, Instant timestamp) {
         return AssessTransactionRiskCommand.builder()
                 .transactionId(transactionId.toUUID())
                 .accountId("ACC-003")
@@ -488,12 +502,16 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantId("MER-003")
                 .merchantName("Unknown Vendor")
                 .merchantCategory("OTHER")
-                .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .transactionTimestamp(timestamp)
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
     }
 
-    private AssessTransactionRiskCommand buildCriticalRiskCommand(TransactionId transactionId) {
+    public static  AssessTransactionRiskCommand buildCriticalRiskCommand(TransactionId transactionId) {
+        return buildCriticalRiskCommand(transactionId, Instant.now());
+    }
+
+    public static  AssessTransactionRiskCommand buildCriticalRiskCommand(TransactionId transactionId, Instant timestamp) {
         return AssessTransactionRiskCommand.builder()
                 .transactionId(transactionId.toUUID())
                 .accountId("ACC-004")
@@ -504,8 +522,8 @@ class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantId("MER-UNKNOWN")
                 .merchantName("Suspicious Vendor")
                 .merchantCategory("HIGH_RISK")
-                .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .transactionTimestamp(timestamp)
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
     }
 

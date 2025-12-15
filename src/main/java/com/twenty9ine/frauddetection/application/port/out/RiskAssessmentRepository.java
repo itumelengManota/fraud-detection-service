@@ -9,7 +9,6 @@ import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 public interface RiskAssessmentRepository {
     RiskAssessment save(RiskAssessment assessment);

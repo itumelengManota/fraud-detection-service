@@ -36,4 +36,9 @@ public interface RiskAssessmentJdbcRepository extends CrudRepository<RiskAssessm
             Pageable pageable
     );
 
+    Page<RiskAssessmentEntity> findAll(Pageable pageable);
+
+    Page<RiskAssessmentEntity> findByRiskLevelIn(Set<String> riskLevels, Pageable pageable);
+
+
 }

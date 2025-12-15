@@ -55,27 +55,56 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                              .map(mapper::toDomain);
     }
 
+//    @Override
+//    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
+//        Set<String> riskLevelStrings = toRiskLevelStrings(levels);
+//        Instant fromTime = since != null ? since : Instant.EPOCH;
+//        Pageable pageable = toSpringPageable(pageRequest);
+//
+//        Page<RiskAssessmentEntity> page = riskLevelStrings.isEmpty()
+//                ? jdbcRepository.findByAssessmentTimeGreaterThanEqual(fromTime, pageable)
+//                : jdbcRepository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(riskLevelStrings, fromTime, pageable);
+//
+//        return toPagedResult(toRiskAssessments(page), page);
+//    }
+
     @Override
     public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
-        Set<String> riskLevelStrings = toRiskLevelStrings(levels);
-        Instant fromTime = since != null ? since : Instant.EPOCH;
-        Pageable pageable = toSpringPageable(pageRequest);
-
-        Page<RiskAssessmentEntity> page = riskLevelStrings.isEmpty()
-                ? jdbcRepository.findByAssessmentTimeGreaterThanEqual(fromTime, pageable)
-                : jdbcRepository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(riskLevelStrings, fromTime, pageable);
+        Page<RiskAssessmentEntity> page = findByRiskLevelsSince(since, toRiskLevelStrings(levels), toSpringPageable(pageRequest));
 
         return toPagedResult(toRiskAssessments(page), page);
     }
 
+    private Page<RiskAssessmentEntity> findByRiskLevelsSince(Instant since, Set<String> riskLevelStrings, Pageable pageable) {
+        return riskLevelStrings.isEmpty() ? find(since, pageable) : findByRiskLevels(since, riskLevelStrings, pageable);
+    }
+
+    private Page<RiskAssessmentEntity> find(Instant since, Pageable pageable) {
+        return since != null ? findByTime(since, pageable) : findAll(pageable);
+    }
+
+    private Page<RiskAssessmentEntity> findAll(Pageable pageable) {
+        return jdbcRepository.findAll(pageable);
+    }
+
+    private Page<RiskAssessmentEntity> findByTime(Instant since, Pageable pageable) {
+        return jdbcRepository.findByAssessmentTimeGreaterThanEqual(since, pageable);
+    }
+
+    private Page<RiskAssessmentEntity> findByRiskLevels(Instant since, Set<String> riskLevelStrings, Pageable pageable) {
+        return since != null ? findByRiskLevelsAndTime(since, riskLevelStrings, pageable) : findByRiskLevels(riskLevelStrings, pageable);
+    }
+
+    private Page<RiskAssessmentEntity> findByRiskLevels(Set<String> riskLevelStrings, Pageable pageable) {
+        return jdbcRepository.findByRiskLevelIn(riskLevelStrings, pageable);
+    }
+
+    private Page<RiskAssessmentEntity> findByRiskLevelsAndTime(Instant since, Set<String> riskLevelStrings, Pageable pageable) {
+        return jdbcRepository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(riskLevelStrings, since, pageable);
+    }
 
     private static PagedResult<RiskAssessment> toPagedResult(List<RiskAssessment> assessments, Page<RiskAssessmentEntity> page) {
-        return PagedResult.of(
-                assessments,
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements()
-        );
+        return PagedResult.of(assessments, page.getNumber(), page.getSize(), page.getTotalElements());
     }
 
     private List<RiskAssessment> toRiskAssessments(Page<RiskAssessmentEntity> page) {

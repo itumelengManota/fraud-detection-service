@@ -17,7 +17,7 @@ import java.util.List;
 @EqualsAndHashCode(of = {"assessmentId"})
 public class RiskAssessment {
     private final AssessmentId assessmentId;
-    private final TransactionId transactionId;
+    private final TransactionId transactionId;  //TODO: consider making this a reference to Transaction aggregate
     private final RiskScore riskScore;
     private final TransactionRiskLevel transactionRiskLevel;
     private Decision decision;
@@ -59,6 +59,10 @@ public class RiskAssessment {
     }
 
     public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction, Instant assessmentTime) {
+        this(assessmentId, transactionId, riskScore, evaluations, mlPrediction, assessmentTime, null);
+    }
+
+    public RiskAssessment(AssessmentId assessmentId, TransactionId transactionId, RiskScore riskScore, List<RuleEvaluation> evaluations, MLPrediction mlPrediction, Instant assessmentTime, Decision decision) {
         this.assessmentId = assessmentId;
         this.transactionId = transactionId;
         this.riskScore = riskScore;
@@ -67,6 +71,7 @@ public class RiskAssessment {
         this.ruleEvaluations = new ArrayList<>(evaluations);
         this.domainEvents = new ArrayList<>();
         this.assessmentTime = assessmentTime;
+        this.decision = decision;
     }
 
     public void completeAssessment(Decision decision) {

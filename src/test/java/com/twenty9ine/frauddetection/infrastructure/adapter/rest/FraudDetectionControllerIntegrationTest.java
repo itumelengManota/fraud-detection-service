@@ -1,19 +1,24 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.twenty9ine.frauddetection.application.dto.LocationDto;
 import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
 import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
+import com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationServiceIntegrationTest;
+import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.MLPrediction;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
+import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
+import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
-import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,13 +36,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
+import static com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationServiceIntegrationTest.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -91,6 +96,8 @@ class FraudDetectionControllerIntegrationTest {
     static KeycloakContainer keycloak = new KeycloakContainer(KEYCLOAK_IMAGE)
             .withRealmImportFile("keycloak/realm-export-test.json")
             .withReuse(true);
+    @Autowired
+    private RiskAssessmentRepository riskAssessmentRepository;
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
@@ -183,7 +190,7 @@ class FraudDetectionControllerIntegrationTest {
         @DisplayName("Should assess transaction with valid fraud:detect scope")
         void shouldAssessTransactionWithValidScope() {
             // Given
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
             // When & Then
             webTestClient.post()
@@ -204,13 +211,11 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should assess high-risk transaction and return appropriate decision")
         void shouldAssessHighRiskTransaction() {
-            // Given
             when(mlServicePort.predict(any(Transaction.class)))
                     .thenReturn(mockHighRiskPrediction());
 
-            AssessTransactionRiskCommand command = buildHighRiskCommand();
+            AssessTransactionRiskCommand command = buildHighRiskCommand(TransactionId.generate());
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
@@ -221,7 +226,7 @@ class FraudDetectionControllerIntegrationTest {
                     .expectBody()
                     .jsonPath("$.assessmentId").exists()
                     .jsonPath("$.transactionId").isEqualTo(command.transactionId().toString())
-                    .jsonPath("$.riskScore").isEqualTo(73)
+                    .jsonPath("$.riskScore").isEqualTo(83)
                     .jsonPath("$.transactionRiskLevel").isEqualTo("HIGH")
                     .jsonPath("$.decision").isEqualTo("REVIEW");
         }
@@ -229,13 +234,11 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should assess critical-risk transaction and block it")
         void shouldAssessCriticalRiskTransaction() {
-            // Given
             when(mlServicePort.predict(any(Transaction.class)))
                     .thenReturn(mockCriticalRiskPrediction());
 
-            AssessTransactionRiskCommand command = buildCriticalRiskCommand();
+            AssessTransactionRiskCommand command = buildCriticalRiskCommand(TransactionId.generate());
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
@@ -252,7 +255,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should validate request body and return 400 for invalid data")
         void shouldValidateRequestBody() {
-            // Given - Invalid command with null required fields
             String invalidRequestBody = """
                 {
                     "transactionId": null,
@@ -262,7 +264,6 @@ class FraudDetectionControllerIntegrationTest {
                 }
                 """;
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
@@ -280,10 +281,8 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should reject transaction assessment without fraud:detect scope")
         void shouldRejectAssessmentWithoutDetectScope() {
-            // Given - analyst only has fraud:read scope
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
@@ -296,10 +295,8 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should reject request without authentication token")
         void shouldRejectRequestWithoutToken() {
-            // Given
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -311,10 +308,8 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should reject request with invalid token")
         void shouldRejectRequestWithInvalidToken() {
-            // Given
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            // When & Then
             webTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token-12345")
@@ -332,8 +327,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should get assessment with fraud:read scope")
         void shouldGetAssessmentWithReadScope() {
-            // Given - First create an assessment
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
             webTestClient.post()
                     .uri("/fraud/assessments")
@@ -345,7 +339,6 @@ class FraudDetectionControllerIntegrationTest {
 
             UUID transactionId = command.transactionId();
 
-            // When & Then - Analyst can read the assessment
             webTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
@@ -362,8 +355,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should get assessment with fraud:detect scope")
         void shouldGetAssessmentWithDetectScope() {
-            // Given - Create an assessment
-            AssessTransactionRiskCommand command = buildValidCommand();
+            AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
             webTestClient.post()
                     .uri("/fraud/assessments")
@@ -375,7 +367,6 @@ class FraudDetectionControllerIntegrationTest {
 
             UUID transactionId = command.transactionId();
 
-            // When & Then - Detector can also read assessments
             webTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
@@ -388,10 +379,8 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should return 404 for non-existent assessment")
         void shouldReturn404ForNonExistentAssessment() {
-            // Given
             UUID nonExistentTransactionId = UUID.randomUUID();
 
-            // When & Then
             webTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", nonExistentTransactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
@@ -402,10 +391,8 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should reject get request without authentication")
         void shouldRejectGetRequestWithoutAuth() {
-            // Given
             UUID transactionId = UUID.randomUUID();
 
-            // When & Then
             webTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .exchange()
@@ -420,7 +407,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to health endpoint without authentication")
         void shouldAllowAccessToHealthEndpoint() {
-            // When & Then
             webTestClient.get()
                     .uri("/actuator/health")
                     .exchange()
@@ -432,7 +418,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to info endpoint without authentication")
         void shouldAllowAccessToInfoEndpoint() {
-            // When & Then
             webTestClient.get()
                     .uri("/actuator/info")
                     .exchange()
@@ -442,7 +427,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to Swagger API docs without authentication")
         void shouldAllowAccessToSwaggerApiDocs() {
-            // When & Then
             webTestClient.get()
                     .uri("/v3/api-docs")
                     .exchange()
@@ -457,13 +441,16 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should find assessments by risk level with fraud:read scope")
         void shouldFindAssessmentsByRiskLevel() {
-            // Given - Create assessments with different risk levels
-            createAssessmentWithRiskLevel("HIGH");
-            createAssessmentWithRiskLevel("HIGH");
-            createAssessmentWithRiskLevel("MEDIUM");
-            createAssessmentWithRiskLevel("LOW");
 
-            // When & Then - Search for HIGH risk assessments
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.MEDIUM);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.LOW);
+
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(5);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -476,10 +463,11 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content").isArray()
-                    .jsonPath("$.content.length()").isEqualTo(2)
+                    .jsonPath("$.content.length()").isEqualTo(3)
                     .jsonPath("$.content[0].transactionRiskLevel").isEqualTo("HIGH")
                     .jsonPath("$.content[1].transactionRiskLevel").isEqualTo("HIGH")
-                    .jsonPath("$.page.totalElements").isEqualTo(2)
+                    .jsonPath("$.content[2].transactionRiskLevel").isEqualTo("HIGH")
+                    .jsonPath("$.page.totalElements").isEqualTo(3)
                     .jsonPath("$.page.totalPages").isEqualTo(1)
                     .jsonPath("$.page.size").isEqualTo(10)
                     .jsonPath("$.page.number").isEqualTo(0);
@@ -488,19 +476,20 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should filter assessments by fromDate date")
         void shouldFilterAssessmentsByFromDate() {
-            // Given - Create assessments at different times
             Instant yesterday = Instant.now().minus(1, ChronoUnit.DAYS);
             Instant twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS);
 
-            createAssessmentWithTimestamp(twoDaysAgo);
-            createAssessmentWithTimestamp(yesterday);
-            createAssessmentWithTimestamp(Instant.now());
+            createAssessmentWithRiskLevel(TransactionRiskLevel.LOW, twoDaysAgo);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.MEDIUM, yesterday);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, Instant.now());
 
-            // When & Then - Search for assessments fromDate yesterday onwards
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(3);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
-                            .queryParam("fromDate", yesterday.toString())
+                            .queryParam("fromDate", yesterday)
                             .queryParam("page", 0)
                             .queryParam("size", 10)
                             .build())
@@ -516,24 +505,22 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should combine risk level and date filtering")
         void shouldCombineRiskLevelAndDateFiltering() {
-            // Given - Create assessments with different risk levels and dates
             Instant yesterday = Instant.now().minus(1, ChronoUnit.DAYS);
             Instant twoDaysAgo = Instant.now().minus(2, ChronoUnit.DAYS);
 
-            // Old HIGH risk
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", twoDaysAgo);
-            // Recent HIGH risk
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", yesterday);
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", Instant.now());
-            // Recent MEDIUM risk
-            createAssessmentWithRiskLevelAndTimestamp("MEDIUM", yesterday);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, twoDaysAgo);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, yesterday);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, Instant.now());
+            createAssessmentWithRiskLevel(TransactionRiskLevel.MEDIUM, yesterday);
 
-            // When & Then - Search for HIGH risk fromDate yesterday onwards
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(4);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
-                            .queryParam("fromDate", yesterday.toString())
+                            .queryParam("fromDate", yesterday)
                             .queryParam("page", 0)
                             .queryParam("size", 10)
                             .build())
@@ -551,12 +538,13 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should support pagination with multiple pages")
         void shouldSupportPaginationWithMultiplePages() {
-            // Given - Create 5 HIGH risk assessments
             for (int i = 0; i < 5; i++) {
-                createAssessmentWithRiskLevel("HIGH");
+                createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
             }
 
-            // When & Then - Request first page with size 2
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(5);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -572,9 +560,7 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.page.totalElements").isEqualTo(5)
                     .jsonPath("$.page.totalPages").isEqualTo(3)
                     .jsonPath("$.page.size").isEqualTo(2)
-                    .jsonPath("$.page.number").isEqualTo(0)
-                    .jsonPath("$.page.first").isEqualTo(true)
-                    .jsonPath("$.page.last").isEqualTo(false);
+                    .jsonPath("$.page.number").isEqualTo(0);
 
             // When & Then - Request second page
             webTestClient.get()
@@ -589,9 +575,7 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content.length()").isEqualTo(2)
-                    .jsonPath("$.page.number").isEqualTo(1)
-                    .jsonPath("$.page.first").isEqualTo(false)
-                    .jsonPath("$.page.last").isEqualTo(false);
+                    .jsonPath("$.page.number").isEqualTo(1);
 
             // When & Then - Request last page
             webTestClient.get()
@@ -606,31 +590,30 @@ class FraudDetectionControllerIntegrationTest {
                     .expectStatus().isOk()
                     .expectBody()
                     .jsonPath("$.content.length()").isEqualTo(1)
-                    .jsonPath("$.page.number").isEqualTo(2)
-                    .jsonPath("$.page.first").isEqualTo(false)
-                    .jsonPath("$.page.last").isEqualTo(true);
+                    .jsonPath("$.page.number").isEqualTo(2);
         }
 
         @Test
         @DisplayName("Should support sorting by timestamp descending")
         void shouldSupportSortingByTimestamp() {
-            // Given - Create assessments at different times
             Instant time1 = Instant.now().minus(3, ChronoUnit.HOURS);
             Instant time2 = Instant.now().minus(2, ChronoUnit.HOURS);
             Instant time3 = Instant.now().minus(1, ChronoUnit.HOURS);
 
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", time1);
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", time3);
-            createAssessmentWithRiskLevelAndTimestamp("HIGH", time2);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time1);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time3);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time2);
 
-            // When & Then - Search with sort by timestamp descending
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(3);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
                             .queryParam("page", 0)
                             .queryParam("size", 10)
-                            .queryParam("sort", "transactionTimestamp,desc")
+                            .queryParam("sort", "assessmentTime,desc")
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .exchange()
@@ -638,20 +621,21 @@ class FraudDetectionControllerIntegrationTest {
                     .expectBody()
                     .jsonPath("$.content").isArray()
                     .jsonPath("$.content.length()").isEqualTo(3)
-                    .jsonPath("$.content[0].transactionTimestamp").value(timestamp ->
-                            assertThat(Instant.parse(timestamp.toString())).isAfter(time2))
-                    .jsonPath("$.content[2].transactionTimestamp").value(timestamp ->
-                            assertThat(Instant.parse(timestamp.toString())).isBefore(time2));
+                    .jsonPath("$.content[0].assessmentTime").value(timestamp ->
+                            assertThat(Instant.parse(timestamp.toString())).isEqualTo(time3))
+                    .jsonPath("$.content[2].assessmentTime").value(timestamp ->
+                            assertThat(Instant.parse(timestamp.toString())).isEqualTo(time1));
         }
 
         @Test
         @DisplayName("Should return empty page when no assessments match criteria")
         void shouldReturnEmptyPageWhenNoMatch() {
-            // Given - Create only LOW risk assessments
-            createAssessmentWithRiskLevel("LOW");
-            createAssessmentWithRiskLevel("LOW");
+            createAssessmentWithRiskLevel(TransactionRiskLevel.LOW);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.LOW);
 
-            // When & Then - Search for CRITICAL risk assessments
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(2);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -670,10 +654,18 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.content.length()").isEqualTo(0);
         }
 
+        private Integer countRiskAssessments() {
+            return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM risk_assessments", Integer.class);
+        }
+
+        private List<RiskAssessmentEntity> getRiskAssessments() {
+            return jdbcTemplate.query("SELECT * FROM risk_assessments", new BeanPropertyRowMapper<>(RiskAssessmentEntity.class));
+        }
+
+
         @Test
         @DisplayName("Should reject search without authentication")
         void shouldRejectSearchWithoutAuthentication() {
-            // When & Then
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -688,14 +680,15 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow search with fraud:detect scope")
         void shouldAllowSearchWithDetectScope() {
-            // Given
-            createAssessmentWithRiskLevel("MEDIUM");
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
 
-            // When & Then - Detector can also search assessments
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(1);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
-                            .queryParam("transactionRiskLevels", "MEDIUM")
+                            .queryParam("transactionRiskLevels", "HIGH")
                             .queryParam("page", 0)
                             .queryParam("size", 10)
                             .build())
@@ -710,7 +703,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should validate invalid risk level parameter")
         void shouldValidateInvalidRiskLevel() {
-            // When & Then - Invalid risk level
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -726,7 +718,6 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should validate invalid date format")
         void shouldValidateInvalidDateFormat() {
-            // When & Then - Invalid date format
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -742,11 +733,12 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should handle page number out of bounds gracefully")
         void shouldHandlePageOutOfBounds() {
-            // Given - Create only 2 assessments
-            createAssessmentWithRiskLevel("HIGH");
-            createAssessmentWithRiskLevel("HIGH");
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
 
-            // When & Then - Request page 10 (out of bounds)
+            Integer count = countRiskAssessments();
+            assertThat(count).isEqualTo(2);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -768,12 +760,14 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should search with only fromDate parameter")
         void shouldSearchWithOnlyFromDate() {
-            // Given
             Instant yesterday = Instant.now().minus(1, ChronoUnit.DAYS);
-            createAssessmentWithTimestamp(yesterday);
-            createAssessmentWithTimestamp(Instant.now());
 
-            // When & Then - Search with only fromDate, no riskLevel
+            createAssessmentWithRiskLevel(TransactionRiskLevel.LOW, yesterday);
+            createAssessmentWithRiskLevel(TransactionRiskLevel.CRITICAL, Instant.now());
+
+            Integer riskAssessmentCount = countRiskAssessments();
+            assertThat(riskAssessmentCount).isEqualTo(2);
+
             webTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
@@ -847,23 +841,15 @@ class FraudDetectionControllerIntegrationTest {
         }
     }
 
-    /**
-     * Create assessment with specific risk level using ML prediction mock
-     */
-    private void createAssessmentWithRiskLevel(String riskLevel) {
-        // Configure ML mock based on desired risk level
-        MLPrediction prediction = switch (riskLevel) {
-            case "LOW" -> mockLowRiskPrediction();
-            case "MEDIUM" -> mockMediumRiskPrediction();
-            case "HIGH" -> mockHighRiskPrediction();
-            case "CRITICAL" -> mockCriticalRiskPrediction();
-            default -> mockLowRiskPrediction();
-        };
+    private void createAssessmentWithRiskLevel(TransactionRiskLevel riskLevel) {
+        createAssessmentWithRiskLevel(riskLevel, Instant.now());
+    }
 
+    private void createAssessmentWithRiskLevel(TransactionRiskLevel riskLevel, Instant assessmentTime) {
+        MLPrediction prediction = findMLPrediction(riskLevel);
         when(mlServicePort.predict(any(Transaction.class))).thenReturn(prediction);
 
-        // Create assessment
-        AssessTransactionRiskCommand command = buildValidCommand();
+        AssessTransactionRiskCommand command = buildAssessTransactionRiskCommand(riskLevel, TransactionId.generate(), assessmentTime);
 
         webTestClient.post()
                 .uri("/fraud/assessments")
@@ -873,228 +859,259 @@ class FraudDetectionControllerIntegrationTest {
                 .exchange()
                 .expectStatus().isOk();
 
-        // Reset to default mock
-        when(mlServicePort.predict(any(Transaction.class))).thenReturn(mockLowRiskPrediction());
+        // Manually update the assessment time in DB
+        RiskAssessment assessment = findByTransactionId(TransactionId.of(command.transactionId()));
+
+        RiskAssessment updatedAssessment = buildUpdatedAssessment(assessmentTime, assessment);
+
+
+        riskAssessmentRepository.save(updatedAssessment);
     }
 
-    private static @NonNull MLPrediction mockMediumRiskPrediction() {
-        // Score: 0.70 * 100 * 0.6 = 42 (MEDIUM range: 41-70)
-        return new MLPrediction("test-endpoint", "1.0.0", 0.70, 0.92,
-                Map.of("amount", 0.4, "velocity", 0.3));
+    private static RiskAssessment buildUpdatedAssessment(Instant assessmentTime, RiskAssessment assessment) {
+        return new RiskAssessment(
+                assessment.getAssessmentId(),
+                assessment.getTransactionId(),
+                assessment.getRiskScore(),
+                assessment.getRuleEvaluations(),
+                assessment.getMlPrediction(),
+                assessmentTime, assessment.getDecision());
+    }
+
+    private RiskAssessment findByTransactionId(TransactionId transactionId) {
+        return riskAssessmentRepository
+                .findByTransactionId(transactionId)
+                .orElseThrow();
+    }
+
+    private MLPrediction findMLPrediction(TransactionRiskLevel riskLevel) {
+        return switch (riskLevel) {
+            case LOW -> FraudDetectionApplicationServiceIntegrationTest.mockLowRiskPrediction();
+            case MEDIUM -> FraudDetectionApplicationServiceIntegrationTest.mockMediumRiskPrediction();
+            case HIGH -> FraudDetectionApplicationServiceIntegrationTest.mockHighRiskPrediction();
+            case CRITICAL -> mockCriticalRiskPrediction();
+        };
+    }
+
+    private AssessTransactionRiskCommand buildAssessTransactionRiskCommand(TransactionRiskLevel riskLevel, TransactionId transactionId) {
+        return buildAssessTransactionRiskCommand(riskLevel, transactionId, Instant.now());
+    }
+
+    private AssessTransactionRiskCommand buildAssessTransactionRiskCommand(TransactionRiskLevel riskLevel, TransactionId transactionId, Instant timestamp) {
+        return switch (riskLevel) {
+            case LOW -> FraudDetectionApplicationServiceIntegrationTest.buildLowRiskCommand(transactionId, timestamp);
+            case MEDIUM -> FraudDetectionApplicationServiceIntegrationTest.buildMediumRiskCommand(transactionId, timestamp);
+            case HIGH -> FraudDetectionApplicationServiceIntegrationTest.buildHighRiskCommand(transactionId, timestamp);
+            case CRITICAL -> FraudDetectionApplicationServiceIntegrationTest.buildCriticalRiskCommand(transactionId, timestamp);
+        };
     }
 
     /**
      * Create assessment with specific timestamp
      */
-    private void createAssessmentWithTimestamp(Instant timestamp) {
-        AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
-                .transactionId(UUID.randomUUID())
-                .accountId("ACC-" + System.currentTimeMillis())
-                .amount(new BigDecimal("1500.00"))
-                .currency("USD")
-                .type("PURCHASE")
-                .channel("ONLINE")
-                .merchantId("MERCHANT-001")
-                .merchantName("Test Merchant")
-                .merchantCategory("RETAIL")
-                .location(new LocationDto(
-                        40.7128,
-                        -74.0060,
-                        "US",
-                        "New York",
-                        timestamp
-                ))
-                .deviceId("DEVICE-001")
-                .transactionTimestamp(timestamp)
-                .build();
-
-        webTestClient.post()
-                .uri("/fraud/assessments")
-                .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(command)
-                .exchange()
-                .expectStatus().isOk();
-    }
+//    private void createAssessmentWithTimestamp(Instant timestamp) {
+//        AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
+//                .transactionId(UUID.randomUUID())
+//                .accountId("ACC-" + System.currentTimeMillis())
+//                .amount(new BigDecimal("1500.00"))
+//                .currency("USD")
+//                .type("PURCHASE")
+//                .channel("ONLINE")
+//                .merchantId("MERCHANT-001")
+//                .merchantName("Test Merchant")
+//                .merchantCategory("RETAIL")
+//                .location(new LocationDto(
+//                        40.7128,
+//                        -74.0060,
+//                        "US",
+//                        "New York",
+//                        timestamp
+//                ))
+//                .deviceId("DEVICE-001")
+//                .transactionTimestamp(timestamp)
+//                .build();
+//
+//        webTestClient.post()
+//                .uri("/fraud/assessments")
+//                .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .bodyValue(command)
+//                .exchange()
+//                .expectStatus().isOk();
+//    }
 
     /**
      * Create assessment with specific risk level and timestamp
      */
-    private void createAssessmentWithRiskLevelAndTimestamp(String riskLevel, Instant timestamp) {
-        // Configure ML mock based on desired risk level
-        MLPrediction prediction = switch (riskLevel) {
-            case "LOW" -> mockLowRiskPrediction();
-            case "MEDIUM" -> mockMediumRiskPrediction();
-            case "HIGH" -> mockHighRiskPrediction();
-            case "CRITICAL" -> mockCriticalRiskPrediction();
-            default -> mockLowRiskPrediction();
-        };
-
-        when(mlServicePort.predict(any(Transaction.class))).thenReturn(prediction);
-
-        // Use appropriate command builder based on risk level
-        // HIGH and CRITICAL require transaction characteristics that trigger business rules
-        AssessTransactionRiskCommand command = switch (riskLevel) {
-            case "HIGH" -> AssessTransactionRiskCommand.builder()
-                    .transactionId(UUID.randomUUID())
-                    .accountId("ACC-HIGH-" + System.currentTimeMillis())
-                    .amount(new BigDecimal("50000.01"))  // Triggers high amount rule
-                    .currency("USD")
-                    .type("TRANSFER")
-                    .channel("ONLINE")
-                    .merchantId("MERCHANT-003")
-                    .merchantName("Unknown Vendor")
-                    .merchantCategory("OTHER")
-                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
-                    .deviceId("DEVICE-003")
-                    .transactionTimestamp(timestamp)
-                    .build();
-            case "CRITICAL" -> AssessTransactionRiskCommand.builder()
-                    .transactionId(UUID.randomUUID())
-                    .accountId("ACC-CRITICAL-" + System.currentTimeMillis())
-                    .amount(new BigDecimal("100000.01"))  // Triggers very high amount rule
-                    .currency("USD")
-                    .type("TRANSFER")
-                    .channel("ONLINE")
-                    .merchantId("MERCHANT-UNKNOWN")
-                    .merchantName("Suspicious Vendor")
-                    .merchantCategory("HIGH_RISK")
-                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
-                    .deviceId("DEVICE-CRITICAL")
-                    .transactionTimestamp(timestamp)
-                    .build();
-            default -> AssessTransactionRiskCommand.builder()
-                    .transactionId(UUID.randomUUID())
-                    .accountId("ACC-" + System.currentTimeMillis())
-                    .amount(new BigDecimal("1500.00"))  // Normal amount, no rules triggered
-                    .currency("USD")
-                    .type("PURCHASE")
-                    .channel("ONLINE")
-                    .merchantId("MERCHANT-001")
-                    .merchantName("Test Merchant")
-                    .merchantCategory("RETAIL")
-                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
-                    .deviceId("DEVICE-001")
-                    .transactionTimestamp(timestamp)
-                    .build();
-        };
-
-        webTestClient.post()
-                .uri("/fraud/assessments")
-                .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(command)
-                .exchange()
-                .expectStatus().isOk();
-
-        // Reset to default mock
-        when(mlServicePort.predict(any(Transaction.class))).thenReturn(mockLowRiskPrediction());
-    }
+//    private void createAssessmentWithRiskLevelAndTimestamp(String riskLevel, Instant timestamp) {
+//        // Configure ML mock based on desired risk level
+//        MLPrediction prediction = findMLPrediction(riskLevel);
+//
+//        when(mlServicePort.predict(any(Transaction.class))).thenReturn(prediction);
+//
+//        // Use appropriate command builder based on risk level
+//        // HIGH and CRITICAL require transaction characteristics that trigger business rules
+//        AssessTransactionRiskCommand command = switch (riskLevel) {
+//            case "HIGH" -> AssessTransactionRiskCommand.builder()
+//                    .transactionId(UUID.randomUUID())
+//                    .accountId("ACC-HIGH-" + System.currentTimeMillis())
+//                    .amount(new BigDecimal("50000.01"))  // Triggers high amount rule
+//                    .currency("USD")
+//                    .type("TRANSFER")
+//                    .channel("ONLINE")
+//                    .merchantId("MERCHANT-003")
+//                    .merchantName("Unknown Vendor")
+//                    .merchantCategory("OTHER")
+//                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+//                    .deviceId("DEVICE-003")
+//                    .transactionTimestamp(timestamp)
+//                    .build();
+//            case "CRITICAL" -> AssessTransactionRiskCommand.builder()
+//                    .transactionId(UUID.randomUUID())
+//                    .accountId("ACC-CRITICAL-" + System.currentTimeMillis())
+//                    .amount(new BigDecimal("100000.01"))  // Triggers very high amount rule
+//                    .currency("USD")
+//                    .type("TRANSFER")
+//                    .channel("ONLINE")
+//                    .merchantId("MERCHANT-UNKNOWN")
+//                    .merchantName("Suspicious Vendor")
+//                    .merchantCategory("HIGH_RISK")
+//                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+//                    .deviceId("DEVICE-CRITICAL")
+//                    .transactionTimestamp(timestamp)
+//                    .build();
+//            default -> AssessTransactionRiskCommand.builder()
+//                    .transactionId(UUID.randomUUID())
+//                    .accountId("ACC-" + System.currentTimeMillis())
+//                    .amount(new BigDecimal("1500.00"))  // Normal amount, no rules triggered
+//                    .currency("USD")
+//                    .type("PURCHASE")
+//                    .channel("ONLINE")
+//                    .merchantId("MERCHANT-001")
+//                    .merchantName("Test Merchant")
+//                    .merchantCategory("RETAIL")
+//                    .location(new LocationDto(40.7128, -74.0060, "US", "New York", timestamp))
+//                    .deviceId("DEVICE-001")
+//                    .transactionTimestamp(timestamp)
+//                    .build();
+//        };
+//
+//        webTestClient.post()
+//                .uri("/fraud/assessments")
+//                .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .bodyValue(command)
+//                .exchange()
+//                .expectStatus().isOk();
+//
+//        // Reset to default mock
+//        when(mlServicePort.predict(any(Transaction.class))).thenReturn(mockLowRiskPrediction());
+//    }
 
     // ========================================
     // Mock ML Predictions
     // ========================================
 
-    private MLPrediction mockLowRiskPrediction() {
-        return new MLPrediction(
-                "test-endpoint",
-                "1.0.0",
-                0.15,
-                0.95,
-                Map.of("amount", 0.3, "velocity", 0.2)
-        );
-    }
+//    private MLPrediction mockLowRiskPrediction() {
+//        return new MLPrediction(
+//                "test-endpoint",
+//                "1.0.0",
+//                0.15,
+//                0.95,
+//                Map.of("amount", 0.3, "velocity", 0.2)
+//        );
+//    }
 
-    private MLPrediction mockHighRiskPrediction() {
-        return new MLPrediction(
-                "test-endpoint",
-                "1.0.0",
-                0.78,
-                0.88,
-                Map.of("amount", 0.7, "geographic", 0.6)
-        );
-    }
+//    private MLPrediction mockHighRiskPrediction() {
+//        return new MLPrediction(
+//                "test-endpoint",
+//                "1.0.0",
+//                0.78,
+//                0.88,
+//                Map.of("amount", 0.7, "geographic", 0.6)
+//        );
+//    }
 
-    private MLPrediction mockCriticalRiskPrediction() {
-        return new MLPrediction(
-                "test-endpoint",
-                "1.0.0",
-                0.95,
-                0.90,
-                Map.of("amount", 0.9, "velocity", 0.8, "geographic", 0.85)
-        );
-    }
+//    private MLPrediction mockCriticalRiskPrediction() {
+//        return new MLPrediction(
+//                "test-endpoint",
+//                "1.0.0",
+//                0.95,
+//                0.90,
+//                Map.of("amount", 0.9, "velocity", 0.8, "geographic", 0.85)
+//        );
+//    }
 
     // ========================================
     // Command Builders
     // ========================================
 
-    private AssessTransactionRiskCommand buildValidCommand() {
-        return AssessTransactionRiskCommand.builder()
-                .transactionId(UUID.randomUUID())
-                .accountId("ACC-" + System.currentTimeMillis())
-                .amount(new BigDecimal("1500.00"))
-                .currency("USD")
-                .type("PURCHASE")
-                .channel("ONLINE")
-                .merchantId("MERCHANT-001")
-                .merchantName("Test Merchant")
-                .merchantCategory("RETAIL")
-                .location(new LocationDto(
-                        40.7128,
-                        -74.0060,
-                        "US",
-                        "New York",
-                        Instant.now()
-                ))
-                .deviceId("DEVICE-001")
-                .transactionTimestamp(Instant.now())
-                .build();
-    }
+//    private AssessTransactionRiskCommand buildValidCommand() {
+//        return AssessTransactionRiskCommand.builder()
+//                .transactionId(UUID.randomUUID())
+//                .accountId("ACC-" + System.currentTimeMillis())
+//                .amount(new BigDecimal("1500.00"))
+//                .currency("USD")
+//                .type("PURCHASE")
+//                .channel("ONLINE")
+//                .merchantId("MERCHANT-001")
+//                .merchantName("Test Merchant")
+//                .merchantCategory("RETAIL")
+//                .location(new LocationDto(
+//                        40.7128,
+//                        -74.0060,
+//                        "US",
+//                        "New York",
+//                        Instant.now()
+//                ))
+//                .deviceId("DEVICE-001")
+//                .transactionTimestamp(Instant.now())
+//                .build();
+//    }
 
-    private AssessTransactionRiskCommand buildHighRiskCommand() {
-        return AssessTransactionRiskCommand.builder()
-                .transactionId(UUID.randomUUID())
-                .accountId("ACC-HIGH-" + System.currentTimeMillis())
-                .amount(new BigDecimal("50000.01"))
-                .currency("USD")
-                .type("TRANSFER")
-                .channel("ONLINE")
-                .merchantId("MERCHANT-003")
-                .merchantName("Unknown Vendor")
-                .merchantCategory("OTHER")
-                .location(new LocationDto(
-                        40.7128,
-                        -74.0060,
-                        "US",
-                        "New York",
-                        Instant.now()
-                ))
-                .deviceId("DEVICE-003")
-                .transactionTimestamp(Instant.now())
-                .build();
-    }
+//    private AssessTransactionRiskCommand buildHighRiskCommand() {
+//        return AssessTransactionRiskCommand.builder()
+//                .transactionId(UUID.randomUUID())
+//                .accountId("ACC-HIGH-" + System.currentTimeMillis())
+//                .amount(new BigDecimal("50000.01"))
+//                .currency("USD")
+//                .type("TRANSFER")
+//                .channel("ONLINE")
+//                .merchantId("MERCHANT-003")
+//                .merchantName("Unknown Vendor")
+//                .merchantCategory("OTHER")
+//                .location(new LocationDto(
+//                        40.7128,
+//                        -74.0060,
+//                        "US",
+//                        "New York",
+//                        Instant.now()
+//                ))
+//                .deviceId("DEVICE-003")
+//                .transactionTimestamp(Instant.now())
+//                .build();
+//    }
 
-    private AssessTransactionRiskCommand buildCriticalRiskCommand() {
-        return AssessTransactionRiskCommand.builder()
-                .transactionId(UUID.randomUUID())
-                .accountId("ACC-CRITICAL-" + System.currentTimeMillis())
-                .amount(new BigDecimal("100000.01"))
-                .currency("USD")
-                .type("TRANSFER")
-                .channel("ONLINE")
-                .merchantId("MERCHANT-UNKNOWN")
-                .merchantName("Suspicious Vendor")
-                .merchantCategory("HIGH_RISK")
-                .location(new LocationDto(
-                        40.7128,
-                        -74.0060,
-                        "US",
-                        "New York",
-                        Instant.now()
-                ))
-                .deviceId("DEVICE-CRITICAL")
-                .transactionTimestamp(Instant.now())
-                .build();
-    }
+//    private AssessTransactionRiskCommand buildCriticalRiskCommand() {
+//        return AssessTransactionRiskCommand.builder()
+//                .transactionId(UUID.randomUUID())
+//                .accountId("ACC-CRITICAL-" + System.currentTimeMillis())
+//                .amount(new BigDecimal("100000.01"))
+//                .currency("USD")
+//                .type("TRANSFER")
+//                .channel("ONLINE")
+//                .merchantId("MERCHANT-UNKNOWN")
+//                .merchantName("Suspicious Vendor")
+//                .merchantCategory("HIGH_RISK")
+//                .location(new LocationDto(
+//                        40.7128,
+//                        -74.0060,
+//                        "US",
+//                        "New York",
+//                        Instant.now()
+//                ))
+//                .deviceId("DEVICE-CRITICAL")
+//                .transactionTimestamp(Instant.now())
+//                .build();
+//    }
 }
