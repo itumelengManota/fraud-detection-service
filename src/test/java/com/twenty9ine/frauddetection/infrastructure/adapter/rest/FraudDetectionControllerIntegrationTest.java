@@ -60,8 +60,10 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("test")
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("FraudDetectionController Integration Tests with OAuth2")
-@Execution(ExecutionMode.CONCURRENT)
+@Execution(ExecutionMode.SAME_THREAD)
 @ResourceLock(value = "database", mode = ResourceAccessMode.READ_WRITE)
+@ResourceLock(value = "kafka", mode = ResourceAccessMode.READ_WRITE)
+@ResourceLock(value = "keycloak", mode = ResourceAccessMode.READ_WRITE)
 class FraudDetectionControllerIntegrationTest extends AbstractIntegrationTest {
 
     private static final String KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.0.7";
@@ -69,14 +71,19 @@ class FraudDetectionControllerIntegrationTest extends AbstractIntegrationTest {
     private static final String CLIENT_ID = "test-client";
     private static final String CLIENT_SECRET = "test-secret";
 
-    @Container
-    static KeycloakContainer keycloak = new KeycloakContainer(KEYCLOAK_IMAGE)
+//    @Container
+    static KeycloakContainer KEYCLOAK = new KeycloakContainer(KEYCLOAK_IMAGE)
             .withRealmImportFile("keycloak/realm-export-test.json")
-            .withReuse(true);
+            .withReuse(true)
+            .withStartupTimeout(Duration.ofMinutes(2));
+
+    static {
+        KEYCLOAK.start();
+    }
 
     @DynamicPropertySource
     static void configureKeycloakProperties(DynamicPropertyRegistry registry) {
-        String issuerUri = keycloak.getAuthServerUrl() + "/realms/" + REALM_NAME;
+        String issuerUri = KEYCLOAK.getAuthServerUrl() + "/realms/" + REALM_NAME;
         String jwkSetUri = issuerUri + "/protocol/openid-connect/certs";
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> issuerUri);
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () -> jwkSetUri);
@@ -760,7 +767,7 @@ class FraudDetectionControllerIntegrationTest extends AbstractIntegrationTest {
     // ========================================
 
     private static String getTokenUrl() {
-        return keycloak.getAuthServerUrl() + "/realms/" + REALM_NAME + "/protocol/openid-connect/token";
+        return KEYCLOAK.getAuthServerUrl() + "/realms/" + REALM_NAME + "/protocol/openid-connect/token";
     }
 
     private String toBearerToken(String accessToken) {

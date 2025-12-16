@@ -201,7 +201,8 @@ tasks.named('test') {
             '-XX:TieredStopAtLevel=1',  // Faster JIT for tests
             '-XX:+HeapDumpOnOutOfMemoryError',  // Debug memory issues
             '-XX:HeapDumpPath=build/test-heap-dumps/',
-            '-Djava.security.egd=file:/dev/./urandom'  // Faster random for tests
+            '-Djava.security.egd=file:/dev/./urandom',  // Faster random for tests
+            '-Djacoco-agent.excludes=org.drools.*:org.kie.*' // Exclude Drools from JaCoCo instrumentation
     ]
 
     // Enable Testcontainers reuse - CRITICAL for performance
