@@ -9,6 +9,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.ComponentScan;
@@ -50,6 +51,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 @Execution(ExecutionMode.CONCURRENT)
 @ResourceLock(value = "database", mode = ResourceAccessMode.READ_WRITE)
+@ImportAutoConfiguration(exclude = {org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration.class,})
 class RiskAssessmentRepositoryAdapterIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired

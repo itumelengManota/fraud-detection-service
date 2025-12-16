@@ -9,6 +9,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
@@ -47,17 +48,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisabledInAotMode
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
-@Import({
-        TransactionRepositoryAdapter.class,
-        TransactionMapperImpl.class,
-        LocationMapperImpl.class,
-        MerchantMapperImpl.class
-})
+@Import({TransactionRepositoryAdapter.class, TransactionMapperImpl.class, LocationMapperImpl.class, MerchantMapperImpl.class})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("TransactionRepositoryAdapter Integration Tests")
 @Transactional
 @Execution(ExecutionMode.CONCURRENT)
 @ResourceLock(value = "database", mode = ResourceAccessMode.READ_WRITE)
+@ImportAutoConfiguration(exclude = {org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration.class,})
 class TransactionRepositoryAdapterIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired

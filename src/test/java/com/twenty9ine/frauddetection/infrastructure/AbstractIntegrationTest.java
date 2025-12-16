@@ -28,74 +28,28 @@ public abstract class AbstractIntegrationTest {
 
     // Container declarations (initialized in static block)
     @Container
-    protected static final PostgreSQLContainer<?> POSTGRES;
+    protected static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
+            .withDatabaseName("frauddetection_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
 
     @Container
-    protected static final KafkaContainer KAFKA;
+    protected static final KafkaContainer KAFKA = new KafkaContainer(DockerImageName.parse("apache/kafka:latest"))
+            .withReuse(true);
 
     @Container
-    protected static final GenericContainer<?> REDIS;
+    protected static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379)
+                .withReuse(true);
 
     @Container
-    protected static final GenericContainer<?> APICURIO_REGISTRY;
-
-    // Static initialization block - runs FIRST, before @DynamicPropertySource
-    static {
-        System.out.println("=== Initializing Testcontainers ===");
-
-        // Create and start PostgreSQL
-        POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
-                .withDatabaseName("frauddetection_test")
-                .withUsername("test")
-                .withPassword("test")
-                .withReuse(true);
-        POSTGRES.start();
-        System.out.println("✅ PostgreSQL: " + POSTGRES.getJdbcUrl());
-
-        // Create and start Kafka
-        KAFKA = new KafkaContainer(DockerImageName.parse("apache/kafka:latest"))
-                .withReuse(true);
-        KAFKA.start();
-        System.out.println("✅ Kafka: " + KAFKA.getBootstrapServers());
-
-        // Create and start Redis
-        REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                .withExposedPorts(6379)
-                .withReuse(true);
-        REDIS.start();
-        System.out.println("✅ Redis: " + REDIS.getHost() + ":" + REDIS.getFirstMappedPort());
-
-        // Create and start Apicurio Registry (depends on Kafka)
-        APICURIO_REGISTRY = new GenericContainer<>(DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
-                .withExposedPorts(8080)
-                .withEnv("QUARKUS_PROFILE", "prod")
-                .withEnv("KAFKA_BOOTSTRAP_SERVERS", KAFKA.getBootstrapServers())
-                .withReuse(true);
-        APICURIO_REGISTRY.start();
-        System.out.println("✅ Apicurio: http://" + APICURIO_REGISTRY.getHost() + ":" + APICURIO_REGISTRY.getFirstMappedPort());
-
-        System.out.println("=== All containers started successfully ===");
-    }
-
-    /**
-     * Verify containers are running before tests execute.
-     * Since we force-started them in static block, this should always pass.
-     */
-    @BeforeAll
-    static void verifyContainers() {
-        if (!POSTGRES.isRunning()) {
-            throw new IllegalStateException("PostgreSQL container failed to start");
-        }
-        if (!KAFKA.isRunning()) {
-            throw new IllegalStateException("Kafka container failed to start");
-        }
-        if (!REDIS.isRunning()) {
-            throw new IllegalStateException("Redis container failed to start");
-        }
-        if (!APICURIO_REGISTRY.isRunning()) {
-            throw new IllegalStateException("Apicurio Registry container failed to start");
-        }
-    }
+    protected static final GenericContainer<?> APICURIO_REGISTRY = new GenericContainer<>(DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
+            .withExposedPorts(8080)
+            .withEnv("QUARKUS_PROFILE", "prod")
+            .withEnv("KAFKA_BOOTSTRAP_SERVERS", KAFKA.getBootstrapServers())
+            .dependsOn(KAFKA)
+            .withReuse(true);
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {

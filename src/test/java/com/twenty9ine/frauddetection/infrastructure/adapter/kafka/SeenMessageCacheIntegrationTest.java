@@ -12,12 +12,20 @@ import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -25,41 +33,45 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-/**
- * Integration tests for SeenMessageCache with optimized performance.
- *
- * Performance Optimizations:
- * - Extends AbstractIntegrationTest for shared Redis container infrastructure
- * - Uses @TestInstance(PER_CLASS) for shared setup across tests
- * - Redis namespace-based isolation via RedisTestUtils (95% faster than flushall)
- * - @DataRedisTest slice testing (faster than @SpringBootTest)
- * - Parallel execution with proper resource locking
- * - Reuses RedissonClient configuration
- *
- * Expected performance gain: 70-80% faster than original implementation
- */
+@Testcontainers
 @DisabledInAotMode
 @DataRedisTest
-@ActiveProfiles("test")
-@Import({SeenMessageCache.class, SeenMessageCacheIntegrationTest.RedisTestConfig.class})
+@ImportAutoConfiguration(org.redisson.spring.starter.RedissonAutoConfiguration.class)
+//@ActiveProfiles("test")
+@Import({SeenMessageCache.class})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @DisplayName("SeenMessageCache Integration Tests")
 @Execution(ExecutionMode.CONCURRENT)
 @ResourceLock(value = "redis", mode = ResourceAccessMode.READ_WRITE)
-class SeenMessageCacheIntegrationTest extends AbstractIntegrationTest {
+class SeenMessageCacheIntegrationTest {
 
-    @TestConfiguration
-    static class RedisTestConfig {
-        @Bean
-        public RedissonClient redissonClient(@Value("${spring.data.redis.host}") String redisHost,
-                                             @Value("${spring.data.redis.port}") int redisPort) {
-            Config config = new Config();
-            // ✅ Use injected properties from @DynamicPropertySource
-            config.useSingleServer().setAddress("redis://" + redisHost + ":" + redisPort);
+    @Container
+    @ServiceConnection
+    protected static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379)
+            .withReuse(true);
 
-            return Redisson.create(config);
-        }
-    }
+//    @TestConfiguration
+//    static class RedisTestConfig {
+//        @Bean
+//        public RedissonClient redissonClient() {
+//            Config config = new Config();
+//            config.useSingleServer().setAddress("redis://" + REDIS.getHost() + ":" + REDIS.getFirstMappedPort());
+//
+//            return Redisson.create(config);
+//        }
+//    }
+
+//    @DynamicPropertySource
+//    static void configureProperties(DynamicPropertyRegistry registry) {
+//
+//        // Redis configuration
+//        registry.add("spring.data.redis.host", REDIS::getHost);
+//        registry.add("spring.data.redis.port", REDIS::getFirstMappedPort);
+//
+//        // Disable AWS services in tests
+////        registry.add("aws.sagemaker.enabled", () -> "false");
+//    }
 
     @Autowired
     private RedissonClient redissonClient;
@@ -70,33 +82,23 @@ class SeenMessageCacheIntegrationTest extends AbstractIntegrationTest {
 
     @BeforeAll
     void setUpClass() {
-        // Generate unique namespace for this test class - enables Redis isolation
         testNamespace = RedisTestUtils.generateTestNamespace();
     }
 
     @BeforeEach
     void setUp() {
-        // Create cache instance with test namespace prefix
         seenMessageCache = new SeenMessageCache(redissonClient, ttl);
-
-        // Clean only keys in this test's namespace - 95% faster than flushall
         RedisTestUtils.cleanupTestKeys(redissonClient, testNamespace);
     }
 
     @AfterAll
     void tearDownClass() {
-        // Cleanup all keys for this test class
         RedisTestUtils.cleanupTestKeys(redissonClient, testNamespace);
 
-        // Shutdown Redisson client
         if (redissonClient != null && !redissonClient.isShutdown()) {
             redissonClient.shutdown();
         }
     }
-
-    // ========================================
-    // Test Cases
-    // ========================================
 
     @Test
     @DisplayName("Should mark message as processed and verify it exists in cache")
