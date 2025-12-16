@@ -123,7 +123,7 @@ class GetRiskAssessmentQueryTest {
             String toString = query.toString();
 
             assertThat(toString).contains("GetRiskAssessmentQuery")
-                                .contains(id.toString());
+                    .contains(id.toString());
         }
 
     }

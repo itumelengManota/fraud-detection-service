@@ -4,9 +4,6 @@ plugins {
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.graalvm.buildtools.native' version '0.10.6'
     id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
-    id 'org.sonarqube' version '7.2.0.6526'
-    id 'jacoco'
-    id 'org.gradle.test-retry' version '1.6.4'
 }
 
 group = 'com.twenty9ine'
@@ -157,74 +154,32 @@ tasks.register('generateDroolsMetadata') {
 
 processResources.finalizedBy generateDroolsMetadata
 
-// JaCoCo configuration - exclude problematic classes
-jacoco {
-    toolVersion = "0.8.13"
-}
-
-tasks.named('jacocoTestReport') {
-    reports {
-        xml.required = true
-        html.required = true
-    }
-
-    // Exclude Drools and other generated code from coverage
-    afterEvaluate {
-        classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: [
-                    '**/org/drools/**',
-                    '**/org/kie/**',
-                    '**/*MapperImpl.class',  // MapStruct generated
-                    '**/avro/**'  // Avro generated
-            ])
-        }))
-    }
-}
-
 tasks.named('test') {
     useJUnitPlatform()
 
-    // Enable parallel execution at Gradle level - CRITICAL for performance
-    // Uses 75% of available processors for tests
-    maxParallelForks = Runtime.runtime.availableProcessors() * 3 / 4 ?: 1
+    // Enable parallel execution at Gradle level
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 
-    // Allocate sufficient memory for parallel tests with containers
-    minHeapSize = "1g"
-    maxHeapSize = "4g"
+    // Increase memory for parallel tests
+    minHeapSize = "512m"
+    maxHeapSize = "2g"
 
-    // JVM arguments optimized for test performance
+    // JVM arguments for better performance
     jvmArgs = [
-            '-XX:+UseG1GC',  // G1GC better for tests with many short-lived objects
-            '-XX:MaxGCPauseMillis=100',
-            '-XX:+ParallelRefProcEnabled',
-            '-XX:+UseStringDeduplication',  // Reduce memory for similar strings in tests
-            '-XX:TieredStopAtLevel=1',  // Faster JIT for tests
-            '-XX:+HeapDumpOnOutOfMemoryError',  // Debug memory issues
-            '-XX:HeapDumpPath=build/test-heap-dumps/',
-            '-Djava.security.egd=file:/dev/./urandom',  // Faster random for tests
-            '-Djacoco-agent.excludes=org.drools.*:org.kie.*' // Exclude Drools from JaCoCo instrumentation
+            '-XX:+UseParallelGC',
+            '-XX:MaxGCPauseMillis=200'
     ]
 
-    // Enable Testcontainers reuse - CRITICAL for performance
+    // Enable Testcontainers reuse
     systemProperties = [
-            'testcontainers.reuse.enable': 'true',
-            'testcontainers.reuse.check.timeout': '10'  // Faster checks
+            'testcontainers.reuse.enable': 'true'
     ]
 
-    // Optimize test execution
-    forkEvery = 0  // Reuse JVM process (much faster)
-
-    // Better test output with timing information
+    // Better test output
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat = 'full'
         showStandardStreams = false
-
-        // Show slow tests
-        showCauses = true
-        showStackTraces = true
-
-        displayGranularity = 2  // Show class and method names
 
         afterSuite { desc, result ->
             if (!desc.parent) {
@@ -235,32 +190,10 @@ tasks.named('test') {
                 println "  Failed: ${result.failedTestCount}"
                 println "  Skipped: ${result.skippedTestCount}"
                 println "  Duration: ${(result.endTime - result.startTime) / 1000}s"
-                println "  Parallel Forks Used: ${maxParallelForks}"
                 println "═══════════════════════════════════════════\n"
             }
         }
     }
-
-    // Fail fast - stop on first failure during development
-    // failFast = true  // Uncomment for local development
-
-    // Retry flaky tests automatically (optional)
-    retry {
-        maxRetries = 2
-        maxFailures = 5
-    }
-}
-
-// Separate task for running only fast tests during development
-tasks.register('fastTest', Test) {
-    useJUnitPlatform {
-        includeTags 'fast'  // Tag lightweight tests with @Tag("fast")
-    }
-
-    // Configuration similar to main test task but optimized for speed
-    maxParallelForks = Runtime.runtime.availableProcessors()
-    minHeapSize = "512m"
-    maxHeapSize = "2g"
 }
 
 tasks.named("bootBuildImage") {
@@ -269,4 +202,3 @@ tasks.named("bootBuildImage") {
                    "BP_JVM_VERSION"        : "25.*"]
     imagePlatform = "linux/arm64"
 }
-

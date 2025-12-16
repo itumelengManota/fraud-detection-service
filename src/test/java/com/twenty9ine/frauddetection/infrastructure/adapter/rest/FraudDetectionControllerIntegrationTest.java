@@ -96,11 +96,19 @@ class FraudDetectionControllerIntegrationTest {
     static KeycloakContainer keycloak = new KeycloakContainer(KEYCLOAK_IMAGE)
             .withRealmImportFile("keycloak/realm-export-test.json")
             .withReuse(true);
+
     @Autowired
     private RiskAssessmentRepository riskAssessmentRepository;
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        // Force container startup by accessing a property immediately
+        postgres.start();
+        redis.start();
+        kafka.start();
+        apicurioRegistry.start();
+        keycloak.start();
+
         // Database
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
@@ -114,16 +122,15 @@ class FraudDetectionControllerIntegrationTest {
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
 
         // Apicurio Registry
-        String apicurioUrl = getApicurioUrl();
-        registry.add("apicurio.registry.url", () -> apicurioUrl);
-        registry.add("spring.kafka.consumer.properties.apicurio.registry.url", () -> apicurioUrl);
-        registry.add("spring.kafka.producer.properties.apicurio.registry.url", () -> apicurioUrl);
+        registry.add("apicurio.registry.url", FraudDetectionControllerIntegrationTest::getApicurioUrl);
+        registry.add("spring.kafka.consumer.properties.apicurio.registry.url", FraudDetectionControllerIntegrationTest::getApicurioUrl);
+        registry.add("spring.kafka.producer.properties.apicurio.registry.url", FraudDetectionControllerIntegrationTest::getApicurioUrl);
 
         // Keycloak OAuth2
-        String issuerUri = keycloak.getAuthServerUrl() + "/realms/" + REALM_NAME;
-        String jwkSetUri = issuerUri + "/protocol/openid-connect/certs";
-        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> issuerUri);
-        registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () -> jwkSetUri);
+        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri",
+                () -> keycloak.getAuthServerUrl() + "/realms/" + REALM_NAME);
+        registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri",
+                () -> keycloak.getAuthServerUrl() + "/realms/" + REALM_NAME + "/protocol/openid-connect/certs");
 
         // Disable AWS SageMaker
         registry.add("aws.sagemaker.enabled", () -> "false");
@@ -256,13 +263,13 @@ class FraudDetectionControllerIntegrationTest {
         @DisplayName("Should validate request body and return 400 for invalid data")
         void shouldValidateRequestBody() {
             String invalidRequestBody = """
-                {
-                    "transactionId": null,
-                    "accountId": null,
-                    "amount": -100,
-                    "currency": "USD"
-                }
-                """;
+                    {
+                        "transactionId": null,
+                        "accountId": null,
+                        "amount": -100,
+                        "currency": "USD"
+                    }
+                    """;
 
             webTestClient.post()
                     .uri("/fraud/assessments")
@@ -596,9 +603,9 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should support sorting by timestamp descending")
         void shouldSupportSortingByTimestamp() {
-            Instant time1 = Instant.now().minus(3, ChronoUnit.HOURS);
-            Instant time2 = Instant.now().minus(2, ChronoUnit.HOURS);
-            Instant time3 = Instant.now().minus(1, ChronoUnit.HOURS);
+            Instant time1 = Instant.now().minus(3, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+            Instant time2 = Instant.now().minus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
+            Instant time3 = Instant.now().minus(1, ChronoUnit.HOURS).truncatedTo(ChronoUnit.MICROS);
 
             createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time1);
             createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH, time3);
@@ -623,6 +630,8 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.content.length()").isEqualTo(3)
                     .jsonPath("$.content[0].assessmentTime").value(timestamp ->
                             assertThat(Instant.parse(timestamp.toString())).isEqualTo(time3))
+                    .jsonPath("$.content[1].assessmentTime").value(timestamp ->
+                            assertThat(Instant.parse(timestamp.toString())).isEqualTo(time2))
                     .jsonPath("$.content[2].assessmentTime").value(timestamp ->
                             assertThat(Instant.parse(timestamp.toString())).isEqualTo(time1));
         }
@@ -900,9 +909,11 @@ class FraudDetectionControllerIntegrationTest {
     private AssessTransactionRiskCommand buildAssessTransactionRiskCommand(TransactionRiskLevel riskLevel, TransactionId transactionId, Instant timestamp) {
         return switch (riskLevel) {
             case LOW -> FraudDetectionApplicationServiceIntegrationTest.buildLowRiskCommand(transactionId, timestamp);
-            case MEDIUM -> FraudDetectionApplicationServiceIntegrationTest.buildMediumRiskCommand(transactionId, timestamp);
+            case MEDIUM ->
+                    FraudDetectionApplicationServiceIntegrationTest.buildMediumRiskCommand(transactionId, timestamp);
             case HIGH -> FraudDetectionApplicationServiceIntegrationTest.buildHighRiskCommand(transactionId, timestamp);
-            case CRITICAL -> FraudDetectionApplicationServiceIntegrationTest.buildCriticalRiskCommand(transactionId, timestamp);
+            case CRITICAL ->
+                    FraudDetectionApplicationServiceIntegrationTest.buildCriticalRiskCommand(transactionId, timestamp);
         };
     }
 

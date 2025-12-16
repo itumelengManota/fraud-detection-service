@@ -5,59 +5,91 @@ import com.twenty9ine.frauddetection.application.dto.RiskAssessmentDto;
 import com.twenty9ine.frauddetection.application.port.in.command.ProcessTransactionCommand;
 import com.twenty9ine.frauddetection.application.port.in.query.GetRiskAssessmentQuery;
 import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
+import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
 import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
 import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
-import com.twenty9ine.frauddetection.TestDataFactory;
-import com.twenty9ine.frauddetection.infrastructure.AbstractIntegrationTest;
-import com.twenty9ine.frauddetection.infrastructure.DatabaseTestUtils;
-import com.twenty9ine.frauddetection.infrastructure.RedisTestUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
-import org.junit.jupiter.api.parallel.ResourceAccessMode;
-import org.junit.jupiter.api.parallel.ResourceLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-/**
- * Integration tests for ProcessTransactionApplicationService with optimized performance.
- *
- * Performance Optimizations:
- * - Extends AbstractIntegrationTest for shared container infrastructure
- * - Uses TestDataFactory for static mock objects
- * - @TestInstance(PER_CLASS) for shared setup across tests
- * - Redis namespace-based isolation (95% faster than clearing all keys)
- * - Selective cache clearing (only caches used by tests)
- * - Database cleanup via fast truncation in @BeforeAll/@AfterAll
- * - Parallel execution with proper resource locking
- *
- * Expected performance gain: 65-75% faster than original implementation
- */
 @DisabledInAotMode
 @SpringBootTest
-@ActiveProfiles("test")
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@Testcontainers
 @DisplayName("ProcessTransactionApplicationService Integration Tests")
-@Execution(ExecutionMode.CONCURRENT)
-@ResourceLock(value = "database", mode = ResourceAccessMode.READ_WRITE)
-class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegrationTest {
+@Execution(ExecutionMode.SAME_THREAD)
+class ProcessTransactionApplicationServiceIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
+            .withDatabaseName("frauddetection_test")
+            .withUsername("test")
+            .withPassword("test")
+            .withReuse(true);
+
+    @Container
+    static org.testcontainers.kafka.KafkaContainer kafka = new org.testcontainers.kafka.KafkaContainer(DockerImageName.parse("apache/kafka:latest"))
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+            .withExposedPorts(6379)
+            .withReuse(true);
+
+    @Container
+    static GenericContainer<?> schemaRegistry = new GenericContainer<>(DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
+            .withExposedPorts(8080)
+            .dependsOn(kafka)
+            .withReuse(true);
+
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        // Force container startup by accessing a property immediately
+        postgres.start();
+        redis.start();
+        kafka.start();
+        schemaRegistry.start();
+
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+
+        registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+
+        String apicurioUrl = "http://" + schemaRegistry.getHost() + ":" + schemaRegistry.getFirstMappedPort() + "/apis/registry/v2";
+        registry.add("apicurio.registry.url", () -> apicurioUrl);
+        registry.add("spring.kafka.consumer.properties.apicurio.registry.url", () -> apicurioUrl);
+        registry.add("spring.kafka.producer.properties.apicurio.registry.url", () -> apicurioUrl);
+
+        registry.add("aws.sagemaker.enabled", () -> "false");
+    }
 
     @Autowired
     private ProcessTransactionApplicationService processTransactionService;
@@ -69,6 +101,9 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
     private TransactionRepository transactionRepository;
 
     @Autowired
+    private RiskAssessmentRepository riskAssessmentRepository;
+
+    @Autowired
     private VelocityServicePort velocityService;
 
     @Autowired
@@ -77,58 +112,43 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
     @Autowired
     private CacheManager cacheManager;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
     @MockitoBean
     private MLServicePort mlServicePort;
 
-    private String testNamespace;
-
-    @BeforeAll
-    void setUpClass() {
-        // One-time database cleanup
-        DatabaseTestUtils.fastCleanup(jdbcTemplate);
-
-        // Generate unique namespace for this test class - enables Redis isolation
-        testNamespace = RedisTestUtils.generateTestNamespace();
-    }
-
     @BeforeEach
     void setUp() {
-        // Only clear velocity counters for this test's namespace - 95% faster
-        RedisTestUtils.cleanupTestKeys(redissonClient, testNamespace + "velocity:");
+        // Clear database tables
+//        transactionRepository.findAll().forEach(tx ->
+//                transactionRepository.deleteById(tx.id())
+//        );
+//
+//        riskAssessmentRepository.findAll().forEach(ra ->
+//                riskAssessmentRepository.deleteById(ra.id())
+//        );
 
-        // Only clear caches actually used by tests - much faster
-        RedisTestUtils.clearSpecificCaches(cacheManager, "velocityMetrics");
+        // Clear Redis velocity counters
+        redissonClient.getKeys().deleteByPattern("velocity:*");
 
-        // Configure default ML mock behavior - use TestDataFactory
-        when(mlServicePort.predict(any(Transaction.class)))
-                .thenReturn(TestDataFactory.lowRiskPrediction());
+        // Clear all Spring caches
+        cacheManager.getCacheNames().forEach(cacheName -> {
+            Cache cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.clear();
+            }
+        });
     }
-
-    @AfterAll
-    void tearDownClass() {
-        // Cleanup all keys for this test class
-        RedisTestUtils.cleanupTestKeys(redissonClient, testNamespace);
-
-        // Final database cleanup
-        DatabaseTestUtils.fastCleanup(jdbcTemplate);
-    }
-
-    // ========================================
-    // Test Cases
-    // ========================================
 
     @Nested
     @DisplayName("Transaction Processing Scenarios")
-    @Execution(ExecutionMode.CONCURRENT)
     class TransactionProcessingScenarios {
 
         @Test
         @DisplayName("Should successfully process and persist a valid transaction")
         void shouldProcessAndPersistTransaction() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildStandardCommand(transactionId);
 
@@ -136,10 +156,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElse(null);
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElse(null);
             assertThat(savedTransaction).isNotNull();
             assertThat(savedTransaction.id().toUUID()).isEqualTo(transactionId);
             assertThat(savedTransaction.accountId()).isEqualTo(command.accountId());
@@ -151,9 +168,9 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
         @Test
         @DisplayName("Should trigger risk assessment when processing transaction")
         void shouldTriggerRiskAssessment() {
-            // Given - Use TestDataFactory
+            // Given
             when(mlServicePort.predict(any(Transaction.class)))
-                    .thenReturn(TestDataFactory.mediumRiskPrediction());
+                    .thenReturn(mockMediumRiskPrediction());
 
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildStandardCommand(transactionId);
@@ -162,10 +179,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            RiskAssessmentDto assessment = fraudDetectionService.get(
-                    new GetRiskAssessmentQuery(transactionId)
-            );
-
+            RiskAssessmentDto assessment = fraudDetectionService.get(new GetRiskAssessmentQuery(transactionId));
             assertThat(assessment).isNotNull();
             assertThat(assessment.transactionId()).isEqualTo(transactionId);
             assertThat(assessment.riskScore()).isEqualTo(27);
@@ -176,79 +190,71 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
         @DisplayName("Should increment velocity counters after processing")
         void shouldIncrementVelocityCounters() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
-            ProcessTransactionCommand command =
-                    buildCommandForAccount("ACC-VEL-TEST-" + UUID.randomUUID(), transactionId);
+            ProcessTransactionCommand command = buildCommandForAccount("ACC-VEL-TEST-001", transactionId);
 
             // When
             processTransactionService.process(command);
 
             // Then
-            Transaction transaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction transaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             VelocityMetrics metrics = velocityService.findVelocityMetricsByTransaction(transaction);
 
             assertThat(metrics).isNotNull();
             assertThat(metrics.getTransactionCount(TimeWindow.FIVE_MINUTES)).isEqualTo(1);
-            assertThat(metrics.getTotalAmount(TimeWindow.FIVE_MINUTES))
-                    .isEqualByComparingTo(transaction.amount().value());
+            assertThat(metrics.getTotalAmount(TimeWindow.FIVE_MINUTES)).isEqualByComparingTo(transaction.amount().value());
         }
 
         @Test
         @DisplayName("Should process transaction with location data")
         void shouldProcessTransactionWithLocation() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
-            LocationDto location = new LocationDto(
-                    -33.9249,
-                    18.4241,
-                    "South Africa",
-                    "Cape Town",
-                    Instant.now()
-            );
+            LocationDto location = new LocationDto(-33.9249, 18.4241, "South Africa", "Cape Town", Instant.now());
             ProcessTransactionCommand command = buildCommandWithLocation(transactionId, location);
 
             // When
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             assertThat(savedTransaction.location()).isNotNull();
             assertThat(savedTransaction.location().latitude()).isEqualTo(location.latitude());
             assertThat(savedTransaction.location().longitude()).isEqualTo(location.longitude());
             assertThat(savedTransaction.location().country()).isEqualTo(location.country());
             assertThat(savedTransaction.location().city()).isEqualTo(location.city());
         }
+
     }
 
     @Nested
     @DisplayName("Multiple Transaction Processing")
-    @Execution(ExecutionMode.CONCURRENT)
     class MultipleTransactionProcessing {
 
         @Test
         @DisplayName("Should process multiple transactions for same account")
         void shouldProcessMultipleTransactionsForAccount() {
             // Given
-            String accountId = "ACC-MULTI-" + UUID.randomUUID();
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
+            String accountId = "ACC-MULTI-001";
             List<UUID> transactionIds = new ArrayList<>();
 
             // When
             for (int i = 0; i < 5; i++) {
                 transactionIds.add(UUID.randomUUID());
-                processTransactionService.process(
-                        buildCommandForAccount(accountId, transactionIds.get(i))
-                );
+                processTransactionService.process(buildCommandForAccount(accountId, transactionIds.get(i)));
             }
 
             // Then
             List<Transaction> accountTransactions = transactionRepository.findByAccountId(accountId);
-
             assertThat(accountTransactions).hasSize(5);
             assertThat(accountTransactions)
                     .extracting(transaction -> transaction.id().toUUID())
@@ -259,28 +265,26 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
         @DisplayName("Should accumulate velocity metrics across transactions")
         void shouldAccumulateVelocityMetrics() {
             // Given
-            String accountId = "ACC-VEL-ACCUM-" + UUID.randomUUID();
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
+            String accountId = "ACC-VEL-ACCUM-001";
             BigDecimal transactionAmount = new BigDecimal("100.00");
             final int NUMBER_OF_TRANSACTIONS = 3;
-            UUID lastTransactionId = null;
 
             // When
+            UUID lastTransactionId = null;
+
             for (int i = 0; i < NUMBER_OF_TRANSACTIONS; i++) {
                 lastTransactionId = UUID.randomUUID();
-                processTransactionService.process(
-                        buildCommandWithAmount(accountId, lastTransactionId, transactionAmount)
-                );
+                processTransactionService.process(buildCommandWithAmount(accountId, lastTransactionId, transactionAmount));
             }
 
             // Then
-            Transaction lastTransaction = transactionRepository
-                    .findById(TransactionId.of(lastTransactionId))
-                    .orElseThrow();
-
+            Transaction lastTransaction = transactionRepository.findById(TransactionId.of(lastTransactionId)).orElseThrow();
             VelocityMetrics metrics = velocityService.findVelocityMetricsByTransaction(lastTransaction);
 
-            assertThat(metrics.getTransactionCount(TimeWindow.FIVE_MINUTES))
-                    .isEqualTo(NUMBER_OF_TRANSACTIONS);
+            assertThat(metrics.getTransactionCount(TimeWindow.FIVE_MINUTES)).isEqualTo(NUMBER_OF_TRANSACTIONS);
             assertThat(metrics.getTotalAmount(TimeWindow.FIVE_MINUTES))
                     .isEqualByComparingTo(transactionAmount.multiply(BigDecimal.valueOf(NUMBER_OF_TRANSACTIONS)));
         }
@@ -288,13 +292,15 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
 
     @Nested
     @DisplayName("Transaction Types and Channels")
-    @Execution(ExecutionMode.CONCURRENT)
     class TransactionTypesAndChannels {
 
         @Test
         @DisplayName("Should process PURCHASE transaction")
         void shouldProcessPurchaseTransaction() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildCommandWithType(transactionId, "PURCHASE");
 
@@ -302,19 +308,16 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             assertThat(savedTransaction.type()).isEqualTo(TransactionType.PURCHASE);
         }
 
         @Test
         @DisplayName("Should process TRANSFER transaction")
         void shouldProcessTransferTransaction() {
-            // Given - Use TestDataFactory
+            // Given
             when(mlServicePort.predict(any(Transaction.class)))
-                    .thenReturn(TestDataFactory.mediumRiskPrediction());
+                    .thenReturn(mockMediumRiskPrediction());
 
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildCommandWithType(transactionId, "TRANSFER");
@@ -323,10 +326,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             assertThat(savedTransaction.type()).isEqualTo(TransactionType.TRANSFER);
         }
 
@@ -334,6 +334,9 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
         @DisplayName("Should process transaction through MOBILE channel")
         void shouldProcessMobileChannelTransaction() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildCommandWithChannel(transactionId, "MOBILE");
 
@@ -341,10 +344,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             assertThat(savedTransaction.channel()).isEqualTo(Channel.MOBILE);
         }
 
@@ -352,6 +352,9 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
         @DisplayName("Should process transaction through ONLINE channel")
         void shouldProcessOnlineChannelTransaction() {
             // Given
+            when(mlServicePort.predict(any(Transaction.class)))
+                    .thenReturn(mockLowRiskPrediction());
+
             UUID transactionId = UUID.randomUUID();
             ProcessTransactionCommand command = buildCommandWithChannel(transactionId, "ONLINE");
 
@@ -359,22 +362,24 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
             processTransactionService.process(command);
 
             // Then
-            Transaction savedTransaction = transactionRepository
-                    .findById(TransactionId.of(transactionId))
-                    .orElseThrow();
-
+            Transaction savedTransaction = transactionRepository.findById(TransactionId.of(transactionId)).orElseThrow();
             assertThat(savedTransaction.channel()).isEqualTo(Channel.ONLINE);
         }
     }
 
-    // ========================================
-    // Helper Methods
-    // ========================================
+    // Helper methods
+    private MLPrediction mockLowRiskPrediction() {
+        return new MLPrediction("test-endpoint", "1.0.0", 0.15, 0.95, Map.of("amount", 0.3));
+    }
+
+    private MLPrediction mockMediumRiskPrediction() {
+        return new MLPrediction("test-endpoint", "1.0.0", 0.45, 0.92, Map.of("amount", 0.5));
+    }
 
     private ProcessTransactionCommand buildStandardCommand(UUID transactionId) {
         return ProcessTransactionCommand.builder()
                 .transactionId(transactionId)
-                .accountId("ACC-STD-" + UUID.randomUUID())
+                .accountId("ACC-STD-001")
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .type("PURCHASE")
@@ -408,7 +413,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
     private ProcessTransactionCommand buildCommandWithLocation(UUID transactionId, LocationDto location) {
         return ProcessTransactionCommand.builder()
                 .transactionId(transactionId)
-                .accountId("ACC-LOC-" + UUID.randomUUID())
+                .accountId("ACC-LOC-001")
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .type("PURCHASE")
@@ -422,11 +427,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
                 .build();
     }
 
-    private ProcessTransactionCommand buildCommandWithAmount(
-            String accountId,
-            UUID transactionId,
-            BigDecimal amount
-    ) {
+    private ProcessTransactionCommand buildCommandWithAmount(String accountId, UUID transactionId, BigDecimal amount) {
         return ProcessTransactionCommand.builder()
                 .transactionId(transactionId)
                 .accountId(accountId)
@@ -446,7 +447,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
     private ProcessTransactionCommand buildCommandWithType(UUID transactionId, String type) {
         return ProcessTransactionCommand.builder()
                 .transactionId(transactionId)
-                .accountId("ACC-TYPE-" + UUID.randomUUID())
+                .accountId("ACC-TYPE-001")
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .type(type)
@@ -463,7 +464,7 @@ class ProcessTransactionApplicationServiceIntegrationTest extends AbstractIntegr
     private ProcessTransactionCommand buildCommandWithChannel(UUID transactionId, String channel) {
         return ProcessTransactionCommand.builder()
                 .transactionId(transactionId)
-                .accountId("ACC-CHAN-" + UUID.randomUUID())
+                .accountId("ACC-CHAN-001")
                 .amount(new BigDecimal("100.00"))
                 .currency("USD")
                 .type("PURCHASE")
