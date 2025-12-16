@@ -7,6 +7,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,9 +30,29 @@ public final class KafkaTestConsumerFactory {
         return sharedConsumer;
     }
 
-    public static synchronized void resetConsumer(KafkaConsumer<String, Object> consumer) {
-        consumer.unsubscribe();
-        consumer.poll(Duration.ZERO); // Clear state
+//    public static synchronized void resetConsumer(KafkaConsumer<String, Object> consumer) {
+//        consumer.unsubscribe();
+//        consumer.poll(Duration.ZERO); // Clear state
+//    }
+
+    public static void resetConsumer(KafkaConsumer<String, Object> consumer) {
+        if (consumer == null) {
+            return;
+        }
+
+        // Only reset if consumer is actually subscribed
+        if (!consumer.subscription().isEmpty()) {
+            // Poll to clear any buffered records
+            consumer.poll(Duration.ofMillis(100));
+
+            // Unsubscribe to reset state
+            consumer.unsubscribe();
+        }
+
+        // Clear any partition assignments
+        if (!consumer.assignment().isEmpty()) {
+            consumer.assign(Collections.emptySet());
+        }
     }
 
     public static synchronized void closeConsumer() {
