@@ -5,14 +5,12 @@ import com.twenty9ine.frauddetection.domain.event.HighRiskDetected;
 import com.twenty9ine.frauddetection.domain.event.RiskAssessmentCompleted;
 import com.twenty9ine.frauddetection.domain.exception.InvariantViolationException;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
-import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.List;
 
@@ -21,15 +19,6 @@ import static org.assertj.core.api.Assertions.*;
 @Execution(ExecutionMode.CONCURRENT)
 class RiskAssessmentTest {
 
-    private TransactionId transactionId;
-    private RiskAssessment riskAssessment;
-
-    @BeforeEach
-    void setUp() {
-        transactionId = TransactionId.generate();
-        riskAssessment = new RiskAssessment(transactionId, RiskScore.of(10));
-    }
-
     @Nested
     @DisplayName("Constructor Tests")
     class ConstructorTests {
@@ -37,6 +26,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should create assessment with generated ID")
         void shouldCreateAssessmentWithGeneratedId() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(10));
 
             assertThat(assessment.getAssessmentId()).isNotNull();
@@ -53,6 +43,7 @@ class RiskAssessmentTest {
         @DisplayName("Should create assessment with provided ID")
         void shouldCreateAssessmentWithProvidedId() {
             AssessmentId assessmentId = AssessmentId.generate();
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(assessmentId, transactionId, RiskScore.of(10));
 
             assertThat(assessment.getAssessmentId()).isEqualTo(assessmentId);
@@ -63,6 +54,7 @@ class RiskAssessmentTest {
         @DisplayName("Should initialize assessment time on creation")
         void shouldInitializeAssessmentTimeOnCreation() {
             Instant before = Instant.now();
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, RiskScore.of(10));
             Instant after = Instant.now();
 
@@ -80,6 +72,7 @@ class RiskAssessmentTest {
         @DisplayName("Should complete assessment with low risk and allow decision")
         void shouldCompleteAssessmentWithLowRiskAndAllow() {
             RiskScore lowScore = new RiskScore(20);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, lowScore);
             Decision decision = Decision.ALLOW;
 
@@ -95,6 +88,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should complete assessment with low risk and challenge decision")
         void shouldCompleteAssessmentWithLowRiskAndChallenge() {
+            TransactionId transactionId = TransactionId.generate();
             RiskScore lowScore = new RiskScore(30);
             RiskAssessment assessment = new RiskAssessment(transactionId, lowScore);
             Decision decision = Decision.CHALLENGE;
@@ -111,6 +105,7 @@ class RiskAssessmentTest {
         @DisplayName("Should complete assessment with medium risk and review decision")
         void shouldCompleteAssessmentWithMediumRisk() {
             RiskScore mediumScore = new RiskScore(50);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, mediumScore);
             Decision decision = Decision.REVIEW;
 
@@ -125,6 +120,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should complete assessment with medium risk and allow decision")
         void shouldCompleteAssessmentWithMediumRiskAndAllow() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(60));
             Decision decision = Decision.ALLOW;
 
@@ -139,6 +135,7 @@ class RiskAssessmentTest {
         @DisplayName("Should complete assessment with high risk and emit HighRiskDetected event")
         void shouldCompleteAssessmentWithHighRisk() {
             RiskScore highScore = new RiskScore(80);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, highScore);
             Decision decision = Decision.BLOCK;
 
@@ -155,6 +152,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should complete assessment with high risk and review decision")
         void shouldCompleteAssessmentWithHighRiskAndReview() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(85));
             Decision decision = Decision.REVIEW;
 
@@ -169,6 +167,7 @@ class RiskAssessmentTest {
         @DisplayName("Should complete assessment with critical risk and block decision")
         void shouldCompleteAssessmentWithCriticalRisk() {
             RiskScore criticalScore = new RiskScore(95);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, criticalScore);
             Decision decision = Decision.BLOCK;
 
@@ -183,6 +182,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should throw exception when critical risk has allow decision")
         void shouldThrowExceptionWhenCriticalRiskHasAllowDecision() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(95));
             Decision decision = Decision.ALLOW;
 
@@ -194,6 +194,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should throw exception when critical risk has review decision")
         void shouldThrowExceptionWhenCriticalRiskHasReviewDecision() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(95));
             Decision decision = Decision.REVIEW;
 
@@ -205,6 +206,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should throw exception when critical risk has challenge decision")
         void shouldThrowExceptionWhenCriticalRiskHasChallengeDecision() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(100));
             Decision decision = Decision.CHALLENGE;
 
@@ -217,6 +219,7 @@ class RiskAssessmentTest {
         @DisplayName("Should throw exception when low risk has block decision")
         void shouldThrowExceptionWhenLowRiskHasBlockDecision() {
             RiskScore lowScore = new RiskScore(20);
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), lowScore);
             Decision decision = Decision.BLOCK;
 
             assertThatThrownBy(() -> riskAssessment.completeAssessment(decision))
@@ -228,6 +231,7 @@ class RiskAssessmentTest {
         @DisplayName("Should throw exception when low risk score 0 has block decision")
         void shouldThrowExceptionWhenZeroRiskHasBlockDecision() {
             RiskScore zeroScore = new RiskScore(0);
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), zeroScore);
             Decision decision = Decision.BLOCK;
 
             assertThatThrownBy(() -> riskAssessment.completeAssessment(decision))
@@ -239,6 +243,7 @@ class RiskAssessmentTest {
         @DisplayName("Should handle boundary between low and medium risk with allow decision")
         void shouldHandleLowMediumBoundaryWithAllow() {
             RiskScore boundaryScore = new RiskScore(40);
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), boundaryScore);
             Decision decision = Decision.ALLOW;
 
             riskAssessment.completeAssessment(decision);
@@ -250,6 +255,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should handle boundary between medium and high risk")
         void shouldHandleMediumHighBoundary() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(70));
             Decision decision = Decision.REVIEW;
 
@@ -262,6 +268,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should handle boundary between high and critical risk")
         void shouldHandleHighCriticalBoundary() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(90));
             Decision decision = Decision.BLOCK;
 
@@ -281,6 +288,7 @@ class RiskAssessmentTest {
         void shouldAddRuleEvaluation() {
             RuleEvaluation evaluation = new RuleEvaluation("rule-1", "Test Rule", RuleType.AMOUNT,
                     true, 50, "Test reason");
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
 
             riskAssessment.addRuleEvaluation(evaluation);
 
@@ -298,6 +306,8 @@ class RiskAssessmentTest {
             RuleEvaluation evaluation3 = new RuleEvaluation("rule-3", "Rule 3", RuleType.AMOUNT,
                     false, 0, "Reason 3");
 
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
+
             riskAssessment.addRuleEvaluation(evaluation1);
             riskAssessment.addRuleEvaluation(evaluation2);
             riskAssessment.addRuleEvaluation(evaluation3);
@@ -311,7 +321,7 @@ class RiskAssessmentTest {
         void shouldMaintainOrderOfRuleEvaluations() {
             RuleEvaluation first = new RuleEvaluation("1", "First", RuleType.AMOUNT, true, 10, "First");
             RuleEvaluation second = new RuleEvaluation("2", "Second", RuleType.VELOCITY, false, 20, "Second");
-
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
             riskAssessment.addRuleEvaluation(first);
             riskAssessment.addRuleEvaluation(second);
 
@@ -328,6 +338,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should return unmodifiable list of domain events")
         void shouldReturnUnmodifiableListOfDomainEvents() {
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
             List<DomainEvent<TransactionId>> events = riskAssessment.getDomainEvents();
 
             assertThatThrownBy(() -> events.add(null))
@@ -337,6 +348,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should clear domain events")
         void shouldClearDomainEvents() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(80));
             assessment.completeAssessment(Decision.BLOCK);
 
@@ -350,6 +362,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should accumulate multiple events")
         void shouldAccumulateMultipleEvents() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(85));
             assessment.completeAssessment(Decision.BLOCK);
 
@@ -359,6 +372,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should be able to clear and add events again")
         void shouldClearAndAddEventsAgain() {
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment = new RiskAssessment(transactionId, new RiskScore(80));
             assessment.completeAssessment(Decision.REVIEW);
             assessment.clearDomainEvents();
@@ -378,6 +392,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should initially have null ML prediction")
         void shouldInitiallyHaveNullMLPrediction() {
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
             assertThat(riskAssessment.getMlPrediction()).isNull();
         }
     }
@@ -391,6 +406,7 @@ class RiskAssessmentTest {
         void shouldBeEqualWhenAllFieldsMatch() {
             AssessmentId id = AssessmentId.generate();
             RiskScore score1 = new RiskScore(90);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment1 = new RiskAssessment(id, transactionId, score1);
 
             RiskAssessment assessment2 = new RiskAssessment(id, transactionId, score1);
@@ -404,6 +420,7 @@ class RiskAssessmentTest {
         @DisplayName("Should not be equal when assessment IDs differ")
         void shouldNotBeEqualWhenAssessmentIdsDiffer() {
             RiskScore score1 = new RiskScore(90);
+            TransactionId transactionId = TransactionId.generate();
             RiskAssessment assessment1 = new RiskAssessment(transactionId, score1);
             RiskAssessment assessment2 = new RiskAssessment(transactionId, score1);
 
@@ -418,6 +435,7 @@ class RiskAssessmentTest {
         @Test
         @DisplayName("Should generate toString representation")
         void shouldGenerateToString() {
+            RiskAssessment riskAssessment = new RiskAssessment(TransactionId.generate(), new RiskScore(90));
             String toString = riskAssessment.toString();
 
             assertThat(toString)
