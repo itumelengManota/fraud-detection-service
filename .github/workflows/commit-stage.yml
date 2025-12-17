@@ -26,18 +26,18 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew build
-#      - name: Code Vulnerability Scanning
-#        uses: anchore/scan-action@v6
-#        id: scan
-#        with:
-#          path: "${{ github.workspace }}"
-#          fail-build: false
-#          severity-cutoff: high
-#      - name: Upload Vulnerability Report
-#        uses: github/codeql-action/upload-sarif@v4
-#        if: success() || failure()
-#        with:
-#          sarif_file: ${{ steps.scan.outputs.sarif }}
+      - name: Code Vulnerability Scanning
+        uses: anchore/scan-action@v6
+        id: scan
+        with:
+          path: "${{ github.workspace }}"
+          fail-build: false
+          severity-cutoff: high
+      - name: Upload Vulnerability Report
+        uses: github/codeql-action/upload-sarif@v4
+        if: success() || failure()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
 
   package:
     name: Multi-Architecture Image Build and Publish
@@ -90,15 +90,15 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest   
 
-#      - name: OCI Image Vulnerability Scanning
-#        uses: anchore/scan-action@v6
-#        id: scan
-#        with:
-#          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-#          fail-build: false
-#          severity-cutoff: high
-#      - name: Upload Vulnerability Report
-#        uses: github/codeql-action/upload-sarif@v4
-#        if: success() || failure()
-#        with:
-#          sarif_file: ${{ steps.scan.outputs.sarif }}
+      - name: OCI Image Vulnerability Scanning
+        uses: anchore/scan-action@v6
+        id: scan
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+          fail-build: false
+          severity-cutoff: high
+      - name: Upload Vulnerability Report
+        uses: github/codeql-action/upload-sarif@v4
+        if: success() || failure()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
