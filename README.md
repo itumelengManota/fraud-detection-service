@@ -2,6 +2,7 @@
 
 ## Table of Contents
 - [Overview](#overview)
+- [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Design Patterns & Principles](#design-patterns--principles)
 - [Business Logic](#business-logic)
@@ -9,10 +10,15 @@
 - [Getting Started](#getting-started)
 - [Authentication & Authorization](#authentication--authorization)
 - [API Reference](#api-reference)
-- [Testing with cURL](#testing-with-curl)
-- [Testing with Postman](#testing-with-postman)
+- [Testing](#testing)
+    - [Testing with cURL](#testing-with-curl)
+    - [Testing with Postman](#testing-with-postman)
+    - [Testing with Kafka UI](#testing-with-kafka-ui)
 - [CI/CD Pipeline](#cicd-pipeline)
 - [Infrastructure Management](#infrastructure-management)
+- [Performance Tuning](#performance-tuning)
+- [Troubleshooting](#troubleshooting)
+- [Additional Resources](#additional-resources)
 
 ---
 
@@ -20,7 +26,9 @@
 
 The Fraud Detection Service is an enterprise-grade, real-time fraud detection system designed to process 100,000+ transactions per second with sub-100ms latency. It combines machine learning predictions, rule-based evaluation, velocity checks, and geographic validation to assess transaction risk and make automated decisions.
 
-### Key Features
+Built using **Hexagonal Architecture** and **Domain-Driven Design** principles, the service maintains clean separation between business logic and infrastructure concerns, making it highly maintainable, testable, and adaptable to changing requirements.
+
+## Key Features
 
 - **Real-time Risk Assessment**: Sub-100ms P99 latency for transaction evaluation
 - **Hybrid Scoring**: Combines ML predictions (60%) with business rules (40%)
@@ -29,8 +37,9 @@ The Fraud Detection Service is an enterprise-grade, real-time fraud detection sy
 - **Event-Driven Architecture**: Kafka-based event streaming with Avro serialization
 - **Idempotency**: Redis-backed deduplication for exactly-once processing
 - **Multi-Architecture Support**: Docker images for AMD64 and ARM64
-- **OAuth2 Security**: Keycloak-based authentication and authorization
-- **Observability**: OpenTelemetry tracing, Prometheus metrics, health checks
+- **OAuth2 Security**: Keycloak-based authentication and authorization with SASL/OAUTHBEARER
+- **Observability**: OpenTelemetry tracing, Prometheus metrics, comprehensive health checks
+- **Schema Evolution**: Apicurio Registry for Avro schema management
 
 ---
 
@@ -141,14 +150,14 @@ Asynchronous communication via domain events and Kafka:
 
 ```
 Transaction Event → Kafka Consumer → Process Transaction Use Case
-                                    ↓
-                          Assess Risk → Publish Events
-                                    ↓
-                    ┌───────────────┴───────────────┐
-                    ↓                               ↓
-        RiskAssessmentCompleted           HighRiskDetected
-                    ↓                               ↓
-  fraud-detection.risk-assessments   fraud-detection.high-risk-alerts
+                                                    ↓
+                                          Assess Risk → Publish Events
+                                                                ↓
+                                                ┌───────────────┴───────────────┐
+                                                ↓                               ↓
+                                    RiskAssessmentCompleted           HighRiskDetected
+                                                ↓                               ↓
+                              fraud-detection.risk-assessments   fraud-detection.high-risk-alerts
 ```
 
 **Locations:**
@@ -689,11 +698,11 @@ docker-compose -f docker-compose/compose.yml up -d
 
 This starts:
 - PostgreSQL (port 5432)
-- PostgreSQL for Keycloak (port 5433)
 - Redis (port 6379)
 - Kafka (port 9092)
 - Apicurio Registry (port 8081)
 - Apicurio Registry UI (port 8082)
+- Kafka UI (port 8083)
 - Keycloak (port 8180)
 
 3. **Verify services are healthy:**
@@ -718,7 +727,6 @@ The application starts on **http://localhost:9001**
 ### Development Mode Features
 
 - **Hot Reload**: DevTools enabled for automatic restarts
-- **H2 Console**: Available at `/h2-console` (if enabled)
 - **Actuator Endpoints**: Health checks at `/actuator/health`
 - **Swagger UI**: API documentation at `/swagger-ui.html`
 
@@ -747,13 +755,21 @@ curl http://localhost:8180/realms/fraud-detection/.well-known/openid-configurati
 docker exec -it fraud-detection-kafka kafka-topics --bootstrap-server localhost:9092 --list
 ```
 
+4. **Check Kafka UI:**
+   Navigate to **http://localhost:8083** in your browser
+
 ---
 
 ## Authentication & Authorization
 
-### OAuth2 Configuration
+### OAuth2 Architecture Overview
 
-The service uses **Keycloak** as the OAuth2 provider with the following configuration:
+The service uses **Keycloak** for OAuth2/OIDC authentication with proper separation between:
+- **Web Client**: User authentication (Swagger UI, web applications)
+- **Kafka Client**: Service-to-service authentication (Kafka broker with SASL/OAUTHBEARER)
+- **Resource Server**: JWT token validation (fraud-detection-service)
+
+### Keycloak Configuration
 
 **Realm**: `fraud-detection`  
 **Authorization Server**: `http://localhost:8180/realms/fraud-detection`  
@@ -763,14 +779,27 @@ The service uses **Keycloak** as the OAuth2 provider with the following configur
 
 #### 1. **fraud-detection-service** (Resource Server)
 - **Type**: Bearer-only client
-- **Purpose**: Validates JWT tokens
+- **Purpose**: Validates JWT tokens from both web and Kafka clients
 - **Secret**: `fraud-detection-secret`
+- **Features**: Token validation only, no user interaction
 
-#### 2. **fraud-detection-client** (Test Client)
+#### 2. **fraud-detection-web** (Web Client)
 - **Type**: Confidential client
-- **Grant Types**: Authorization Code, Client Credentials, Password
-- **Secret**: `fraud-detection-client-secret`
+- **Grant Types**: Authorization Code, Password (dev/test only)
+- **Purpose**: User authentication for Swagger UI and web applications
+- **Secret**: `fraud-detection-web-secret`
 - **Redirect URIs**: `http://localhost:9001/*`, `http://localhost:3000/*`
+- **Scopes**: openid, profile, email, fraud-detection-scopes
+- **Token Lifespan**: 30 minutes (with refresh)
+
+#### 3. **fraud-detection-kafka** (Service Client)
+- **Type**: Confidential client
+- **Grant Types**: Client Credentials ONLY
+- **Purpose**: Service-to-service authentication for Kafka broker
+- **Secret**: `fraud-detection-kafka-secret`
+- **Scopes**: kafka
+- **Service Account**: Enabled
+- **Token Lifespan**: 60 minutes (no refresh, auto-renewed)
 
 ### Pre-configured Users
 
@@ -787,6 +816,52 @@ The service uses **Keycloak** as the OAuth2 provider with the following configur
 | `fraud:detect` | `SCOPE_fraud:detect` | POST `/fraud/assessments` |
 | `fraud:read` | `SCOPE_fraud:read` | GET `/fraud/assessments*` |
 
+### Application Configuration
+
+#### Spring Security (REST API)
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/fraud-detection
+          jwk-set-uri: http://localhost:8180/realms/fraud-detection/protocol/openid-connect/certs
+          audiences:
+            - fraud-detection-service
+            - fraud-detection-web
+            - account
+```
+
+#### Kafka Security (SASL/OAUTHBEARER)
+```yaml
+spring:
+  kafka:
+    security:
+      protocol: SASL_PLAINTEXT  # Use SASL_SSL in production
+    
+    properties:
+      sasl:
+        mechanism: OAUTHBEARER
+        jaas:
+          config: >
+            org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
+            clientId='fraud-detection-kafka'
+            clientSecret='fraud-detection-kafka-secret'
+            scope='kafka'
+            tokenEndpointUri='http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token';
+```
+
+#### Swagger UI OAuth
+```yaml
+springdoc:
+  swagger-ui:
+    oauth:
+      client-id: fraud-detection-web
+      client-secret: fraud-detection-web-secret
+      use-pkce-with-authorization-code-grant: true
+```
+
 ### Obtaining Access Tokens
 
 #### Method 1: Password Grant (for testing)
@@ -795,8 +870,8 @@ The service uses **Keycloak** as the OAuth2 provider with the following configur
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
-  -d "client_id=fraud-detection-client" \
-  -d "client_secret=fraud-detection-client-secret" \
+  -d "client_id=fraud-detection-web" \
+  -d "client_secret=fraud-detection-web-secret" \
   -d "username=detector" \
   -d "password=detector123" \
   -d "scope=fraud:detect fraud:read"
@@ -806,7 +881,7 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 ```json
 {
   "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
-  "expires_in": 300,
+  "expires_in": 1800,
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
   "token_type": "Bearer",
   "scope": "fraud:detect fraud:read"
@@ -819,9 +894,9 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" \
-  -d "client_id=fraud-detection-client" \
-  -d "client_secret=fraud-detection-client-secret" \
-  -d "scope=fraud:detect fraud:read"
+  -d "client_id=fraud-detection-kafka" \
+  -d "client_secret=fraud-detection-kafka-secret" \
+  -d "scope=kafka"
 ```
 
 #### Method 3: Authorization Code Flow (for web applications)
@@ -830,7 +905,7 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 ```
 http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth?
   response_type=code&
-  client_id=fraud-detection-client&
+  client_id=fraud-detection-web&
   redirect_uri=http://localhost:9001/callback&
   scope=fraud:detect fraud:read&
   state=random-state-value
@@ -841,8 +916,8 @@ http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth?
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
-  -d "client_id=fraud-detection-client" \
-  -d "client_secret=fraud-detection-client-secret" \
+  -d "client_id=fraud-detection-web" \
+  -d "client_secret=fraud-detection-web-secret" \
   -d "code=<authorization_code>" \
   -d "redirect_uri=http://localhost:9001/callback"
 ```
@@ -851,9 +926,9 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 
 Tokens are validated by the application using:
 - **Signature verification**: RSA256 using JWKS from Keycloak
-- **Audience validation**: Must contain `fraud-detection-service`
+- **Audience validation**: Must contain `fraud-detection-service`, `fraud-detection-web`, or `account`
 - **Issuer validation**: Must be from `fraud-detection` realm
-- **Expiration check**: Tokens expire after 5 minutes (300s)
+- **Expiration check**: Web tokens expire after 30 minutes, Kafka tokens after 60 minutes
 
 ### Security Configuration
 
@@ -866,6 +941,54 @@ GET /fraud/assessments/** → Requires SCOPE_fraud:read
 ```
 
 **Location**: `infrastructure.config.SecurityConfig`
+
+### Environment Variables
+
+#### Development
+```bash
+# Keycloak
+export JWT_ISSUER_URI=http://localhost:8180/realms/fraud-detection
+
+# Kafka OAuth
+export KAFKA_CLIENT_ID=fraud-detection-kafka
+export KAFKA_CLIENT_SECRET=fraud-detection-kafka-secret
+```
+
+#### Production
+```bash
+# Keycloak
+export JWT_ISSUER_URI=https://keycloak.prod.example.com/realms/fraud-detection
+export JWT_JWK_SET_URI=https://keycloak.prod.example.com/realms/fraud-detection/protocol/openid-connect/certs
+
+# Kafka OAuth
+export KAFKA_CLIENT_ID=fraud-detection-kafka
+export KAFKA_CLIENT_SECRET=${VAULT_KAFKA_CLIENT_SECRET}
+export KAFKA_SECURITY_PROTOCOL=SASL_SSL
+
+# Use secret manager to inject these at runtime
+```
+
+### Security Best Practices
+
+1. **Never commit secrets**: Use environment variables or secret management (Vault, AWS Secrets Manager)
+2. **Rotate secrets regularly**: Minimum quarterly rotation for client secrets
+3. **Use SASL_SSL in production**: Not SASL_PLAINTEXT
+4. **Enable PKCE**: For Authorization Code flow (already configured)
+5. **Limit token lifespans**: Shorter lifespans reduce risk of token theft
+6. **Monitor failed authentications**: Set up alerts for repeated failures
+
+### Testing Authentication
+
+#### Unit/Integration Tests
+Tests use `application-test.yml` with Kafka OAuth disabled (PLAINTEXT).
+
+#### Swagger UI Testing
+1. Navigate to http://localhost:9001/swagger-ui.html
+2. Click "Authorize"
+3. Credentials:
+    - Client ID: fraud-detection-web
+    - Client Secret: fraud-detection-web-secret
+4. Login with: detector / detector123
 
 ---
 
@@ -1034,9 +1157,11 @@ GET /fraud/assessments?transactionRiskLevels=HIGH&fromDate=2024-12-01T00:00:00Z&
 
 ---
 
-## Testing with cURL
+## Testing
 
-### Setup: Get Access Token
+### Testing with cURL
+
+#### Setup: Get Access Token
 
 Before running tests, obtain an access token:
 
@@ -1044,14 +1169,14 @@ Before running tests, obtain an access token:
 export TOKEN=$(curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
-  -d "client_id=fraud-detection-client" \
-  -d "client_secret=fraud-detection-client-secret" \
+  -d "client_id=fraud-detection-web" \
+  -d "client_secret=fraud-detection-web-secret" \
   -d "username=detector" \
   -d "password=detector123" \
   -d "scope=fraud:detect fraud:read" | jq -r '.access_token')
 ```
 
-### Test Scenario 1: Low-Risk Transaction
+#### Test Scenario 1: Low-Risk Transaction
 
 **Scenario**: Small online purchase from known merchant
 
@@ -1086,7 +1211,7 @@ curl -X POST http://localhost:9001/fraud/assessments \
 - Risk Level: LOW
 - Decision: ALLOW
 
-### Test Scenario 2: Medium-Risk Transaction
+#### Test Scenario 2: Medium-Risk Transaction
 
 **Scenario**: Large purchase triggering amount rule
 
@@ -1122,11 +1247,9 @@ curl -X POST http://localhost:9001/fraud/assessments \
 - Decision: CHALLENGE
 - Triggered Rules: LARGE_AMOUNT
 
-### Test Scenario 3: High-Risk Transaction (Velocity)
+#### Test Scenario 3: High-Risk Transaction (Velocity)
 
 **Scenario**: Multiple transactions in short time window
-
-First, create 6 transactions rapidly:
 
 ```bash
 for i in {1..6}; do
@@ -1163,7 +1286,7 @@ done
 - Decision: REVIEW
 - Triggered Rules: VELOCITY_5MIN
 
-### Test Scenario 4: Critical Risk (Impossible Travel)
+#### Test Scenario 4: Critical Risk (Impossible Travel)
 
 **Scenario**: Transaction from geographically impossible location
 
@@ -1227,125 +1350,18 @@ curl -X POST http://localhost:9001/fraud/assessments \
 - Decision: BLOCK
 - Triggered Rules: IMPOSSIBLE_TRAVEL
 
-### Test Scenario 5: Very Large Amount (Critical)
+### Testing with Postman
 
-**Scenario**: Transaction exceeding $100,000
+#### Postman Collection Setup
 
-```bash
-curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transactionId": "55555555-5555-5555-5555-555555555555",
-    "accountId": "ACC-LARGE-AMOUNT",
-    "amount": 150000.00,
-    "currency": "USD",
-    "type": "WIRE",
-    "channel": "ONLINE",
-    "merchantId": "MERCHANT-WIRE",
-    "merchantName": "Wire Transfer Service",
-    "merchantCategory": "FINANCIAL",
-    "location": {
-      "latitude": 40.7128,
-      "longitude": -74.0060,
-      "country": "US",
-      "city": "New York",
-      "timestamp": "2024-12-17T10:00:00Z"
-    },
-    "deviceId": "DEVICE-REGULAR",
-    "transactionTimestamp": "2024-12-17T10:00:00Z"
-  }'
-```
-
-**Expected Result**:
-- Risk Score: ~92+
-- Risk Level: CRITICAL
-- Decision: BLOCK
-- Triggered Rules: EXCESSIVELY_LARGE_AMOUNT
-
-### Test Scenario 6: Get Risk Assessment
-
-**Scenario**: Retrieve a previously assessed transaction
-
-```bash
-curl -X GET http://localhost:9001/fraud/assessments/11111111-1111-1111-1111-111111111111 \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Expected Result**: Returns the assessment for the low-risk transaction
-
-### Test Scenario 7: Search Assessments - High Risk Only
-
-**Scenario**: Find all high and critical risk assessments
-
-```bash
-curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Expected Result**: Paginated list of HIGH and CRITICAL assessments
-
-### Test Scenario 8: Search Assessments - Recent Only
-
-**Scenario**: Find assessments from the last hour
-
-```bash
-ONE_HOUR_AGO=$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')
-curl -X GET "http://localhost:9001/fraud/assessments?fromDate=$ONE_HOUR_AGO&page=0&size=20" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Expected Result**: Paginated list of recent assessments
-
-### Test Scenario 9: Unauthorized Access
-
-**Scenario**: Attempt to access endpoint without token
-
-```bash
-curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transactionId": "99999999-9999-9999-9999-999999999999",
-    "accountId": "ACC-UNAUTHORIZED",
-    "amount": 100.00,
-    "currency": "USD",
-    "type": "PURCHASE",
-    "channel": "ONLINE",
-    "transactionTimestamp": "2024-12-17T10:00:00Z"
-  }'
-```
-
-**Expected Result**:
-- Status: 401 Unauthorized
-- Error: Missing or invalid authentication
-
-### Test Scenario 10: Invalid Risk Level
-
-**Scenario**: Search with invalid risk level
-
-```bash
-curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=INVALID&page=0&size=10" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Expected Result**:
-- Status: 400 Bad Request
-- Error: Invalid transaction risk level
-
----
-
-## Testing with Postman
-
-### Postman Collection Setup
-
-#### Step 1: Create Collection
+**Step 1: Create Collection**
 
 1. Open Postman
 2. Click "New" → "Collection"
 3. Name: `Fraud Detection Service`
 4. Description: `API tests for fraud detection service`
 
-#### Step 2: Configure Collection Variables
+**Step 2: Configure Collection Variables**
 
 Add these variables (Collection → Variables tab):
 
@@ -1354,13 +1370,13 @@ Add these variables (Collection → Variables tab):
 | `baseUrl` | `http://localhost:9001` | `http://localhost:9001` |
 | `keycloakUrl` | `http://localhost:8180` | `http://localhost:8180` |
 | `realm` | `fraud-detection` | `fraud-detection` |
-| `clientId` | `fraud-detection-client` | `fraud-detection-client` |
-| `clientSecret` | `fraud-detection-client-secret` | `fraud-detection-client-secret` |
+| `clientId` | `fraud-detection-web` | `fraud-detection-web` |
+| `clientSecret` | `fraud-detection-web-secret` | `fraud-detection-web-secret` |
 | `username` | `detector` | `detector` |
 | `password` | `detector123` | `detector123` |
 | `accessToken` | (empty) | (will be populated) |
 
-#### Step 3: Configure Collection Authorization
+**Step 3: Configure Collection Authorization**
 
 1. Go to Collection → Authorization tab
 2. Type: `OAuth 2.0`
@@ -1379,9 +1395,7 @@ Scope: fraud:detect fraud:read
 4. Click "Get New Access Token"
 5. Click "Use Token"
 
-#### Step 4: Create Pre-request Script (Collection Level)
-
-Add this to Collection → Pre-request Scripts:
+**Step 4: Create Pre-request Script (Collection Level)**
 
 ```javascript
 // Auto-refresh token if expired
@@ -1416,350 +1430,218 @@ if (!tokenExpiry || now > tokenExpiry) {
 }
 ```
 
-### Request Examples
+### Testing with Kafka UI
 
-#### Request 1: Assess Low-Risk Transaction
+Kafka UI is available at **http://localhost:8083** and provides a web interface for:
+- Viewing topics and messages
+- Producing test messages
+- Monitoring consumer groups
+- Inspecting schemas
 
-**Method**: `POST`  
-**URL**: `{{baseUrl}}/fraud/assessments`  
-**Headers**:
-```
-Authorization: Bearer {{accessToken}}
-Content-Type: application/json
-```
+#### Test Scenario 1: Monitor Transaction Processing
 
-**Body** (raw JSON):
+**Objective**: Observe end-to-end transaction processing from Kafka to risk assessment
+
+1. **Navigate to Kafka UI**
+    - Open browser to http://localhost:8083
+    - Select cluster: `local`
+
+2. **View Topics**
+    - Click "Topics" in sidebar
+    - You should see:
+        - `transactions.normalized` (input)
+        - `fraud-detection.risk-assessments` (output)
+        - `fraud-detection.high-risk-alerts` (output)
+
+3. **Produce Test Transaction**
+    - Click on topic `transactions.normalized`
+    - Click "Produce Message"
+    - Set Key: `test-transaction-001`
+    - Set Value (JSON format):
 ```json
 {
-  "transactionId": "{{$randomUUID}}",
-  "accountId": "ACC-{{$randomInt}}",
-  "amount": 49.99,
+  "transactionId": "test-001-2024-12-24T10:00:00Z",
+  "accountId": "ACC-KAFKA-TEST",
+  "amount": 1500.50,
   "currency": "USD",
   "type": "PURCHASE",
   "channel": "ONLINE",
-  "merchantId": "MERCHANT-AMAZON",
-  "merchantName": "Amazon",
-  "merchantCategory": "E-COMMERCE",
+  "merchant": {
+    "id": "MERCHANT-001",
+    "name": "Test Merchant",
+    "category": "E-COMMERCE"
+  },
   "location": {
     "latitude": 40.7128,
     "longitude": -74.0060,
     "country": "US",
     "city": "New York",
-    "timestamp": "{{$isoTimestamp}}"
+    "timestamp": 1703419200000
   },
-  "deviceId": "DEVICE-{{$randomInt}}",
-  "transactionTimestamp": "{{$isoTimestamp}}"
+  "deviceId": "DEVICE-TEST-001",
+  "timestamp": 1703419200000
 }
 ```
+- Click "Produce Message"
 
-**Tests** (Tests tab):
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
+4. **Verify Processing**
+    - Navigate to `fraud-detection.risk-assessments` topic
+    - Click "Messages"
+    - You should see the risk assessment event with:
+        - Transaction ID
+        - Risk score
+        - Risk level
+        - Decision
 
-pm.test("Response has required fields", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property("assessmentId");
-    pm.expect(jsonData).to.have.property("transactionId");
-    pm.expect(jsonData).to.have.property("riskScore");
-    pm.expect(jsonData).to.have.property("transactionRiskLevel");
-    pm.expect(jsonData).to.have.property("decision");
-});
+5. **Check High-Risk Alerts**
+    - Navigate to `fraud-detection.high-risk-alerts` topic
+    - If risk was HIGH/CRITICAL, you'll see an alert event
 
-pm.test("Low risk assessment", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.transactionRiskLevel).to.equal("LOW");
-    pm.expect(jsonData.decision).to.equal("ALLOW");
-    pm.expect(jsonData.riskScore).to.be.below(41);
-});
+#### Test Scenario 2: Verify Schema Evolution
 
-// Save transaction ID for later tests
-pm.collectionVariables.set("lastTransactionId", pm.response.json().transactionId);
-```
+**Objective**: View and validate Avro schemas in Apicurio Registry
 
-#### Request 2: Assess Large Amount Transaction
+1. **View Schema Registry**
+    - Navigate to http://localhost:8082 (Apicurio UI)
+    - Or use Kafka UI → "Schema Registry" tab
 
-**Method**: `POST`  
-**URL**: `{{baseUrl}}/fraud/assessments`  
-**Headers**: (same as Request 1)
+2. **Check Transaction Schema**
+    - Click on `TransactionAvro` artifact
+    - View current version
+    - Check compatibility rules
 
-**Body**:
-```json
-{
-  "transactionId": "{{$randomUUID}}",
-  "accountId": "ACC-{{$randomInt}}",
-  "amount": 15000.00,
-  "currency": "USD",
-  "type": "PURCHASE",
-  "channel": "ONLINE",
-  "merchantId": "MERCHANT-BESTBUY",
-  "merchantName": "Best Buy",
-  "merchantCategory": "ELECTRONICS",
-  "location": {
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "country": "US",
-    "city": "New York",
-    "timestamp": "{{$isoTimestamp}}"
-  },
-  "deviceId": "DEVICE-{{$randomInt}}",
-  "transactionTimestamp": "{{$isoTimestamp}}"
-}
-```
+3. **Verify Event Schemas**
+    - Check `RiskAssessmentCompletedAvro`
+    - Check `HighRiskDetectedAvro`
 
-**Tests**:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
+#### Test Scenario 3: Consumer Group Monitoring
 
-pm.test("Medium or High risk", function () {
-    const jsonData = pm.response.json();
-    pm.expect(["MEDIUM", "HIGH", "CRITICAL"]).to.include(jsonData.transactionRiskLevel);
-});
+**Objective**: Monitor consumer lag and processing
 
-pm.test("Risk score appropriate", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.riskScore).to.be.at.least(40);
-});
-```
+1. **View Consumer Groups**
+    - In Kafka UI, click "Consumers"
+    - Find `fraud-detection-service` group
 
-#### Request 3: Assess Very Large Amount (Critical)
+2. **Check Lag**
+    - View lag per partition
+    - Ideal lag: 0 (real-time processing)
+    - High lag indicates processing delays
 
-**Method**: `POST`  
-**URL**: `{{baseUrl}}/fraud/assessments`  
-**Headers**: (same as Request 1)
+3. **Monitor Metrics**
+    - Messages consumed per second
+    - Consumer assignment
+    - Last commit time
 
-**Body**:
-```json
-{
-  "transactionId": "{{$randomUUID}}",
-  "accountId": "ACC-{{$randomInt}}",
-  "amount": 150000.00,
-  "currency": "USD",
-  "type": "WIRE",
-  "channel": "ONLINE",
-  "merchantId": "MERCHANT-WIRE",
-  "merchantName": "Wire Transfer Service",
-  "merchantCategory": "FINANCIAL",
-  "location": {
-    "latitude": 40.7128,
-    "longitude": -74.0060,
-    "country": "US",
-    "city": "New York",
-    "timestamp": "{{$isoTimestamp}}"
-  },
-  "deviceId": "DEVICE-{{$randomInt}}",
-  "transactionTimestamp": "{{$isoTimestamp}}"
-}
-```
+#### Test Scenario 4: Produce High-Volume Test
 
-**Tests**:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
+**Objective**: Test system under load
 
-pm.test("Critical risk assessment", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.transactionRiskLevel).to.equal("CRITICAL");
-    pm.expect(jsonData.decision).to.equal("BLOCK");
-    pm.expect(jsonData.riskScore).to.be.at.least(90);
-});
-```
-
-#### Request 4: Get Risk Assessment
-
-**Method**: `GET`  
-**URL**: `{{baseUrl}}/fraud/assessments/{{lastTransactionId}}`  
-**Headers**:
-```
-Authorization: Bearer {{accessToken}}
-```
-
-**Tests**:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Returns assessment for correct transaction", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.transactionId).to.equal(pm.collectionVariables.get("lastTransactionId"));
-});
-```
-
-#### Request 5: Search High-Risk Assessments
-
-**Method**: `GET`  
-**URL**: `{{baseUrl}}/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10`  
-**Headers**:
-```
-Authorization: Bearer {{accessToken}}
-```
-
-**Tests**:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Returns paginated results", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property("content");
-    pm.expect(jsonData).to.have.property("totalElements");
-    pm.expect(jsonData).to.have.property("totalPages");
-});
-
-pm.test("All results are HIGH or CRITICAL", function () {
-    const jsonData = pm.response.json();
-    jsonData.content.forEach(assessment => {
-        pm.expect(["HIGH", "CRITICAL"]).to.include(assessment.transactionRiskLevel);
-    });
-});
-```
-
-#### Request 6: Search Recent Assessments
-
-**Method**: `GET`  
-**URL**: `{{baseUrl}}/fraud/assessments?fromDate={{$isoTimestamp}}&page=0&size=20`  
-**Headers**:
-```
-Authorization: Bearer {{accessToken}}
-```
-
-**Pre-request Script**:
-```javascript
-// Set fromDate to 1 hour ago
-const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-pm.collectionVariables.set("oneHourAgo", oneHourAgo);
-```
-
-Update URL to: `{{baseUrl}}/fraud/assessments?fromDate={{oneHourAgo}}&page=0&size=20`
-
-**Tests**:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Returns only recent assessments", function () {
-    const jsonData = pm.response.json();
-    const oneHourAgo = pm.collectionVariables.get("oneHourAgo");
-    
-    jsonData.content.forEach(assessment => {
-        pm.expect(new Date(assessment.assessmentTime).getTime())
-            .to.be.at.least(new Date(oneHourAgo).getTime());
-    });
-});
-```
-
-#### Request 7: Invalid Transaction (Validation Error)
-
-**Method**: `POST`  
-**URL**: `{{baseUrl}}/fraud/assessments`  
-**Headers**: (same as Request 1)
-
-**Body** (missing required fields):
-```json
-{
-  "transactionId": "{{$randomUUID}}",
-  "accountId": "ACC-{{$randomInt}}",
-  "currency": "USD"
-}
-```
-
-**Tests**:
-```javascript
-pm.test("Status code is 400", function () {
-    pm.response.to.have.status(400);
-});
-
-pm.test("Returns validation errors", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property("code", "VALIDATION_ERROR");
-    pm.expect(jsonData).to.have.property("details");
-    pm.expect(jsonData.details).to.be.an("array");
-});
-```
-
-#### Request 8: Unauthorized Access
-
-**Method**: `POST`  
-**URL**: `{{baseUrl}}/fraud/assessments`  
-**Headers**:
-```
-Content-Type: application/json
-```
-(No Authorization header)
-
-**Body**: (any valid transaction body)
-
-**Tests**:
-```javascript
-pm.test("Status code is 401", function () {
-    pm.response.to.have.status(401);
-});
-```
-
-#### Request 9: Invalid Risk Level Search
-
-**Method**: `GET`  
-**URL**: `{{baseUrl}}/fraud/assessments?transactionRiskLevels=INVALID&page=0&size=10`  
-**Headers**:
-```
-Authorization: Bearer {{accessToken}}
-```
-
-**Tests**:
-```javascript
-pm.test("Status code is 400", function () {
-    pm.response.to.have.status(400);
-});
-
-pm.test("Returns invalid risk level error", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.code).to.equal("INVALID_RISK_LEVEL");
-});
-```
-
-### Running the Collection
-
-#### Option 1: Collection Runner
-
-1. Click "Collections" → "Fraud Detection Service"
-2. Click "Run"
-3. Select all requests
-4. Set iterations: 1
-5. Click "Run Fraud Detection Service"
-
-#### Option 2: Newman (CLI)
-
-Export collection and environment, then:
+1. **Bulk Produce Messages**
+    - Use Kafka UI bulk produce feature
+    - Or use script:
 
 ```bash
-npm install -g newman
-newman run fraud-detection-collection.json -e fraud-detection-environment.json
+# Produce 100 test transactions
+for i in {1..100}; do
+  docker exec fraud-detection-kafka kafka-console-producer \
+    --bootstrap-server localhost:9092 \
+    --topic transactions.normalized \
+    --property "parse.key=true" \
+    --property "key.separator=:" << EOF
+test-txn-$i:{
+  "transactionId": "bulk-test-$i",
+  "accountId": "ACC-BULK-TEST",
+  "amount": $((RANDOM % 10000 + 100)),
+  "currency": "USD",
+  "type": "PURCHASE",
+  "channel": "ONLINE",
+  "merchant": {"id": "M-$i", "name": "Merchant $i", "category": "RETAIL"},
+  "location": {"latitude": 40.7128, "longitude": -74.0060, "country": "US", "city": "New York", "timestamp": $(date +%s)000},
+  "deviceId": "DEVICE-$i",
+  "timestamp": $(date +%s)000
+}
+EOF
+done
 ```
 
-### Postman Environment Variables
+2. **Monitor Processing**
+    - Watch consumer lag in Kafka UI
+    - Check application logs: `docker logs fraud-detection-service-1`
+    - Monitor metrics: http://localhost:9001/actuator/prometheus
 
-Create an environment called "Fraud Detection - Dev":
+3. **Verify Results**
+    - Check output topics for assessment events
+    - Verify velocity rules triggered for high-frequency account
 
-| Variable | Initial Value | Current Value |
-|----------|---------------|---------------|
-| `baseUrl` | `http://localhost:9001` | `http://localhost:9001` |
-| `keycloakUrl` | `http://localhost:8180` | `http://localhost:8180` |
-| `realm` | `fraud-detection` | `fraud-detection` |
-| `clientId` | `fraud-detection-client` | `fraud-detection-client` |
-| `clientSecret` | `fraud-detection-client-secret` | `fraud-detection-client-secret` |
-| `username` | `detector` | `detector123` |
-| `password` | `detector123` | `detector123` |
-| `accessToken` | (empty) | (populated by pre-request script) |
-| `tokenExpiry` | (empty) | (populated by pre-request script) |
-| `lastTransactionId` | (empty) | (populated by tests) |
-| `oneHourAgo` | (empty) | (populated by tests) |
+#### Test Scenario 5: Test Idempotency
+
+**Objective**: Verify duplicate transaction handling
+
+1. **Produce Same Transaction Twice**
+```bash
+# First attempt
+docker exec fraud-detection-kafka kafka-console-producer \
+  --bootstrap-server localhost:9092 \
+  --topic transactions.normalized << EOF
+{
+  "transactionId": "idempotency-test-001",
+  "accountId": "ACC-IDEMPOTENT",
+  "amount": 500.00,
+  "currency": "USD",
+  "type": "PURCHASE",
+  "channel": "ONLINE",
+  "timestamp": $(date +%s)000
+}
+EOF
+
+# Second attempt (duplicate)
+docker exec fraud-detection-kafka kafka-console-producer \
+  --bootstrap-server localhost:9092 \
+  --topic transactions.normalized << EOF
+{
+  "transactionId": "idempotency-test-001",
+  "accountId": "ACC-IDEMPOTENT",
+  "amount": 500.00,
+  "currency": "USD",
+  "type": "PURCHASE",
+  "channel": "ONLINE",
+  "timestamp": $(date +%s)000
+}
+EOF
+```
+
+2. **Verify Single Processing**
+    - Check output topics - should only see ONE risk assessment event
+    - Check logs for "Duplicate transaction detected" message
+    - Verify Redis cache:
+```bash
+docker exec fraud-detection-redis redis-cli
+> GET seen:transaction:idempotency-test-001
+"true"
+```
+
+#### Test Scenario 6: OAuth Token Authentication
+
+**Objective**: Verify Kafka broker OAuth authentication
+
+1. **Check Kafka Logs**
+```bash
+docker logs fraud-detection-kafka 2>&1 | grep -i oauth
+```
+
+You should see successful OAuth token exchanges.
+
+2. **Verify Consumer Authentication**
+```bash
+docker logs fraud-detection-service-1 2>&1 | grep -i "authentication"
+```
+
+Should show successful SASL/OAUTHBEARER authentication.
+
+3. **Test Token Expiration**
+    - Wait for token to expire (60 minutes for Kafka client)
+    - Verify automatic token renewal in logs
+    - No interruption in message processing
 
 ---
 
@@ -1924,13 +1806,13 @@ docker-compose -f docker-compose/compose.yml logs -f postgres
 #### PostgreSQL (Application Database)
 
 **Port**: 5432  
-**Database**: `mydatabase`  
-**User**: `myuser`  
-**Password**: `secret`
+**Database**: `fraud_detection`  
+**User**: `postgres`  
+**Password**: `postgres`
 
 ```bash
 # Connect via psql
-docker exec -it fraud-detection-postgres psql -U myuser -d mydatabase
+docker exec -it fraud-detection-postgres psql -U postgres -d fraud_detection
 
 # View tables
 \dt
@@ -1999,6 +1881,19 @@ curl http://localhost:8081/apis/registry/v2/search/artifacts
 curl http://localhost:8081/apis/registry/v2/groups/default/artifacts/TransactionAvro
 ```
 
+#### Kafka UI
+
+**Port**: 8083
+
+**Web UI**: http://localhost:8083
+
+Features:
+- Browse topics and messages
+- View consumer groups and lag
+- Produce test messages
+- Monitor cluster health
+- Inspect schemas
+
 #### Keycloak (Identity Provider)
 
 **Port**: 8180  
@@ -2017,21 +1912,6 @@ docker exec -it fraud-detection-keycloak /opt/keycloak/bin/kc.sh export \
 
 # View logs
 docker logs fraud-detection-keycloak -f
-```
-
-#### PostgreSQL (Keycloak Database)
-
-**Port**: 5433  
-**Database**: `keycloak`  
-**User**: `keycloak`  
-**Password**: `keycloak`
-
-```bash
-# Connect
-docker exec -it fraud-detection-postgres-keycloak psql -U keycloak -d keycloak
-
-# View users
-SELECT username, email, enabled FROM user_entity;
 ```
 
 ### Database Migrations
@@ -2144,6 +2024,7 @@ spring:
   kafka:
     consumer:
       max-poll-records: 1000
+    listener:
       concurrency: 10  # Number of consumer threads
 ```
 
@@ -2211,8 +2092,11 @@ curl http://localhost:8180/realms/fraud-detection/.well-known/openid-configurati
 
 # Check token validity
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token/introspect \
-  -u fraud-detection-client:fraud-detection-client-secret \
+  -u fraud-detection-web:fraud-detection-web-secret \
   -d "token=<your-token>"
+
+# Verify audience in token
+echo $TOKEN | cut -d. -f2 | base64 -d | jq .aud
 ```
 
 #### 3. Kafka Connection Issues
@@ -2229,9 +2113,29 @@ docker exec -it fraud-detection-kafka kafka-broker-api-versions \
 docker exec -it fraud-detection-kafka kafka-topics \
   --bootstrap-server localhost:9092 \
   --create --topic transactions.normalized --partitions 10 --replication-factor 1
+
+# Check Kafka UI
+# Navigate to http://localhost:8083 and verify cluster health
 ```
 
-#### 4. SageMaker Integration
+#### 4. Kafka OAuth Issues
+
+**Error**: `SASL authentication failed`
+
+**Solution**:
+```bash
+# Check Keycloak token endpoint
+curl http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+  -d "grant_type=client_credentials" \
+  -d "client_id=fraud-detection-kafka" \
+  -d "client_secret=fraud-detection-kafka-secret"
+
+# Verify application.yml has correct OAuth config
+# Check application logs for OAuth errors
+docker logs fraud-detection-service-1 2>&1 | grep -i oauth
+```
+
+#### 5. SageMaker Integration
 
 **Error**: `Circuit breaker open` or `Prediction timeout`
 
@@ -2244,6 +2148,41 @@ export AWS_SAGEMAKER_ENABLED=false
 
 The system will use fallback predictions (fraud probability = 0.0).
 
+#### 6. Redis Connection Issues
+
+**Error**: `Could not connect to Redis`
+
+**Solution**:
+```bash
+# Check Redis is running
+docker exec fraud-detection-redis redis-cli ping
+
+# Verify connection from application
+docker exec fraud-detection-service-1 nc -zv redis 6379
+
+# Check Redis logs
+docker logs fraud-detection-redis
+```
+
+#### 7. Schema Registry Issues
+
+**Error**: `Schema not found` or `Serialization error`
+
+**Solution**:
+```bash
+# Check Apicurio Registry
+curl http://localhost:8081/apis/registry/v2/search/artifacts
+
+# Manually register schema
+curl -X POST http://localhost:8081/apis/registry/v2/groups/default/artifacts \
+  -H "Content-Type: application/json" \
+  -H "X-Registry-ArtifactId: TransactionAvro" \
+  -d @src/main/avro/transaction-event.avsc
+
+# Check in Apicurio UI
+# Navigate to http://localhost:8082
+```
+
 ---
 
 ## Additional Resources
@@ -2253,6 +2192,50 @@ The system will use fallback predictions (fraud probability = 0.0).
 - **Actuator**: http://localhost:9001/actuator
 - **Keycloak Admin**: http://localhost:8180/admin
 - **Apicurio UI**: http://localhost:8082
+- **Kafka UI**: http://localhost:8083
+
+### Documentation
+
+- **Spring Boot**: https://docs.spring.io/spring-boot/
+- **Spring Security OAuth2**: https://docs.spring.io/spring-security/reference/servlet/oauth2/index.html
+- **Keycloak**: https://www.keycloak.org/documentation
+- **Apache Kafka**: https://kafka.apache.org/documentation/
+- **Drools**: https://docs.drools.org/
+- **AWS SageMaker**: https://docs.aws.amazon.com/sagemaker/
+- **Apicurio Registry**: https://www.apicur.io/registry/docs/
+
+### Source Code Structure
+
+```
+fraud-detection-service/
+├── src/main/
+│   ├── java/com/twenty9ine/frauddetection/
+│   │   ├── application/          # Application layer
+│   │   │   ├── dto/              # Data Transfer Objects
+│   │   │   ├── port/in/          # Input ports (Use Cases)
+│   │   │   ├── port/out/         # Output ports (Interfaces)
+│   │   │   └── service/          # Application services
+│   │   ├── domain/               # Domain layer
+│   │   │   ├── aggregate/        # Aggregates
+│   │   │   ├── event/            # Domain events
+│   │   │   ├── exception/        # Domain exceptions
+│   │   │   ├── service/          # Domain services
+│   │   │   └── valueobject/      # Value objects
+│   │   └── infrastructure/       # Infrastructure layer
+│   │       ├── adapter/          # Adapters
+│   │       │   ├── cache/        # Redis adapter
+│   │       │   ├── kafka/        # Kafka adapters
+│   │       │   ├── ml/           # ML adapter
+│   │       │   ├── persistence/  # Database adapters
+│   │       │   └── rest/         # REST adapter
+│   │       └── config/           # Configuration
+│   ├── avro/                     # Avro schemas
+│   └── resources/
+│       ├── db/migration/         # Flyway migrations
+│       ├── rules/                # Drools rules
+│       └── application.yml       # Configuration
+└── docker-compose/               # Docker Compose files
+```
 
 ---
 
@@ -2266,5 +2249,6 @@ The system will use fallback predictions (fraud probability = 0.0).
 
 ---
 
-**Last Updated**: 18 December 2025  
-**Maintained By**: Ignatius Itumeleng Manota
+**Last Updated**: 24 December 2025  
+**Maintained By**: Ignatius Itumeleng Manota - itumeleng.manota@gmail.com 
+**Version**: 1.0.0

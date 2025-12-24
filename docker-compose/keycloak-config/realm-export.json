@@ -1,313 +1,323 @@
 {
-  "realm": "fraud-detection",
-  "enabled": true,
-  "sslRequired": "none",
-  "registrationAllowed": false,
-  "loginWithEmailAllowed": true,
-  "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": true,
-  "editUsernameAllowed": false,
-  "bruteForceProtected": true,
-  "accessTokenLifespan": 300,
-  "accessTokenLifespanForImplicitFlow": 900,
-  "ssoSessionIdleTimeout": 1800,
-  "ssoSessionMaxLifespan": 36000,
-  "offlineSessionIdleTimeout": 2592000,
-  "accessCodeLifespan": 60,
-  "accessCodeLifespanUserAction": 300,
-  "accessCodeLifespanLogin": 1800,
-  "actionTokenGeneratedByAdminLifespan": 43200,
-  "actionTokenGeneratedByUserLifespan": 300,
-  "oauth2DeviceCodeLifespan": 600,
-  "oauth2DevicePollingInterval": 5,
-  "clients": [
-    {
-      "clientId": "fraud-detection-service",
-      "name": "Fraud Detection Service (Resource Server)",
-      "description": "Resource server that validates JWT tokens",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "fraud-detection-secret",
-      "bearerOnly": true,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "publicClient": false,
-      "protocol": "openid-connect",
-      "attributes": {
-        "access.token.lifespan": "300",
-        "use.refresh.tokens": "true"
-      },
-      "defaultClientScopes": [
-        "web-origins",
-        "profile",
-        "roles",
-        "email"
-      ],
-      "optionalClientScopes": [
-        "address",
-        "phone",
-        "offline_access",
-        "microprofile-jwt"
-      ]
-    },
-    {
-      "clientId": "fraud-detection-web",
-      "name": "Fraud Detection Web Client",
-      "description": "Client for web applications, Swagger UI, and user authentication",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "fraud-detection-web-secret",
-      "bearerOnly": false,
-      "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": false,
-      "publicClient": false,
-      "protocol": "openid-connect",
-      "redirectUris": [
-        "http://localhost:9001/*",
-        "http://localhost:9001/swagger-ui/*",
-        "http://localhost:9001/swagger-ui/oauth2-redirect.html",
-        "http://localhost:8080/*",
-        "http://localhost:3000/*"
-      ],
-      "webOrigins": [
-        "http://localhost:9001",
-        "http://localhost:8080",
-        "http://localhost:3000",
-        "+"
-      ],
-      "attributes": {
-        "access.token.lifespan": "1800",
-        "use.refresh.tokens": "true",
-        "pkce.code.challenge.method": "S256"
-      },
-      "defaultClientScopes": [
-        "web-origins",
-        "profile",
-        "roles",
-        "email",
-        "fraud-detection-scopes"
-      ],
-      "optionalClientScopes": [
-        "address",
-        "phone",
-        "offline_access",
-        "microprofile-jwt"
-      ]
-    },
-    {
-      "clientId": "fraud-detection-kafka",
-      "name": "Fraud Detection Kafka Service Client",
-      "description": "Service client for Kafka broker authentication (Client Credentials flow)",
-      "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "fraud-detection-kafka-secret",
-      "bearerOnly": false,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": true,
-      "publicClient": false,
-      "protocol": "openid-connect",
-      "attributes": {
-        "access.token.lifespan": "3600",
-        "use.refresh.tokens": "false"
-      },
-      "defaultClientScopes": [
-        "kafka-scope"
-      ],
-      "optionalClientScopes": []
-    }
-  ],
-  "clientScopes": [
-    {
-      "name": "fraud-detection-scopes",
-      "description": "Fraud Detection API Scopes",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "true"
-      },
-      "protocolMappers": [
-        {
-          "name": "fraud:detect",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "config": {
-            "included.client.audience": "fraud-detection-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
+        "realm": "fraud-detection",
+        "enabled": true,
+        "sslRequired": "none",
+        "registrationAllowed": false,
+        "loginWithEmailAllowed": true,
+        "duplicateEmailsAllowed": false,
+        "resetPasswordAllowed": true,
+        "editUsernameAllowed": false,
+        "bruteForceProtected": true,
+        "accessTokenLifespan": 300,
+        "accessTokenLifespanForImplicitFlow": 900,
+        "ssoSessionIdleTimeout": 1800,
+        "ssoSessionMaxLifespan": 36000,
+        "offlineSessionIdleTimeout": 2592000,
+        "accessCodeLifespan": 60,
+        "accessCodeLifespanUserAction": 300,
+        "accessCodeLifespanLogin": 1800,
+        "actionTokenGeneratedByAdminLifespan": 43200,
+        "actionTokenGeneratedByUserLifespan": 300,
+        "oauth2DeviceCodeLifespan": 600,
+        "oauth2DevicePollingInterval": 5,
+        "clientScopes": [
+          {
+            "name": "fraud-detection-scopes",
+            "description": "Fraud Detection API Scopes",
+            "protocol": "openid-connect",
+            "attributes": {
+              "include.in.token.scope": "true",
+              "display.on.consent.screen": "true"
+            },
+            "protocolMappers": [
+              {
+                "name": "fraud:detect",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "config": {
+                  "included.client.audience": "fraud-detection-service",
+                  "id.token.claim": "false",
+                  "access.token.claim": "true"
+                }
+              },
+              {
+                "name": "fraud:read",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "config": {
+                  "included.client.audience": "fraud-detection-service",
+                  "id.token.claim": "false",
+                  "access.token.claim": "true"
+                }
+              }
+            ]
+          },
+          {
+            "name": "kafka",
+            "description": "Kafka broker access scope",
+            "protocol": "openid-connect",
+            "attributes": {
+              "include.in.token.scope": "true",
+              "display.on.consent.screen": "false",
+              "consent.screen.text": ""
+            },
+            "protocolMappers": [
+              {
+                "name": "kafka-audience-mapper",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "consentRequired": false,
+                "config": {
+                  "included.client.audience": "kafka",
+                  "id.token.claim": "false",
+                  "access.token.claim": "true"
+                }
+              }
+            ]
+          }
+        ],
+        "clients": [
+          {
+            "clientId": "fraud-detection-service",
+            "name": "Fraud Detection Service (Resource Server)",
+            "description": "Resource server that validates JWT tokens",
+            "enabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "fraud-detection-secret",
+            "bearerOnly": true,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": false,
+            "serviceAccountsEnabled": false,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "attributes": {
+              "access.token.lifespan": "300",
+              "use.refresh.tokens": "true"
+            },
+            "defaultClientScopes": [
+              "web-origins",
+              "profile",
+              "roles",
+              "email"
+            ],
+            "optionalClientScopes": [
+              "address",
+              "phone",
+              "offline_access",
+              "microprofile-jwt"
+            ]
+          },
+          {
+            "clientId": "fraud-detection-web",
+            "name": "Fraud Detection Web Client",
+            "description": "Client for web applications, Swagger UI, and user authentication",
+            "enabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "fraud-detection-web-secret",
+            "bearerOnly": false,
+            "standardFlowEnabled": true,
+            "directAccessGrantsEnabled": true,
+            "serviceAccountsEnabled": false,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "redirectUris": [
+              "http://localhost:9001/*",
+              "http://localhost:9001/swagger-ui/*",
+              "http://localhost:9001/swagger-ui/oauth2-redirect.html",
+              "http://localhost:8080/*",
+              "http://localhost:3000/*"
+            ],
+            "webOrigins": [
+              "http://localhost:9001",
+              "http://localhost:8080",
+              "http://localhost:3000",
+              "+"
+            ],
+            "attributes": {
+              "access.token.lifespan": "1800",
+              "use.refresh.tokens": "true",
+              "pkce.code.challenge.method": "S256"
+            },
+            "defaultClientScopes": [
+              "web-origins",
+              "profile",
+              "roles",
+              "email",
+              "fraud-detection-scopes"
+            ],
+            "optionalClientScopes": [
+              "address",
+              "phone",
+              "offline_access",
+              "microprofile-jwt"
+            ]
+          },
+          {
+            "clientId": "fraud-detection-kafka",
+            "name": "Fraud Detection Kafka Service Client",
+            "description": "Service client for Kafka broker authentication (Client Credentials flow)",
+            "enabled": true,
+            "clientAuthenticatorType": "client-secret",
+            "secret": "fraud-detection-kafka-secret",
+            "bearerOnly": false,
+            "standardFlowEnabled": false,
+            "directAccessGrantsEnabled": true,
+            "serviceAccountsEnabled": true,
+            "publicClient": false,
+            "protocol": "openid-connect",
+            "attributes": {
+              "access.token.lifespan": "3600",
+              "use.refresh.tokens": "false"
+            },
+            "defaultClientScopes": [
+              "kafka",
+              "profile",
+              "email"
+            ],
+            "optionalClientScopes": [
+              "address",
+              "phone",
+              "offline_access",
+              "microprofile-jwt"
+            ],
+            "fullScopeAllowed": true
+          }
+        ],
+        "roles": {
+          "realm": [
+            {
+              "name": "fraud_analyst",
+              "description": "Fraud analyst role with read access",
+              "composite": false
+            },
+            {
+              "name": "fraud_detector",
+              "description": "Fraud detector role with detection capabilities",
+              "composite": false
+            },
+            {
+              "name": "fraud_admin",
+              "description": "Fraud administrator with full access",
+              "composite": true,
+              "composites": {
+                "realm": ["fraud_analyst", "fraud_detector"]
+              }
+            }
+          ],
+          "client": {
+            "fraud-detection-service": [
+              {
+                "name": "fraud:detect",
+                "description": "Permission to detect fraud",
+                "composite": false
+              },
+              {
+                "name": "fraud:read",
+                "description": "Permission to read fraud assessments",
+                "composite": false
+              }
+            ]
           }
         },
-        {
-          "name": "fraud:read",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "config": {
-            "included.client.audience": "fraud-detection-service",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
+        "users": [
+          {
+            "username": "analyst",
+            "enabled": true,
+            "email": "analyst@frauddetection.com",
+            "emailVerified": true,
+            "firstName": "Fraud",
+            "lastName": "Analyst",
+            "credentials": [
+              {
+                "type": "password",
+                "value": "analyst123",
+                "temporary": false
+              }
+            ],
+            "realmRoles": ["fraud_analyst"],
+            "clientRoles": {
+              "fraud-detection-service": ["fraud:read"]
+            }
+          },
+          {
+            "username": "detector",
+            "enabled": true,
+            "email": "detector@frauddetection.com",
+            "emailVerified": true,
+            "firstName": "Fraud",
+            "lastName": "Detector",
+            "credentials": [
+              {
+                "type": "password",
+                "value": "detector123",
+                "temporary": false
+              }
+            ],
+            "realmRoles": ["fraud_detector"],
+            "clientRoles": {
+              "fraud-detection-service": ["fraud:detect", "fraud:read"]
+            }
+          },
+          {
+            "username": "admin",
+            "enabled": true,
+            "email": "admin@frauddetection.com",
+            "emailVerified": true,
+            "firstName": "Fraud",
+            "lastName": "Admin",
+            "credentials": [
+              {
+                "type": "password",
+                "value": "admin123",
+                "temporary": false
+              }
+            ],
+            "realmRoles": ["fraud_admin"],
+            "clientRoles": {
+              "fraud-detection-service": ["fraud:detect", "fraud:read"]
+            }
           }
-        }
-      ]
-    },
-    {
-      "name": "kafka-scope",
-      "description": "Kafka broker access scope",
-      "protocol": "openid-connect",
-      "attributes": {
-        "include.in.token.scope": "true",
-        "display.on.consent.screen": "false"
-      },
-      "protocolMappers": [
-        {
-          "name": "kafka-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "config": {
-            "included.client.audience": "kafka",
-            "id.token.claim": "false",
-            "access.token.claim": "true"
+        ],
+        "scopeMappings": [
+          {
+            "clientScope": "fraud-detection-scopes",
+            "roles": ["fraud_analyst", "fraud_detector", "fraud_admin"]
           }
-        }
-      ]
-    }
-  ],
-  "roles": {
-    "realm": [
-      {
-        "name": "fraud_analyst",
-        "description": "Fraud analyst role with read access",
-        "composite": false
-      },
-      {
-        "name": "fraud_detector",
-        "description": "Fraud detector role with detection capabilities",
-        "composite": false
-      },
-      {
-        "name": "fraud_admin",
-        "description": "Fraud administrator with full access",
-        "composite": true,
-        "composites": {
-          "realm": ["fraud_analyst", "fraud_detector"]
-        }
-      }
-    ],
-    "client": {
-      "fraud-detection-service": [
-        {
-          "name": "fraud:detect",
-          "description": "Permission to detect fraud",
-          "composite": false
+        ],
+        "clientScopeMappings": {
+          "fraud-detection-service": [
+            {
+              "client": "fraud-detection-web",
+              "roles": ["fraud:detect", "fraud:read"]
+            }
+          ]
         },
-        {
-          "name": "fraud:read",
-          "description": "Permission to read fraud assessments",
-          "composite": false
-        }
-      ]
-    }
-  },
-  "users": [
-    {
-      "username": "analyst",
-      "enabled": true,
-      "email": "analyst@frauddetection.com",
-      "emailVerified": true,
-      "firstName": "Fraud",
-      "lastName": "Analyst",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "analyst123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["fraud_analyst"],
-      "clientRoles": {
-        "fraud-detection-service": ["fraud:read"]
+        "protocolMappers": [
+          {
+            "name": "realm-roles",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-realm-role-mapper",
+            "config": {
+              "claim.name": "realm_roles",
+              "jsonType.label": "String",
+              "multivalued": "true",
+              "userinfo.token.claim": "true",
+              "id.token.claim": "true",
+              "access.token.claim": "true"
+            }
+          },
+          {
+            "name": "client-roles",
+            "protocol": "openid-connect",
+            "protocolMapper": "oidc-usermodel-client-role-mapper",
+            "config": {
+              "claim.name": "resource_access.${client_id}.roles",
+              "jsonType.label": "String",
+              "multivalued": "true",
+              "userinfo.token.claim": "true",
+              "id.token.claim": "true",
+              "access.token.claim": "true"
+            }
+          }
+        ]
       }
-    },
-    {
-      "username": "detector",
-      "enabled": true,
-      "email": "detector@frauddetection.com",
-      "emailVerified": true,
-      "firstName": "Fraud",
-      "lastName": "Detector",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "detector123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["fraud_detector"],
-      "clientRoles": {
-        "fraud-detection-service": ["fraud:detect", "fraud:read"]
-      }
-    },
-    {
-      "username": "admin",
-      "enabled": true,
-      "email": "admin@frauddetection.com",
-      "emailVerified": true,
-      "firstName": "Fraud",
-      "lastName": "Admin",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "admin123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["fraud_admin"],
-      "clientRoles": {
-        "fraud-detection-service": ["fraud:detect", "fraud:read"]
-      }
-    }
-  ],
-  "scopeMappings": [
-    {
-      "clientScope": "fraud-detection-scopes",
-      "roles": ["fraud_analyst", "fraud_detector", "fraud_admin"]
-    }
-  ],
-  "clientScopeMappings": {
-    "fraud-detection-service": [
-      {
-        "client": "fraud-detection-web",
-        "roles": ["fraud:detect", "fraud:read"]
-      }
-    ]
-  },
-  "protocolMappers": [
-    {
-      "name": "realm-roles",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-realm-role-mapper",
-      "config": {
-        "claim.name": "realm_roles",
-        "jsonType.label": "String",
-        "multivalued": "true",
-        "userinfo.token.claim": "true",
-        "id.token.claim": "true",
-        "access.token.claim": "true"
-      }
-    },
-    {
-      "name": "client-roles",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-client-role-mapper",
-      "config": {
-        "claim.name": "resource_access.${client_id}.roles",
-        "jsonType.label": "String",
-        "multivalued": "true",
-        "userinfo.token.claim": "true",
-        "id.token.claim": "true",
-        "access.token.claim": "true"
-      }
-    }
-  ]
-}
