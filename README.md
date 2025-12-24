@@ -874,7 +874,7 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
   -d "client_secret=fraud-detection-web-secret" \
   -d "username=detector" \
   -d "password=detector123" \
-  -d "scope=fraud:detect fraud:read"
+  -d "scope=openid fraud-detection-scopes"
 ```
 
 **Response:**
@@ -882,9 +882,11 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 {
   "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
   "expires_in": 1800,
+  "refresh_expires_in": 1800,
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
   "token_type": "Bearer",
-  "scope": "fraud:detect fraud:read"
+  "id_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
+  "scope": "openid fraud-detection-scopes"
 }
 ```
 
@@ -897,6 +899,17 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
   -d "client_id=fraud-detection-kafka" \
   -d "client_secret=fraud-detection-kafka-secret" \
   -d "scope=kafka"
+```
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
+  "expires_in": 3600,
+  "refresh_expires_in": 0,
+  "token_type": "Bearer",
+  "scope": "kafka"
+}
 ```
 
 #### Method 3: Authorization Code Flow (for web applications)
@@ -1173,7 +1186,7 @@ export TOKEN=$(curl -X POST http://localhost:8180/realms/fraud-detection/protoco
   -d "client_secret=fraud-detection-web-secret" \
   -d "username=detector" \
   -d "password=detector123" \
-  -d "scope=fraud:detect fraud:read" | jq -r '.access_token')
+  -d "scope=openid fraud-detection-scopes" | jq -r '.access_token')
 ```
 
 #### Test Scenario 1: Low-Risk Transaction

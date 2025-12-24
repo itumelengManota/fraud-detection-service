@@ -7,32 +7,12 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-    security: # Security Configuration (OAuth2)
-      protocol: SASL_PLAINTEXT  # Use SASL_SSL in production
-
     properties:
       max.poll.interval.ms: 300000
       isolation.level: read_committed
       connections.max.idle.ms: 540000
       request.timeout.ms: 30000
       session.timeout.ms: 45000
-      sasl: # SASL/OAUTHBEARER Configuration
-        mechanism: OAUTHBEARER
-        jaas:
-          config: >
-            org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
-            clientId='${KAFKA_CLIENT_ID:fraud-detection-kafka}'
-            clientSecret='${KAFKA_CLIENT_SECRET:fraud-detection-kafka-secret}'
-            scope='kafka'
-            tokenEndpointUri='${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token';
-        login:
-          callback:
-            handler:
-              class: org.apache.kafka.common.security.oauthbearer.secured.OAuthBearerLoginCallbackHandler
-        oauthbearer:
-          token:
-            endpoint:
-              url: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token
     consumer:
       group-id: fraud-detection-service
       enable-auto-commit: false
@@ -51,9 +31,6 @@ spring:
         apicurio.registry.use-specific-avro-reader: true
         specific.avro.reader: true
         apicurio.registry.check-period-ms: 30000
-        # OAuth for consumer (inherits from parent properties)
-        sasl.mechanism: OAUTHBEARER
-        security.protocol: SASL_PLAINTEXT
 
     producer:
       acks: all
@@ -70,9 +47,6 @@ spring:
         apicurio.registry.auto-register: true
         enable.idempotence: true
         max.in.flight.requests.per.connection: 5
-        # OAuth for producer (inherits from parent properties)
-        sasl.mechanism: OAUTHBEARER
-        security.protocol: SASL_PLAINTEXT
 
     listener:
       ack-mode: manual
@@ -84,17 +58,12 @@ spring:
 
     # Admin Configuration (for topic management)
     admin:
-      properties:
-        sasl.mechanism: OAUTHBEARER
-        security.protocol: SASL_PLAINTEXT
       fail-fast: false
 
     # Streams Configuration (if using Kafka Streams)
     streams:
       application-id: ${spring.application.name}
       properties:
-        sasl.mechanism: OAUTHBEARER
-        security.protocol: SASL_PLAINTEXT
         default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
         default.value.serde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
         commit.interval.ms: 1000
@@ -246,11 +215,11 @@ logging:
   pattern:
     level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]'
   level:
-    com.twenty9ine.frauddetection: DEBUG
-    software.amazon.awssdk: DEBUG
-    org.springframework.kafka: DEBUG
-    org.apache.kafka: DEBUG
-    org.springframework.security: DEBUG
+    com.twenty9ine.frauddetection: INFO
+    software.amazon.awssdk: INFO
+    org.springframework.kafka: INFO
+    org.apache.kafka: INFO
+    org.springframework.security: INFO
 
 springdoc:
   api-docs:
@@ -260,7 +229,7 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
     oauth:
-      client-id: fraud-detection-web          ¬
+      client-id: fraud-detection-web
       client-secret: fraud-detection-web-secret
       use-pkce-with-authorization-code-grant: true
     oauth2-redirect-url: http://localhost:${server.port}/swagger-ui/oauth2-redirect.html

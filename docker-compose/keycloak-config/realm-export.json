@@ -31,7 +31,7 @@
             },
             "protocolMappers": [
               {
-                "name": "fraud:detect",
+                "name": "audience-mapper",
                 "protocol": "openid-connect",
                 "protocolMapper": "oidc-audience-mapper",
                 "config": {
@@ -41,13 +41,18 @@
                 }
               },
               {
-                "name": "fraud:read",
+                "name": "client-roles-mapper",
                 "protocol": "openid-connect",
-                "protocolMapper": "oidc-audience-mapper",
+                "protocolMapper": "oidc-usermodel-client-role-mapper",
                 "config": {
-                  "included.client.audience": "fraud-detection-service",
-                  "id.token.claim": "false",
-                  "access.token.claim": "true"
+                  "user.attribute": "fraud-detection-service",
+                  "claim.name": "resource_access.fraud-detection-service.roles",
+                  "jsonType.label": "String",
+                  "multivalued": "true",
+                  "usermodel.clientRoleMapping.clientId": "fraud-detection-service",
+                  "id.token.claim": "true",
+                  "access.token.claim": "true",
+                  "userinfo.token.claim": "true"
                 }
               }
             ]
@@ -95,16 +100,10 @@
               "use.refresh.tokens": "true"
             },
             "defaultClientScopes": [
-              "web-origins",
-              "profile",
-              "roles",
-              "email"
+              "fraud-detection-scopes"
             ],
             "optionalClientScopes": [
-              "address",
-              "phone",
-              "offline_access",
-              "microprofile-jwt"
+              "kafka"
             ]
           },
           {
@@ -139,17 +138,10 @@
               "pkce.code.challenge.method": "S256"
             },
             "defaultClientScopes": [
-              "web-origins",
-              "profile",
-              "roles",
-              "email",
               "fraud-detection-scopes"
             ],
             "optionalClientScopes": [
-              "address",
-              "phone",
-              "offline_access",
-              "microprofile-jwt"
+              "kafka"
             ]
           },
           {
@@ -170,16 +162,9 @@
               "use.refresh.tokens": "false"
             },
             "defaultClientScopes": [
-              "kafka",
-              "profile",
-              "email"
+              "kafka"
             ],
-            "optionalClientScopes": [
-              "address",
-              "phone",
-              "offline_access",
-              "microprofile-jwt"
-            ],
+            "optionalClientScopes": [],
             "fullScopeAllowed": true
           }
         ],

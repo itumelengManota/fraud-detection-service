@@ -119,25 +119,22 @@ public class SageMakerMLAdapter implements MLServicePort {
     }
 
     private MLPrediction parsePrediction(String responseBody) throws Exception {
-        // Parse SageMaker response format
-        // Adjust based on your model's output format
-        @SuppressWarnings("unchecked")
-        Map<String, Object> response = objectMapper.readValue(responseBody, Map.class);
+        double[] response = objectMapper.readValue(responseBody, double[].class);
 
-        double fraudProbability = ((Number) response.get("fraud_probability")).doubleValue();
-        double confidence = response.containsKey("confidence") ?
-                ((Number) response.get("confidence")).doubleValue() : 0.95;
+        if (response.length == 0) {
+            log.warn("Empty response from SageMaker, using fallback");
+            return fallbackPrediction();
+        }
 
-        @SuppressWarnings("unchecked")
-        Map<String, Double> featureImportance = response.containsKey("feature_importance") ?
-                (Map<String, Double>) response.get("feature_importance") : Map.of();
+        double fraudProbability = response[0];
+        double confidence = 0.95;
 
         return new MLPrediction(
                 endpointName,
                 modelVersion,
                 fraudProbability,
                 confidence,
-                featureImportance
+                Map.of() // Empty feature importance for simple predictions
         );
     }
 
