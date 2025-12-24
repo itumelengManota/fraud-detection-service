@@ -1,38 +1,37 @@
+# ==============================================================================
+# Production Configuration Profile
+# ==============================================================================
+# File: src/main/resources/application-prod.yml
+# Activate with: --spring.profiles.active=prod
+# Or environment variable: SPRING_PROFILES_ACTIVE=prod
+# ==============================================================================
+
 spring:
   application:
     name: fraud-detection-service
 
-  # Kafka Configuration (Production)
+  # Kafka Configuration - Production
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-1:9093,kafka-2:9093,kafka-3:9093}
-
-    # Security Configuration (OAuth2 with SSL)
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka-broker-1.prod:9093,kafka-broker-2.prod:9093,kafka-broker-3.prod:9093}
+    
     security:
-      protocol: SASL_SSL
-
-    ssl:
-      trust-store-location: ${KAFKA_TRUSTSTORE_LOCATION:file:/etc/kafka/secrets/kafka.truststore.jks}
-      trust-store-password: ${KAFKA_TRUSTSTORE_PASSWORD}
-      trust-store-type: JKS
-      key-store-location: ${KAFKA_KEYSTORE_LOCATION:file:/etc/kafka/secrets/kafka.keystore.jks}
-      key-store-password: ${KAFKA_KEYSTORE_PASSWORD}
-      key-store-type: JKS
-      key-password: ${KAFKA_KEY_PASSWORD}
-      enabled-protocols: TLSv1.3,TLSv1.2
-      protocol: TLSv1.3
-      endpoint-identification-algorithm: https
-
+      protocol: SASL_SSL  # Use SSL in production!
+    
     properties:
-      # SASL/OAUTHBEARER Configuration
+      # SSL Configuration for Production
+      ssl.endpoint.identification.algorithm: https
+      ssl.truststore.location: ${KAFKA_TRUSTSTORE_LOCATION:/etc/kafka/certs/kafka.truststore.jks}
+      ssl.truststore.password: ${KAFKA_TRUSTSTORE_PASSWORD}
+      
       sasl:
         mechanism: OAUTHBEARER
         jaas:
           config: >
             org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
-            clientId='${KEYCLOAK_CLIENT_ID:fraud-detection-service}'
-            clientSecret='${KEYCLOAK_CLIENT_SECRET}'
+            clientId='${KAFKA_CLIENT_ID:fraud-detection-kafka}'
+            clientSecret='${KAFKA_CLIENT_SECRET}'
             scope='kafka'
-            tokenEndpointUri='${KEYCLOAK_ISSUER_URI}/protocol/openid-connect/token';
+            tokenEndpointUri='${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token';
         login:
           callback:
             handler:
@@ -40,419 +39,179 @@ spring:
         oauthbearer:
           token:
             endpoint:
-              url: ${KEYCLOAK_ISSUER_URI}/protocol/openid-connect/token
-          jwks:
-            endpoint:
-              url: ${KEYCLOAK_ISSUER_URI}/protocol/openid-connect/certs
-          scope:
-            claim:
-              name: scope
-          sub:
-            claim:
-              name: sub
-
-      # Connection and Request Configuration
-      max.poll.interval.ms: 600000  # 10 minutes
-      isolation.level: read_committed
-      connections.max.idle.ms: 600000  # 10 minutes
-      request.timeout.ms: 60000  # 60 seconds
-      session.timeout.ms: 60000  # 60 seconds
-      metadata.max.age.ms: 300000  # 5 minutes
-      retry.backoff.ms: 1000
-      reconnect.backoff.ms: 1000
-      reconnect.backoff.max.ms: 10000
-
-    # Consumer Configuration (Production)
+              url: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token
+    
     consumer:
-      group-id: ${spring.application.name}
-      client-id: ${spring.application.name}-consumer-${HOSTNAME:${random.uuid}}
-      enable-auto-commit: false
-      auto-offset-reset: earliest
-      max-poll-records: 500  # Reduced for production stability
-      fetch-min-size: 10240  # 10KB
-      fetch-max-wait: 1000  # 1 second
-      heartbeat-interval: 10000  # 10 seconds
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
       properties:
-        # Apicurio Registry Configuration
-        apicurio.registry.url: ${APICURIO_REGISTRY_URL:https://schema-registry.production.internal/apis/registry/v2}
-        apicurio.registry.auto-register: false  # Disable auto-registration in production
-        apicurio.registry.find-latest: true
-        apicurio.registry.use-specific-avro-reader: true
-        apicurio.registry.check-period-ms: 60000  # 1 minute
-        apicurio.registry.artifact-resolver-strategy: io.apicurio.registry.serde.avro.strategy.RecordIdStrategy
-        apicurio.registry.request.ssl.truststore.location: ${APICURIO_TRUSTSTORE_LOCATION:file:/etc/apicurio/secrets/truststore.jks}
-        apicurio.registry.request.ssl.truststore.password: ${APICURIO_TRUSTSTORE_PASSWORD}
-        apicurio.registry.request.ssl.truststore.type: JKS
-        specific.avro.reader: true
-        # OAuth for consumer
-        sasl.mechanism: OAUTHBEARER
+        # Apicurio Registry - Production
+        apicurio.registry.url: ${APICURIO_REGISTRY_URL:https://schema-registry.prod.example.com/apis/registry/v2}
         security.protocol: SASL_SSL
-        # Partition assignment strategy
-        partition.assignment.strategy: org.apache.kafka.clients.consumer.CooperativeStickyAssignor
-
-    # Producer Configuration (Production)
+        sasl.mechanism: OAUTHBEARER
+    
     producer:
-      acks: all
-      retries: 10
-      compression-type: zstd  # Better compression than snappy
-      batch-size: 32768  # 32KB
-      buffer-memory: 67108864  # 64MB
-      linger: 100  # 100ms
-      max-request-size: 1048576  # 1MB
-      client-id: ${spring.application.name}-producer-${HOSTNAME:${random.uuid}}
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
       properties:
-        # Apicurio Registry Configuration
-        apicurio.registry.url: ${APICURIO_REGISTRY_URL:https://schema-registry.production.internal/apis/registry/v2}
-        apicurio.registry.auto-register: false  # Disable auto-registration in production
-        apicurio.registry.artifact-resolver-strategy: io.apicurio.registry.serde.avro.strategy.RecordIdStrategy
-        apicurio.registry.request.ssl.truststore.location: ${APICURIO_TRUSTSTORE_LOCATION:file:/etc/apicurio/secrets/truststore.jks}
-        apicurio.registry.request.ssl.truststore.password: ${APICURIO_TRUSTSTORE_PASSWORD}
-        apicurio.registry.request.ssl.truststore.type: JKS
-        # Idempotence and reliability
-        enable.idempotence: true
-        max.in.flight.requests.per.connection: 5
-        delivery.timeout.ms: 120000  # 2 minutes
-        # OAuth for producer
-        sasl.mechanism: OAUTHBEARER
+        # Apicurio Registry - Production
+        apicurio.registry.url: ${APICURIO_REGISTRY_URL:https://schema-registry.prod.example.com/apis/registry/v2}
         security.protocol: SASL_SSL
-        # Transactional properties
-        transactional.id: ${spring.application.name}-${HOSTNAME:${random.uuid}}
-
-    # Listener Configuration (Production)
-    listener:
-      ack-mode: manual
-      concurrency: ${KAFKA_LISTENER_CONCURRENCY:8}  # Configurable per environment
-      type: batch
-      poll-timeout: 5000
-      missing-topics-fatal: true  # Fail fast in production
-      immediate-stop: true  # Stop immediately on shutdown
-      idle-between-polls: 0
-      idle-event-interval: 60000  # 1 minute
-      log-container-config: false
-      only-log-record-metadata: true
-
-    # Admin Configuration (Production)
+        sasl.mechanism: OAUTHBEARER
+    
     admin:
-      client-id: ${spring.application.name}-admin
-      fail-fast: true  # Fail fast in production
       properties:
-        sasl.mechanism: OAUTHBEARER
         security.protocol: SASL_SSL
-        request.timeout.ms: 60000
-        default.api.timeout.ms: 60000
-
-    # Streams Configuration (Production)
+        sasl.mechanism: OAUTHBEARER
+    
     streams:
-      application-id: ${spring.application.name}-streams
-      client-id: ${spring.application.name}-streams-${HOSTNAME:${random.uuid}}
-      replication-factor: 3
-      state-dir: ${KAFKA_STREAMS_STATE_DIR:/var/lib/kafka-streams}
       properties:
-        sasl.mechanism: OAUTHBEARER
         security.protocol: SASL_SSL
-        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
-        default.value.serde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
-        commit.interval.ms: 5000  # 5 seconds
-        num.stream.threads: ${KAFKA_STREAMS_THREADS:4}
-        cache.max.bytes.buffering: 10485760  # 10MB
-        state.cleanup.delay.ms: 600000  # 10 minutes
-        processing.guarantee: exactly_once_v2
-        topology.optimization: all
+        sasl.mechanism: OAUTHBEARER
 
-  # Security (OAuth2 Resource Server)
+  # Database Configuration - Production
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:fraud-detection-db.prod.rds.amazonaws.com}:${DB_PORT:5432}/${DB_NAME:fraud_detection_prod}?sslmode=require
+    username: ${DB_USERNAME:fraud_app_user}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 100  # Increased for production
+      minimum-idle: 20
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  # Redis Configuration - Production
+  data:
+    redis:
+      host: ${REDIS_HOST:fraud-detection-redis.prod.cache.amazonaws.com}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      ssl: true  # Enable SSL for production
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 5
+
+  # Security Configuration - Production
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_ISSUER_URI:https://keycloak.production.internal/realms/fraud-detection}
-          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs}
-          audiences: ${KEYCLOAK_AUDIENCES:fraud-detection-service,account}
+          issuer-uri: ${JWT_ISSUER_URI:https://keycloak.prod.example.com/realms/fraud-detection}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://keycloak.prod.example.com/realms/fraud-detection/protocol/openid-connect/certs}
+          audiences:
+            - fraud-detection-service
+            - fraud-detection-web
+            - account
 
-  # Database Configuration (Production)
-  datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://postgres-primary:5432/fraud_detection_db?ssl=true&sslmode=require}
-    username: ${DATABASE_USERNAME:fraud_detection_user}
-    password: ${DATABASE_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      pool-name: FraudDetectionHikariPool
-      maximum-pool-size: ${DATABASE_POOL_SIZE:20}
-      minimum-idle: ${DATABASE_MIN_IDLE:5}
-      idle-timeout: 300000  # 5 minutes
-      max-lifetime: 1800000  # 30 minutes
-      connection-timeout: 30000  # 30 seconds
-      leak-detection-threshold: 60000  # 1 minute
-      auto-commit: false
-      connection-test-query: SELECT 1
-      validation-timeout: 5000
-      data-source-properties:
-        cachePrepStmts: true
-        prepStmtCacheSize: 250
-        prepStmtCacheSqlLimit: 2048
-        useServerPrepStmts: true
-        reWriteBatchedInserts: true
-        tcpKeepAlive: true
-        ApplicationName: ${spring.application.name}
+# Apicurio Registry - Production
+apicurio:
+  registry:
+    url: ${APICURIO_REGISTRY_URL:https://schema-registry.prod.example.com/apis/registry/v2}
 
-  # Flyway Configuration (Production)
-  flyway:
-    enabled: true
-    baseline-on-migrate: false
-    validate-on-migrate: true
-    out-of-order: false
-    locations: classpath:db/migration
-    placeholder-replacement: true
-    placeholders:
-      app_user: ${DATABASE_USERNAME:fraud_detection_user}
-    connect-retries: 10
-    connect-retries-interval: 60
-    baseline-version: 1
-    baseline-description: Initial baseline
+# AWS Configuration - Production
+aws:
+  region: ${AWS_REGION:us-east-1}
+  sagemaker:
+    enabled: ${AWS_SAGEMAKER_ENABLED:true}
+    endpoint-name: ${SAGEMAKER_ENDPOINT_NAME:fraud-detection-prod}
+    model-version: ${SAGEMAKER_MODEL_VERSION:2.1.0}
+    api-call-timeout: 2s
+    api-call-attempt-timeout: 1s
 
-  # Redis Configuration (Production)
-  data:
-    redis:
-      host: ${REDIS_HOST:redis-sentinel-primary}
-      port: ${REDIS_PORT:26379}
-      password: ${REDIS_PASSWORD}
-      ssl:
-        enabled: true
-      timeout: 60000  # 60 seconds
-      connect-timeout: 10000  # 10 seconds
-      client-type: lettuce
-      lettuce:
-        pool:
-          enabled: true
-          max-active: 20
-          max-idle: 10
-          min-idle: 5
-          max-wait: 30000  # 30 seconds
-          time-between-eviction-runs: 60000  # 1 minute
-        cluster:
-          refresh:
-            adaptive: true
-            period: 60000  # 1 minute
-        shutdown-timeout: 100
+# Logging - Production
+logging:
+  pattern:
+    level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]'
+  level:
+    com.twenty9ine.frauddetection: INFO
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.springframework.security: WARN  # Change to DEBUG only for troubleshooting
 
-  # Jackson Configuration (Production)
-  jackson:
-    default-property-inclusion: non_null
-    serialization:
-      write-dates-as-timestamps: false
-      indent-output: false
-    deserialization:
-      fail-on-unknown-properties: false
-      read-unknown-enum-values-as-null: true
-    time-zone: UTC
-
-# Server Configuration (Production)
-server:
-  port: ${SERVER_PORT:8080}
-  shutdown: graceful
-  tomcat:
-    threads:
-      max: ${TOMCAT_MAX_THREADS:200}
-      min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
-    max-connections: ${TOMCAT_MAX_CONNECTIONS:10000}
-    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
-    connection-timeout: 60000  # 60 seconds
-    keep-alive-timeout: 60000  # 60 seconds
-    max-keep-alive-requests: 100
-  compression:
-    enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
-    min-response-size: 1024
-  http2:
-    enabled: true
-  error:
-    include-message: never
-    include-binding-errors: never
-    include-stacktrace: never
-    include-exception: false
-
-# Management & Actuator (Production)
+# Management & Observability - Production
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
-      base-path: /actuator
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: when-authorized
       probes:
         enabled: true
-      group:
-        readiness:
-          include: db,redis,kafka,diskSpace
-          show-details: when-authorized
-        liveness:
-          include: ping
   health:
-    livenessstate:
+    livenessState:
       enabled: true
-    readinessstate:
+    readinessState:
       enabled: true
   metrics:
-    export:
-      prometheus:
-        enabled: true
-        step: 60s
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-      percentiles:
-        http.server.requests: 0.5,0.95,0.99
     tags:
       application: ${spring.application.name}
       environment: production
   tracing:
-    enabled: true
     sampling:
-      probability: 0.1  # Sample 10% in production
-  zipkin:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+  otlp:
     tracing:
-      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+      endpoint: ${OTLP_ENDPOINT:https://tempo.observability.prod:4318/v1/traces}
 
-# Logging Configuration (Production)
-logging:
-  level:
-    root: INFO
-    com.twenty9ine.frauddetection: INFO
-    org.springframework: INFO
-    org.springframework.kafka: WARN
-    org.apache.kafka: WARN
-    org.springframework.security: WARN
-    org.hibernate.SQL: WARN
-    org.flywaydb: INFO
-    io.apicurio: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: /var/log/${spring.application.name}/application.log
-    max-size: 100MB
-    max-history: 30
-    total-size-cap: 3GB
-
-# Resilience4j Configuration (Production)
-resilience4j:
-  circuitbreaker:
-    instances:
-      fraudAssessment:
-        failure-rate-threshold: 50
-        slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 3000
-        permitted-number-of-calls-in-half-open-state: 10
-        sliding-window-type: COUNT_BASED
-        sliding-window-size: 100
-        minimum-number-of-calls: 20
-        wait-duration-in-open-state: 60000  # 1 minute
-        automatic-transition-from-open-to-half-open-enabled: true
-        record-exceptions:
-          - java.lang.Exception
-        ignore-exceptions:
-          - org.springframework.security.access.AccessDeniedException
-
-  retry:
-    instances:
-      fraudAssessment:
-        max-attempts: 3
-        wait-duration: 1000
-        enable-exponential-backoff: true
-        exponential-backoff-multiplier: 2
-        retry-exceptions:
-          - org.springframework.dao.DataAccessException
-          - java.util.concurrent.TimeoutException
-
-  bulkhead:
-    instances:
-      fraudAssessment:
-        max-concurrent-calls: 50
-        max-wait-duration: 5000
-
-  timelimiter:
-    instances:
-      fraudAssessment:
-        timeout-duration: 10s
-        cancel-running-future: true
-
-  ratelimiter:
-    instances:
-      fraudAssessment:
-        limit-for-period: 1000
-        limit-refresh-period: 1s
-        timeout-duration: 5s
-
-# Redisson Configuration (Production)
-redisson:
-  config: |
-    sentinelServersConfig:
-      masterName: ${REDIS_MASTER_NAME:mymaster}
-      sentinelAddresses:
-        - "redis://${REDIS_SENTINEL_1:redis-sentinel-1}:26379"
-        - "redis://${REDIS_SENTINEL_2:redis-sentinel-2}:26379"
-        - "redis://${REDIS_SENTINEL_3:redis-sentinel-3}:26379"
-      password: ${REDIS_PASSWORD}
-      database: 0
-      connectTimeout: 10000
-      timeout: 10000
-      retryAttempts: 3
-      retryInterval: 1500
-      subscriptionsPerConnection: 5
-      clientName: ${spring.application.name}
-      idleConnectionTimeout: 60000
-      sslEnableEndpointIdentification: true
-      sslProvider: JDK
-      pingConnectionInterval: 30000
-      keepAlive: true
-      tcpNoDelay: true
-    threads: 16
-    nettyThreads: 32
-    codec: !<org.redisson.codec.FstCodec> {}
-    transportMode: "NIO"
-
-# SpringDoc OpenAPI (Production - Limited)
+# Swagger UI - Production (typically disabled or secured)
 springdoc:
-  api-docs:
-    enabled: false  # Disable in production
   swagger-ui:
-    enabled: false  # Disable in production
+    enabled: ${SWAGGER_UI_ENABLED:false}  # Disable in production or use internal-only
+    oauth:
+      client-id: fraud-detection-web
+      client-secret: ${SWAGGER_CLIENT_SECRET}  # Must be provided via environment variable
+      use-pkce-with-authorization-code-grant: true
+    oauth2-redirect-url: https://fraud-detection-api.prod.example.com/swagger-ui/oauth2-redirect.html
+  oAuthFlow:
+    authorizationUrl: https://keycloak.prod.example.com/realms/fraud-detection/protocol/openid-connect/auth
+    tokenUrl: https://keycloak.prod.example.com/realms/fraud-detection/protocol/openid-connect/token
 
-# AWS Configuration (Production)
-aws:
-  region: ${AWS_REGION:us-east-1}
-  sagemaker:
-    endpoint-name: ${SAGEMAKER_ENDPOINT_NAME:fraud-detection-model-prod}
-    feature-group-name: ${SAGEMAKER_FEATURE_GROUP_NAME:fraud-detection-features-prod}
-    timeout: 10000
-    max-connections: 50
-  credentials:
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
-    session-token: ${AWS_SESSION_TOKEN:}
+server:
+  port: ${SERVER_PORT:9001}
+  ssl:
+    enabled: ${SERVER_SSL_ENABLED:false}  # Enable if not behind load balancer
+    key-store: ${SERVER_SSL_KEYSTORE:/etc/ssl/certs/keystore.p12}
+    key-store-password: ${SERVER_SSL_KEYSTORE_PASSWORD}
+    key-store-type: PKCS12
 
-# Application-Specific Configuration
-fraud-detection:
-  rules:
-    cache:
-      enabled: true
-      ttl: 3600  # 1 hour
-      max-size: 10000
-  feature:
-    cache:
-      enabled: true
-      ttl: 300  # 5 minutes
-      max-size: 100000
-  batch:
-    size: 500
-    timeout: 30000  # 30 seconds
-  async:
-    core-pool-size: 10
-    max-pool-size: 50
-    queue-capacity: 1000
-    thread-name-prefix: fraud-async-
+# ==============================================================================
+# REQUIRED ENVIRONMENT VARIABLES (Must be provided externally)
+# ==============================================================================
+# These MUST be set via environment variables or secret manager:
+#
+# Sensitive Credentials:
+#   - KAFKA_CLIENT_SECRET
+#   - DB_PASSWORD
+#   - REDIS_PASSWORD (if required)
+#   - SWAGGER_CLIENT_SECRET (if Swagger enabled)
+#   - KAFKA_TRUSTSTORE_PASSWORD
+#   - SERVER_SSL_KEYSTORE_PASSWORD (if SSL enabled)
+#
+# Configuration:
+#   - KAFKA_BOOTSTRAP_SERVERS
+#   - DB_HOST
+#   - JWT_ISSUER_URI
+#   - APICURIO_REGISTRY_URL
+#   - SAGEMAKER_ENDPOINT_NAME
+#
+# ==============================================================================
+# SECRET MANAGEMENT:
+# ==============================================================================
+# Use a secret manager to inject these at runtime:
+#
+# AWS Secrets Manager:
+#   export KAFKA_CLIENT_SECRET=$(aws secretsmanager get-secret-value \
+#     --secret-id prod/fraud-detection/kafka-client-secret \
+#     --query SecretString --output text)
+#
+# HashiCorp Vault:
+#   export KAFKA_CLIENT_SECRET=$(vault kv get \
+#     -field=client_secret secret/prod/fraud-detection/kafka)
+#
+# Kubernetes Secrets:
+#   Create secrets in k8s and mount as environment variables
+#
+# ==============================================================================

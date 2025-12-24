@@ -29,7 +29,7 @@ public class SageMakerConfig {
     @Value("${aws.sagemaker.api-call-attempt-timeout:1s}")
     private Duration apiCallAttemptTimeout;
 
-    @Profile("!dev")
+    @Profile("!default")
     @Bean
     public SageMakerRuntimeClient sageMakerRuntimeClient() {
         return SageMakerRuntimeClient.builder()
@@ -41,7 +41,7 @@ public class SageMakerConfig {
                 .build();
     }
 
-    @Profile("dev")
+    @Profile("default")
     @Bean
     public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
         return SageMakerRuntimeClient.builder()

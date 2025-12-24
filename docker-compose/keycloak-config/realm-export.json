@@ -23,8 +23,8 @@
   "clients": [
     {
       "clientId": "fraud-detection-service",
-      "name": "Fraud Detection Service",
-      "description": "Resource server for fraud detection",
+      "name": "Fraud Detection Service (Resource Server)",
+      "description": "Resource server that validates JWT tokens",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "fraud-detection-secret",
@@ -52,30 +52,35 @@
       ]
     },
     {
-      "clientId": "fraud-detection-client",
-      "name": "Fraud Detection Client",
-      "description": "Client application for testing",
+      "clientId": "fraud-detection-web",
+      "name": "Fraud Detection Web Client",
+      "description": "Client for web applications, Swagger UI, and user authentication",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
-      "secret": "fraud-detection-client-secret",
+      "secret": "fraud-detection-web-secret",
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
+      "serviceAccountsEnabled": false,
       "publicClient": false,
       "protocol": "openid-connect",
       "redirectUris": [
+        "http://localhost:9001/*",
+        "http://localhost:9001/swagger-ui/*",
+        "http://localhost:9001/swagger-ui/oauth2-redirect.html",
         "http://localhost:8080/*",
         "http://localhost:3000/*"
       ],
       "webOrigins": [
+        "http://localhost:9001",
         "http://localhost:8080",
         "http://localhost:3000",
         "+"
       ],
       "attributes": {
-        "access.token.lifespan": "300",
-        "use.refresh.tokens": "true"
+        "access.token.lifespan": "1800",
+        "use.refresh.tokens": "true",
+        "pkce.code.challenge.method": "S256"
       },
       "defaultClientScopes": [
         "web-origins",
@@ -90,6 +95,28 @@
         "offline_access",
         "microprofile-jwt"
       ]
+    },
+    {
+      "clientId": "fraud-detection-kafka",
+      "name": "Fraud Detection Kafka Service Client",
+      "description": "Service client for Kafka broker authentication (Client Credentials flow)",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "fraud-detection-kafka-secret",
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "use.refresh.tokens": "false"
+      },
+      "defaultClientScopes": [
+        "kafka-scope"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "clientScopes": [
@@ -118,6 +145,27 @@
           "protocolMapper": "oidc-audience-mapper",
           "config": {
             "included.client.audience": "fraud-detection-service",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "kafka-scope",
+      "description": "Kafka broker access scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "kafka-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "kafka",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
@@ -229,7 +277,7 @@
   "clientScopeMappings": {
     "fraud-detection-service": [
       {
-        "client": "fraud-detection-client",
+        "client": "fraud-detection-web",
         "roles": ["fraud:detect", "fraud:read"]
       }
     ]

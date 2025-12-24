@@ -120,6 +120,11 @@ class FraudDetectionControllerIntegrationTest {
 
         // Kafka
         registry.add("spring.kafka.bootstrap-servers", kafka::getBootstrapServers);
+        registry.add("spring.kafka.security.protocol", () -> "PLAINTEXT");
+        registry.add("spring.kafka.properties.security.protocol", () -> "PLAINTEXT");
+        registry.add("spring.kafka.properties.sasl.mechanism", () -> null);
+        registry.add("spring.kafka.consumer.properties.security.protocol", () -> "PLAINTEXT");
+        registry.add("spring.kafka.producer.properties.security.protocol", () -> "PLAINTEXT");
 
         // Apicurio Registry
         registry.add("apicurio.registry.url", FraudDetectionControllerIntegrationTest::getApicurioUrl);

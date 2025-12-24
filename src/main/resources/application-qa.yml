@@ -170,14 +170,13 @@ fraud-detection:
     medium: 40
 
 aws:
-  region: us-east-1
+  region: ${AWS_REGION:us-east-1}
   sagemaker:
-    enabled: true
-    endpoint-name: fraud-detection-endpoint
-    model-version: 1.0.0-local
-    api-call-timeout: 5s
-    api-call-attempt-timeout: 3s
-    endpoint-url: http://localhost:8080/invocations  # Custom endpoint URL (optional)
+    enabled: ${AWS_SAGEMAKER_ENABLED:true}
+    endpoint-name: ${SAGEMAKER_ENDPOINT_NAME:fraud-detection-endpoint}
+    model-version: ${SAGEMAKER_MODEL_VERSION:1.0.0}
+    api-call-timeout: 2s
+    api-call-attempt-timeout: 1s
 
 resilience4j:
   circuitbreaker:
@@ -208,7 +207,7 @@ resilience4j:
   timelimiter:
     instances:
       sagemakerML:
-        timeout-duration: 500ms
+        timeout-duration: 100ms
 
   bulkhead:
     instances:
@@ -246,11 +245,10 @@ logging:
   pattern:
     level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]'
   level:
-    com.twenty9ine.frauddetection: DEBUG
-    software.amazon.awssdk: DEBUG
-    org.springframework.kafka: DEBUG
-    org.apache.kafka: DEBUG
-    org.springframework.security: DEBUG
+    com.twenty9ine.frauddetection: WARN
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.springframework.security: WARN
 
 springdoc:
   api-docs:

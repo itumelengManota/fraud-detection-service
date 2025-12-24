@@ -12,7 +12,8 @@
   "clients": [
     {
       "clientId": "fraud-detection-service",
-      "name": "Fraud Detection Service",
+      "name": "Fraud Detection Service (Resource Server)",
+      "description": "Resource server that validates JWT tokens",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "fraud-detection-secret",
@@ -24,11 +25,18 @@
       "protocol": "openid-connect",
       "attributes": {
         "access.token.lifespan": "300"
-      }
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ]
     },
     {
       "clientId": "test-client",
       "name": "Test Client",
+      "description": "Test client for integration tests",
       "enabled": true,
       "clientAuthenticatorType": "client-secret",
       "secret": "test-secret",

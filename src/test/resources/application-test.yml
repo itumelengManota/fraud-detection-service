@@ -1,0 +1,53 @@
+spring:
+  kafka:
+    # Disable OAuth for tests - use PLAINTEXT instead
+    security:
+      protocol: PLAINTEXT
+    
+    properties:
+      # Remove SASL configuration for tests
+      sasl.mechanism: null
+      sasl.jaas.config: null
+      security.protocol: PLAINTEXT
+    
+    consumer:
+      properties:
+        # Keep Apicurio but remove OAuth
+        security.protocol: PLAINTEXT
+        sasl.mechanism: null
+    
+    producer:
+      properties:
+        # Keep Apicurio but remove OAuth
+        security.protocol: PLAINTEXT
+        sasl.mechanism: null
+    
+    admin:
+      properties:
+        security.protocol: PLAINTEXT
+        sasl.mechanism: null
+    
+    streams:
+      properties:
+        security.protocol: PLAINTEXT
+        sasl.mechanism: null
+
+  # OAuth disabled for most tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/test
+          jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
+
+# Disable AWS SageMaker in tests
+aws:
+  sagemaker:
+    enabled: false
+
+logging:
+  level:
+    org.springframework.kafka: WARN
+    org.apache.kafka: WARN
+    org.springframework.security: WARN
+    com.twenty9ine.frauddetection: INFO
