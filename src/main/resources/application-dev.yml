@@ -1,0 +1,20 @@
+aws:
+  region: us-east-1
+  sagemaker:
+    enabled: true
+    endpoint-name: fraud-detection-endpoint
+    model-version: 1.0.0-local
+    api-call-timeout: 5s
+    api-call-attempt-timeout: 3s
+    endpoint-url: http://localhost:8080/invocations  # Custom endpoint URL (optional)
+
+resilience4j:
+  timelimiter:
+    instances:
+      sagemakerML:
+        timeout-duration: 500ms
+
+logging:
+  level:
+    com.twenty9ine.frauddetection: DEBUG
+    software.amazon.awssdk: DEBUG

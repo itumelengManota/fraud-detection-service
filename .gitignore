@@ -32,3 +32,16 @@ NetBeans
 /.nb-gradle/
 VS Code
 .vscode/
+
+# Python
+venv/
+*.pyc
+__pycache__/
+*.py[cod]
+.Python
+*.so
+.env
+.venv
+env/
+ENV/
+.aws/venv/

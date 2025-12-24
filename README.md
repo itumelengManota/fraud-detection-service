@@ -713,7 +713,7 @@ All services should show "healthy" status.
 ./gradlew bootRun
 ```
 
-The application starts on **http://localhost:8080**
+The application starts on **http://localhost:9001**
 
 ### Development Mode Features
 
@@ -726,7 +726,7 @@ The application starts on **http://localhost:8080**
 
 1. **Check application health:**
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:9001/actuator/health
 ```
 
 Expected response:
@@ -770,7 +770,7 @@ The service uses **Keycloak** as the OAuth2 provider with the following configur
 - **Type**: Confidential client
 - **Grant Types**: Authorization Code, Client Credentials, Password
 - **Secret**: `fraud-detection-client-secret`
-- **Redirect URIs**: `http://localhost:8080/*`, `http://localhost:3000/*`
+- **Redirect URIs**: `http://localhost:9001/*`, `http://localhost:3000/*`
 
 ### Pre-configured Users
 
@@ -831,7 +831,7 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth?
   response_type=code&
   client_id=fraud-detection-client&
-  redirect_uri=http://localhost:8080/callback&
+  redirect_uri=http://localhost:9001/callback&
   scope=fraud:detect fraud:read&
   state=random-state-value
 ```
@@ -844,7 +844,7 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
   -d "client_id=fraud-detection-client" \
   -d "client_secret=fraud-detection-client-secret" \
   -d "code=<authorization_code>" \
-  -d "redirect_uri=http://localhost:8080/callback"
+  -d "redirect_uri=http://localhost:9001/callback"
 ```
 
 ### Token Validation
@@ -873,7 +873,7 @@ GET /fraud/assessments/** → Requires SCOPE_fraud:read
 
 ### Base URL
 ```
-http://localhost:8080
+http://localhost:9001
 ```
 
 ### Endpoints
@@ -1056,7 +1056,7 @@ export TOKEN=$(curl -X POST http://localhost:8180/realms/fraud-detection/protoco
 **Scenario**: Small online purchase from known merchant
 
 ```bash
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1091,7 +1091,7 @@ curl -X POST http://localhost:8080/fraud/assessments \
 **Scenario**: Large purchase triggering amount rule
 
 ```bash
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1130,7 +1130,7 @@ First, create 6 transactions rapidly:
 
 ```bash
 for i in {1..6}; do
-  curl -X POST http://localhost:8080/fraud/assessments \
+  curl -X POST http://localhost:9001/fraud/assessments \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d "{
@@ -1169,7 +1169,7 @@ done
 
 ```bash
 # First transaction in New York
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1196,7 +1196,7 @@ curl -X POST http://localhost:8080/fraud/assessments \
 # Wait 1 minute, then transaction in Tokyo
 sleep 60
 
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1232,7 +1232,7 @@ curl -X POST http://localhost:8080/fraud/assessments \
 **Scenario**: Transaction exceeding $100,000
 
 ```bash
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1268,7 +1268,7 @@ curl -X POST http://localhost:8080/fraud/assessments \
 **Scenario**: Retrieve a previously assessed transaction
 
 ```bash
-curl -X GET http://localhost:8080/fraud/assessments/11111111-1111-1111-1111-111111111111 \
+curl -X GET http://localhost:9001/fraud/assessments/11111111-1111-1111-1111-111111111111 \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1279,7 +1279,7 @@ curl -X GET http://localhost:8080/fraud/assessments/11111111-1111-1111-1111-1111
 **Scenario**: Find all high and critical risk assessments
 
 ```bash
-curl -X GET "http://localhost:8080/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10" \
+curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1291,7 +1291,7 @@ curl -X GET "http://localhost:8080/fraud/assessments?transactionRiskLevels=HIGH,
 
 ```bash
 ONE_HOUR_AGO=$(date -u -d '1 hour ago' '+%Y-%m-%dT%H:%M:%SZ')
-curl -X GET "http://localhost:8080/fraud/assessments?fromDate=$ONE_HOUR_AGO&page=0&size=20" \
+curl -X GET "http://localhost:9001/fraud/assessments?fromDate=$ONE_HOUR_AGO&page=0&size=20" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1302,7 +1302,7 @@ curl -X GET "http://localhost:8080/fraud/assessments?fromDate=$ONE_HOUR_AGO&page
 **Scenario**: Attempt to access endpoint without token
 
 ```bash
-curl -X POST http://localhost:8080/fraud/assessments \
+curl -X POST http://localhost:9001/fraud/assessments \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "99999999-9999-9999-9999-999999999999",
@@ -1324,7 +1324,7 @@ curl -X POST http://localhost:8080/fraud/assessments \
 **Scenario**: Search with invalid risk level
 
 ```bash
-curl -X GET "http://localhost:8080/fraud/assessments?transactionRiskLevels=INVALID&page=0&size=10" \
+curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=INVALID&page=0&size=10" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1351,7 +1351,7 @@ Add these variables (Collection → Variables tab):
 
 | Variable | Initial Value | Current Value |
 |----------|---------------|---------------|
-| `baseUrl` | `http://localhost:8080` | `http://localhost:8080` |
+| `baseUrl` | `http://localhost:9001` | `http://localhost:9001` |
 | `keycloakUrl` | `http://localhost:8180` | `http://localhost:8180` |
 | `realm` | `fraud-detection` | `fraud-detection` |
 | `clientId` | `fraud-detection-client` | `fraud-detection-client` |
@@ -1749,7 +1749,7 @@ Create an environment called "Fraud Detection - Dev":
 
 | Variable | Initial Value | Current Value |
 |----------|---------------|---------------|
-| `baseUrl` | `http://localhost:8080` | `http://localhost:8080` |
+| `baseUrl` | `http://localhost:9001` | `http://localhost:9001` |
 | `keycloakUrl` | `http://localhost:8180` | `http://localhost:8180` |
 | `realm` | `fraud-detection` | `fraud-detection` |
 | `clientId` | `fraud-detection-client` | `fraud-detection-client` |
@@ -1886,7 +1886,7 @@ docker pull ghcr.io/itumelengmanota/fraud-detection-service:latest
 docker pull ghcr.io/itumelengmanota/fraud-detection-service:<commit-sha>
 
 # Run
-docker run -p 8080:8080 ghcr.io/itumelengmanota/fraud-detection-service:latest
+docker run -p 9001:9001 ghcr.io/itumelengmanota/fraud-detection-service:latest
 ```
 
 ---
@@ -2087,11 +2087,11 @@ docker-compose -f docker-compose/compose.yml down -v --rmi all
 
 #### Prometheus Metrics
 
-**Endpoint**: http://localhost:8080/actuator/prometheus
+**Endpoint**: http://localhost:9001/actuator/prometheus
 
 ```bash
 # View metrics
-curl http://localhost:8080/actuator/prometheus
+curl http://localhost:9001/actuator/prometheus
 ```
 
 **Available Metrics**:
@@ -2113,15 +2113,15 @@ Traces include:
 
 #### Application Health
 
-**Liveness**: http://localhost:8080/actuator/health/liveness  
-**Readiness**: http://localhost:8080/actuator/health/readiness
+**Liveness**: http://localhost:9001/actuator/health/liveness  
+**Readiness**: http://localhost:9001/actuator/health/readiness
 
 ```bash
 # Check liveness
-curl http://localhost:8080/actuator/health/liveness
+curl http://localhost:9001/actuator/health/liveness
 
 # Check readiness
-curl http://localhost:8080/actuator/health/readiness
+curl http://localhost:9001/actuator/health/readiness
 ```
 
 ---
@@ -2169,13 +2169,13 @@ spring:
 
 ```bash
 # View thread dumps
-curl http://localhost:8080/actuator/threaddump
+curl http://localhost:9001/actuator/threaddump
 
 # View heap dump
-curl http://localhost:8080/actuator/heapdump > heapdump.bin
+curl http://localhost:9001/actuator/heapdump > heapdump.bin
 
 # View metrics
-curl http://localhost:8080/actuator/metrics
+curl http://localhost:9001/actuator/metrics
 ```
 
 ---
@@ -2248,9 +2248,9 @@ The system will use fallback predictions (fraud probability = 0.0).
 
 ## Additional Resources
 
-- **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **OpenAPI Spec**: http://localhost:8080/v3/api-docs
-- **Actuator**: http://localhost:8080/actuator
+- **Swagger UI**: http://localhost:9001/swagger-ui.html
+- **OpenAPI Spec**: http://localhost:9001/v3/api-docs
+- **Actuator**: http://localhost:9001/actuator
 - **Keycloak Admin**: http://localhost:8180/admin
 - **Apicurio UI**: http://localhost:8082
 

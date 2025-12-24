@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Component
+//@Component
 @ConditionalOnProperty(name = "aws.sagemaker.enabled", havingValue = "true")
 @Slf4j
 public class FeatureStoreAdapter {

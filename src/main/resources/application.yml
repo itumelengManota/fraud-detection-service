@@ -7,35 +7,102 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    security: # Security Configuration (OAuth2)
+      protocol: SASL_PLAINTEXT  # Use SASL_SSL in production
+
+    properties:
+      max.poll.interval.ms: 300000
+      isolation.level: read_committed
+      connections.max.idle.ms: 540000
+      request.timeout.ms: 30000
+      session.timeout.ms: 45000
+      sasl: # SASL/OAUTHBEARER Configuration
+        mechanism: OAUTHBEARER
+        jaas:
+          config: >
+            org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
+            clientId='${keycloak.client-id:fraud-detection-client}'
+            clientSecret='${keycloak.client-secret:fraud-detection-client-secret}'
+            scope='kafka'
+            tokenEndpointUri='${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token';
+        login:
+          callback:
+            handler:
+              class: org.apache.kafka.common.security.oauthbearer.secured.OAuthBearerLoginCallbackHandler
+        oauthbearer:
+          token:
+            endpoint:
+              url: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/token
     consumer:
       group-id: fraud-detection-service
       enable-auto-commit: false
       auto-offset-reset: earliest
       max-poll-records: 1000
+      fetch-min-size: 1
+      fetch-max-wait: 500ms
+      heartbeat-interval: 3000
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
       properties:
+        # Apicurio Registry Configuration
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
         apicurio.registry.auto-register: true
         apicurio.registry.find-latest: true
         apicurio.registry.use-specific-avro-reader: true
-        specific.avro.reader: true  # Important for generated Avro classes
+        specific.avro.reader: true
+        apicurio.registry.check-period-ms: 30000
+        # OAuth for consumer (inherits from parent properties)
+        sasl.mechanism: OAUTHBEARER
+        security.protocol: SASL_PLAINTEXT
+
     producer:
       acks: all
+      retries: 3
+      compression-type: snappy
+      batch-size: 16384
+      buffer-memory: 33554432
+      linger: 10
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.apicurio.registry.serde.avro.AvroKafkaSerializer
       properties:
+        # Apicurio Registry Configuration
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
         apicurio.registry.auto-register: true
         enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        # OAuth for producer (inherits from parent properties)
+        sasl.mechanism: OAUTHBEARER
+        security.protocol: SASL_PLAINTEXT
+
     listener:
-      ack-mode: manual  # Required for manual acknowledgment
-    properties:
-      max.poll.interval.ms: 300000
-      isolation.level: read_committed
+      ack-mode: manual
+      concurrency: 10
+      type: batch  # or 'single' for single-record processing
+      poll-timeout: 3000
+      missing-topics-fatal: false
+      immediate-stop: false
+
+    # Admin Configuration (for topic management)
+    admin:
+      properties:
+        sasl.mechanism: OAUTHBEARER
+        security.protocol: SASL_PLAINTEXT
+      fail-fast: false
+
+    # Streams Configuration (if using Kafka Streams)
+    streams:
+      application-id: ${spring.application.name}
+      properties:
+        sasl.mechanism: OAUTHBEARER
+        security.protocol: SASL_PLAINTEXT
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde
+        commit.interval.ms: 1000
+        num.stream.threads: 4
+
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:frauddetection}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:fraud_detection}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     hikari:
@@ -193,7 +260,9 @@ springdoc:
       client-id: fraud-detection-client
       client-secret: fraud-detection-client-secret
       use-pkce-with-authorization-code-grant: true
-    oauth2-redirect-url: http://localhost:8080/swagger-ui/oauth2-redirect.html
+    oauth2-redirect-url: http://localhost:${server.port}/swagger-ui/oauth2-redirect.html
   oAuthFlow:
     authorizationUrl: http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth
     tokenUrl: http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token
+server:
+  port: 9001

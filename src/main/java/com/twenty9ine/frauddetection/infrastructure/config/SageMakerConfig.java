@@ -10,6 +10,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sagemakerfeaturestoreruntime.SageMakerFeatureStoreRuntimeClient;
 import software.amazon.awssdk.services.sagemakerruntime.SageMakerRuntimeClient;
 
+import java.net.URI;
 import java.time.Duration;
 
 @Configuration
@@ -19,17 +20,34 @@ public class SageMakerConfig {
     @Value("${aws.region:us-east-1}")
     private String awsRegion;
 
+    @Value("${aws.sagemaker.endpoint-url:http://localhost:8080/invocations}")
+    private String awsEndpointUrl;
+
     @Value("${aws.sagemaker.api-call-timeout:2s}")
     private Duration apiCallTimeout;
 
     @Value("${aws.sagemaker.api-call-attempt-timeout:1s}")
     private Duration apiCallAttemptTimeout;
 
+    @Profile("!dev")
     @Bean
     public SageMakerRuntimeClient sageMakerRuntimeClient() {
         return SageMakerRuntimeClient.builder()
                 .region(Region.of(awsRegion))
                 .credentialsProvider(DefaultCredentialsProvider.create())
+                .overrideConfiguration(config -> config
+                        .apiCallTimeout(apiCallTimeout)
+                        .apiCallAttemptTimeout(apiCallAttemptTimeout))
+                .build();
+    }
+
+    @Profile("dev")
+    @Bean
+    public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
+        return SageMakerRuntimeClient.builder()
+                .region(Region.of(awsRegion))
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .endpointOverride(URI.create(awsEndpointUrl))
                 .overrideConfiguration(config -> config
                         .apiCallTimeout(apiCallTimeout)
                         .apiCallAttemptTimeout(apiCallAttemptTimeout))
