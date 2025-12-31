@@ -317,7 +317,7 @@ class TransactionRepositoryAdapterIntegrationTest {
                 .amount(new Money(new BigDecimal("100.50"), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MER123"), "Test Merchant", "1234"))
+                .merchant(new Merchant(MerchantId.of("MER123"), "Test Merchant", MerchantCategory.RETAIL))
                 .location(new Location(12.34, 56.78, "Test Location", "City", Instant.now()))
                 .deviceId("DEV123")
                 .timestamp(timestamp)

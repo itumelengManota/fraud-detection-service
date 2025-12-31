@@ -1,14 +1,17 @@
 package com.twenty9ine.frauddetection.domain.valueobject;
 
+import com.twenty9ine.frauddetection.domain.valueobject.validation.ValidCountry;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.Instant;
+import java.util.Locale;
 
 import static java.lang.Math.*;
 
 public record Location(
-    @NotNull double latitude,
-    @NotNull double longitude,
+    @NotNull Double latitude,
+    @NotNull Double longitude,
+    @ValidCountry
     String country,
     String city,
     @NotNull Instant timestamp
@@ -25,6 +28,10 @@ public record Location(
 
     public static Location of(double latitude, double longitude, String country, String city, Instant timestamp) {
         return new Location(latitude, longitude, country, city, timestamp);
+    }
+
+    public boolean isDomestic() {
+        return Locale.getDefault().getCountry().equalsIgnoreCase(this.country);
     }
 
     public double distanceFrom(Location other) {

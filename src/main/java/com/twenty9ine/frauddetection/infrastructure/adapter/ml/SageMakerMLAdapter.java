@@ -30,9 +30,7 @@ public class SageMakerMLAdapter implements MLServicePort {
     private final String endpointName;
     private final String modelVersion;
 
-    public SageMakerMLAdapter(
-            SageMakerRuntimeClient sageMakerClient,
-            CircuitBreakerRegistry circuitBreakerRegistry,
+    public SageMakerMLAdapter(SageMakerRuntimeClient sageMakerClient, CircuitBreakerRegistry circuitBreakerRegistry,
             ObjectMapper objectMapper,
             @Value("${aws.sagemaker.endpoint-name}") String endpointName,
             @Value("${aws.sagemaker.model-version:1.0.0}") String modelVersion) {
@@ -48,8 +46,7 @@ public class SageMakerMLAdapter implements MLServicePort {
     public MLPrediction predict(Transaction transaction) {
         return circuitBreaker.executeSupplier(() -> {
             try {
-                log.debug("Invoking SageMaker endpoint: {} for transaction: {}",
-                        endpointName, transaction.id());
+                log.debug("Invoking SageMaker endpoint: {} for transaction: {}", endpointName, transaction.id());
 
                 // Extract and serialize features
                 Map<String, Object> features = extractFeatures(transaction);

@@ -504,7 +504,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .channel("ONLINE")
                 .merchantId("MER-003")
                 .merchantName("Unknown Vendor")
-                .merchantCategory("OTHER")
+                .merchantCategory(MerchantCategory.GAMBLING.name())
                 .transactionTimestamp(timestamp)
                 .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
@@ -524,7 +524,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .channel("ONLINE")
                 .merchantId("MER-UNKNOWN")
                 .merchantName("Suspicious Vendor")
-                .merchantCategory("HIGH_RISK")
+                .merchantCategory(MerchantCategory.GAMBLING.name())
                 .transactionTimestamp(timestamp)
                 .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
                 .build();
@@ -574,7 +574,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .amount(new Money(command.amount(), java.util.Currency.getInstance(command.currency())))
                 .type(TransactionType.fromString(command.type()))
                 .channel(Channel.fromString(command.channel()))
-                .merchant(new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), command.merchantCategory()))
+                .merchant(new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), MerchantCategory.fromString(command.merchantCategory())))
                 .location(command.location() != null ? toDomain(command.location()) : null)
                 .deviceId(command.deviceId())
                 .timestamp(command.transactionTimestamp())

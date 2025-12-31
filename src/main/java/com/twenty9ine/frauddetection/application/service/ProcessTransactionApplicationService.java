@@ -48,7 +48,7 @@ public class ProcessTransactionApplicationService implements ProcessTransactionU
     }
 
     private static Merchant buildMerchant(ProcessTransactionCommand command) {
-        return new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), command.merchantCategory());
+        return new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), MerchantCategory.fromString(command.merchantCategory()));
     }
 
     private static Location toDomain(LocationDto locationDto) {
@@ -73,7 +73,7 @@ public class ProcessTransactionApplicationService implements ProcessTransactionU
                 .channel(transaction.channel().name())
                 .merchantId(transaction.merchant() != null ? transaction.merchant().id().merchantId() : null)
                 .merchantName(transaction.merchant() != null ? transaction.merchant().name() : null)
-                .merchantCategory(transaction.merchant() != null ? transaction.merchant().category() : null)
+                .merchantCategory(transaction.merchant() != null ? transaction.merchant().category().name() : null)
                 .location(mapLocationDto(transaction.location())) // Add this
                 .deviceId(transaction.deviceId())
                 .transactionTimestamp(transaction.timestamp())

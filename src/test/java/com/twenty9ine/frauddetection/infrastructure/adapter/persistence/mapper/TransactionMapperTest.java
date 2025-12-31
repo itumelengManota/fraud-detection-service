@@ -64,7 +64,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(100.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MERCH001"), "Test Merchant", "RETAIL"))
+                .merchant(new Merchant(MerchantId.of("MERCH001"), "Test Merchant", MerchantCategory.RETAIL))
                 .deviceId("DEV456")
                 .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
                 .timestamp(timestamp)
@@ -90,7 +90,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(250.50), Currency.getInstance("EUR")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.POS)
-                .merchant(new Merchant(MerchantId.of("MERCH002"), "Coffee Shop", "FOOD"))
+                .merchant(new Merchant(MerchantId.of("MERCH002"), "Coffee Shop", MerchantCategory.RESTAURANT))
                 .timestamp(timestamp)
                 .build();
 
@@ -99,7 +99,7 @@ class TransactionMapperTest {
         assertNotNull(entity.merchant());
         assertEquals(transaction.merchant().id().merchantId(), entity.merchant().id());
         assertEquals(transaction.merchant().name(), entity.merchant().name());
-        assertEquals(transaction.merchant().category(), entity.merchant().category());
+        assertEquals(transaction.merchant().category(), MerchantCategory.fromString(entity.merchant().category()));
     }
 
     @Test
@@ -242,7 +242,7 @@ class TransactionMapperTest {
                 .amountCurrency("EUR")
                 .type("PURCHASE")
                 .channel("POS")
-                .merchant(new MerchantEntity("MERCH003", "Bookstore", "BOOKS"))
+                .merchant(new MerchantEntity("MERCH003", "Bookstore", MerchantCategory.RETAIL.name()))
                 .deviceId("DEV789")
                 .location(buildLocationEntity())
                 .timestamp(timestamp)
@@ -289,7 +289,7 @@ class TransactionMapperTest {
 
         assertEquals(merchant.id(), transaction.merchant().id().merchantId());
         assertEquals(merchant.name(), transaction.merchant().name());
-        assertEquals(merchant.category(), transaction.merchant().category());
+        assertEquals(merchant.category(), transaction.merchant().category().name());
     }
 
     @Test
@@ -443,7 +443,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(250.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MERCH005"), "Fashion Store", "CLOTHING"))
+                .merchant(new Merchant(MerchantId.of("MERCH005"), "Fashion Store", MerchantCategory.RETAIL))
                 .deviceId("WEB123")
                 .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
                 .timestamp(timestamp)
@@ -469,7 +469,7 @@ class TransactionMapperTest {
     void testRoundTrip_EntityToDomainToEntity_PreservesData() {
         UUID id = UUID.randomUUID();
 
-        MerchantEntity merchant = new MerchantEntity("MERCH006", "Grocery Store", "GROCERIES");
+        MerchantEntity merchant = new MerchantEntity("MERCH006", "Grocery Store", MerchantCategory.GROCERY.name());
 
         TransactionEntity originalEntity = TransactionEntity.builder()
                 .id(id)
@@ -553,7 +553,7 @@ class TransactionMapperTest {
                 .amount(new Money(BigDecimal.valueOf(100.00), Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MERCH007"), "Test Merchant", "RETAIL"))
+                .merchant(new Merchant(MerchantId.of("MERCH007"), "Test Merchant", MerchantCategory.RETAIL))
                 .timestamp(timestamp)
                 .build();
 

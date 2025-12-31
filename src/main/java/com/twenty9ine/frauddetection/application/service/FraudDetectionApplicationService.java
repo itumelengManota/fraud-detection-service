@@ -131,7 +131,7 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
                 .amount(new Money(command.amount(), java.util.Currency.getInstance(command.currency())))
                 .type(TransactionType.fromString(command.type()))
                 .channel(Channel.fromString(command.channel()))
-                .merchant(new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), command.merchantCategory()))
+                .merchant(new Merchant(MerchantId.of(command.merchantId()), command.merchantName(), MerchantCategory.fromString(command.merchantCategory())))
                 .location(command.location() != null ? toDomain(command.location()) : null)
                 .deviceId(command.deviceId())
                 .timestamp(command.transactionTimestamp())

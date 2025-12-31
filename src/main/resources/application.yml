@@ -108,6 +108,9 @@ spring:
   docker:
     compose:
       file: ${DOCKER_COMPOSE_FILE:docker-compose/compose.yml}
+  web:
+    locale: af_ZA
+    locale-resolver: fixed
 
 apicurio:
   registry:

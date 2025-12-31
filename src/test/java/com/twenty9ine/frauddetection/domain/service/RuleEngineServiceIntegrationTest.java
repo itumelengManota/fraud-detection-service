@@ -426,7 +426,7 @@ class RuleEngineServiceIntegrationTest {
                 .amount(new Money(amount, Currency.getInstance("USD")))
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
-                .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", "Electronics"))
+                .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.ELECTRONICS))
                 .location(new Location(40.7128, -74.0060, "New York", "US", Instant.now()))
                 .deviceId("DEV-001")
                 .timestamp(Instant.now())
