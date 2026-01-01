@@ -13,21 +13,16 @@ public record Location(
     @NotNull Double longitude,
     @ValidCountry
     String country,
-    String city,
-    @NotNull Instant timestamp
+    String city
 ) {
     private static final double EPSILON = 1e-9;
 
     public static Location of(double latitude, double longitude) {
-        return new Location(latitude, longitude, null, null, Instant.now());
+        return new Location(latitude, longitude, null, null);
     }
 
-    public static Location of(double latitude, double longitude, Instant timestamp) {
-        return new Location(latitude, longitude, null, null, timestamp);
-    }
-
-    public static Location of(double latitude, double longitude, String country, String city, Instant timestamp) {
-        return new Location(latitude, longitude, country, city, timestamp);
+    public static Location of(double latitude, double longitude, String country, String city) {
+        return new Location(latitude, longitude, country, city);
     }
 
     public boolean isDomestic() {

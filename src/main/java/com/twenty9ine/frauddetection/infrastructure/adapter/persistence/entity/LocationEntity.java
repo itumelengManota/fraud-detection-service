@@ -7,5 +7,5 @@ import java.time.Instant;
 
 @Builder
 @Table("location")
-public record LocationEntity(double latitude, double longitude, String country, String city, Instant timestamp) {
+public record LocationEntity(double latitude, double longitude, String country, String city) {
 }

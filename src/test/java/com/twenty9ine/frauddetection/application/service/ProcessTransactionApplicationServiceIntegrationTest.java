@@ -218,7 +218,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                     .thenReturn(mockLowRiskPrediction());
 
             UUID transactionId = UUID.randomUUID();
-            LocationDto location = new LocationDto(-33.9249, 18.4241, "South Africa", "Cape Town", Instant.now());
+            LocationDto location = new LocationDto(-33.9249, 18.4241, "South Africa", "Cape Town");
             ProcessTransactionCommand command = buildCommandWithLocation(transactionId, location);
 
             // When
@@ -389,7 +389,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .deviceId("DEV-001")
                 .transactionTimestamp(Instant.now())
                 .build();
@@ -406,7 +406,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .deviceId("DEV-001")
                 .transactionTimestamp(Instant.now())
                 .build();
@@ -440,7 +440,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .deviceId("DEV-001")
                 .transactionTimestamp(Instant.now())
                 .build();
@@ -457,7 +457,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .deviceId("DEV-001")
                 .transactionTimestamp(Instant.now())
                 .build();
@@ -474,7 +474,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
                 .merchantId("MER-001")
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .deviceId("DEV-001")
                 .transactionTimestamp(Instant.now())
                 .build();

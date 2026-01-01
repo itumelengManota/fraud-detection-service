@@ -318,7 +318,7 @@ class TransactionRepositoryAdapterIntegrationTest {
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MER123"), "Test Merchant", MerchantCategory.RETAIL))
-                .location(new Location(12.34, 56.78, "Test Location", "City", Instant.now()))
+                .location(new Location(12.34, 56.78, "Test Location", "City"))
                 .deviceId("DEV123")
                 .timestamp(timestamp)
                 .build();

@@ -25,7 +25,7 @@ class LocationMapperTest {
     @Test
     void testToEntity_CompleteLocation_MapsAllFields() {
         Instant timestamp = Instant.now();
-        Location location = Location.of(40.7128, -74.0060, "USA", "New York", timestamp);
+        Location location = Location.of(40.7128, -74.0060, "USA", "New York");
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -34,13 +34,11 @@ class LocationMapperTest {
         assertEquals(-74.0060, entity.longitude());
         assertEquals("USA", entity.country());
         assertEquals("New York", entity.city());
-        assertEquals(timestamp, entity.timestamp());
     }
 
     @Test
     void testToEntity_MinimalLocation_MapsRequiredFields() {
-        Instant timestamp = Instant.now();
-        Location location = Location.of(51.5074, -0.1278, timestamp);
+        Location location = Location.of(51.5074, -0.1278);
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -49,13 +47,11 @@ class LocationMapperTest {
         assertEquals(-0.1278, entity.longitude());
         assertNull(entity.country());
         assertNull(entity.city());
-        assertEquals(timestamp, entity.timestamp());
     }
 
     @Test
     void testToEntity_LocationWithoutCountryAndCity_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-        Location location = new Location(48.8566, 2.3522, null, null, timestamp);
+        Location location = new Location(48.8566, 2.3522, null, null);
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -64,13 +60,11 @@ class LocationMapperTest {
         assertEquals(2.3522, entity.longitude());
         assertNull(entity.country());
         assertNull(entity.city());
-        assertEquals(timestamp, entity.timestamp());
     }
 
     @Test
     void testToEntity_NegativeCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-        Location location = Location.of(-33.8688, -151.2093, "Australia", "Sydney", timestamp);
+        Location location = Location.of(-33.8688, -151.2093, "Australia", "Sydney");
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -83,7 +77,7 @@ class LocationMapperTest {
     @Test
     void testToEntity_ZeroCoordinates_MapsCorrectly() {
         Instant timestamp = Instant.now();
-        Location location = Location.of(0.0, 0.0, "Ghana", "Null Island", timestamp);
+        Location location = Location.of(0.0, 0.0, "Ghana", "Null Island");
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -109,7 +103,6 @@ class LocationMapperTest {
                 .longitude(139.6503)
                 .country("Japan")
                 .city("Tokyo")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);
@@ -119,7 +112,6 @@ class LocationMapperTest {
         assertEquals(139.6503, location.longitude());
         assertEquals("Japan", location.country());
         assertEquals("Tokyo", location.city());
-        assertEquals(timestamp, location.timestamp());
     }
 
     @Test
@@ -131,7 +123,6 @@ class LocationMapperTest {
                 .longitude(37.6173)
                 .country(null)
                 .city(null)
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);
@@ -141,7 +132,6 @@ class LocationMapperTest {
         assertEquals(37.6173, location.longitude());
         assertNull(location.country());
         assertNull(location.city());
-        assertEquals(timestamp, location.timestamp());
     }
 
     @Test
@@ -153,7 +143,6 @@ class LocationMapperTest {
                 .longitude(-58.3816)
                 .country("Argentina")
                 .city("Buenos Aires")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);
@@ -173,7 +162,6 @@ class LocationMapperTest {
                 .longitude(0.0)
                 .country("Atlantic Ocean")
                 .city("Null Island")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);
@@ -193,8 +181,7 @@ class LocationMapperTest {
 
     @Test
     void testRoundTrip_DomainToEntityToDomain_PreservesData() {
-        Instant timestamp = Instant.now();
-        Location originalLocation = Location.of(52.5200, 13.4050, "Germany", "Berlin", timestamp);
+        Location originalLocation = Location.of(52.5200, 13.4050, "Germany", "Berlin");
 
         LocationEntity entity = mapper.toEntity(originalLocation);
         Location roundTripLocation = mapper.toDomain(entity);
@@ -203,7 +190,6 @@ class LocationMapperTest {
         assertEquals(originalLocation.longitude(), roundTripLocation.longitude());
         assertEquals(originalLocation.country(), roundTripLocation.country());
         assertEquals(originalLocation.city(), roundTripLocation.city());
-        assertEquals(originalLocation.timestamp(), roundTripLocation.timestamp());
     }
 
     @Test
@@ -215,7 +201,6 @@ class LocationMapperTest {
                 .longitude(12.4964)
                 .country("Italy")
                 .city("Rome")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(originalEntity);
@@ -225,13 +210,11 @@ class LocationMapperTest {
         assertEquals(originalEntity.longitude(), roundTripEntity.longitude());
         assertEquals(originalEntity.country(), roundTripEntity.country());
         assertEquals(originalEntity.city(), roundTripEntity.city());
-        assertEquals(originalEntity.timestamp(), roundTripEntity.timestamp());
     }
 
     @Test
     void testRoundTrip_WithNullOptionalFields_PreservesData() {
-        Instant timestamp = Instant.now();
-        Location originalLocation = Location.of(59.3293, 18.0686, timestamp);
+        Location originalLocation = Location.of(59.3293, 18.0686);
 
         LocationEntity entity = mapper.toEntity(originalLocation);
         Location roundTripLocation = mapper.toDomain(entity);
@@ -240,13 +223,11 @@ class LocationMapperTest {
         assertEquals(originalLocation.longitude(), roundTripLocation.longitude());
         assertNull(roundTripLocation.country());
         assertNull(roundTripLocation.city());
-        assertEquals(originalLocation.timestamp(), roundTripLocation.timestamp());
     }
 
     @Test
     void testToEntity_ExtremeCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-        Location location = Location.of(90.0, 180.0, "North Pole", "Arctic", timestamp);
+        Location location = Location.of(90.0, 180.0, "North Pole", "Arctic");
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -265,7 +246,6 @@ class LocationMapperTest {
                 .longitude(-180.0)
                 .country("Antarctica")
                 .city("South Pole")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);
@@ -278,8 +258,7 @@ class LocationMapperTest {
 
     @Test
     void testToEntity_PrecisionPreservation_MaintainsAccuracy() {
-        Instant timestamp = Instant.now();
-        Location location = Location.of(40.748817, -73.985428, "USA", "NYC", timestamp);
+        Location location = Location.of(40.748817, -73.985428, "USA", "NYC");
 
         LocationEntity entity = mapper.toEntity(location);
 
@@ -296,7 +275,6 @@ class LocationMapperTest {
                 .longitude(-0.127758)
                 .country("UK")
                 .city("London")
-                .timestamp(timestamp)
                 .build();
 
         Location location = mapper.toDomain(entity);

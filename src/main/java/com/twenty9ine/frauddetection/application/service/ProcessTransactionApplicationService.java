@@ -58,8 +58,7 @@ public class ProcessTransactionApplicationService implements ProcessTransactionU
                 locationDto.latitude(),
                 locationDto.longitude(),
                 locationDto.country(),
-                locationDto.city(),
-                locationDto.timestamp()
+                locationDto.city()
         );
     }
 
@@ -87,8 +86,7 @@ public class ProcessTransactionApplicationService implements ProcessTransactionU
                 location.latitude(),
                 location.longitude(),
                 location.country(),
-                location.city(),
-                location.timestamp()
+                location.city()
         );
     }
 }

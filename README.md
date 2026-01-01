@@ -165,7 +165,24 @@ Transaction Event → Kafka Consumer → Process Transaction Use Case
 - **Event Consumption**: `infrastructure.adapter.kafka.TransactionEventConsumer`
 - **Domain Events**: `domain.event.*`
 
-#### 4. **Layered Architecture**
+#### 4. **Account Service Integration**
+
+The fraud detection service integrates with the Account Management bounded context through an anti-corruption layer:
+```
+Account Service (External) → AccountServicePort (Interface) → AccountServiceAdapter
+                                      ↓
+                              AccountProfile (Domain Model)
+                                      ↓
+                              ML Feature Extraction
+```
+
+**Privacy-by-Design**:
+- Only fetches minimal data needed (home location)
+- Caches profiles to minimize service calls
+- Provides fallback when account service unavailable
+- No PII stored in fraud detection database
+
+#### 5. **Layered Architecture**
 
 ```
 Presentation Layer  → REST Controllers, Kafka Consumers
@@ -174,7 +191,7 @@ Domain Layer        → Aggregates, Value Objects, Domain Services
 Infrastructure Layer → Adapters, Repositories, External Integrations
 ```
 
-#### 5. **CQRS (Command Query Responsibility Segregation)**
+#### 6. **CQRS (Command Query Responsibility Segregation)**
 
 Separation of command and query operations:
 
@@ -615,6 +632,13 @@ Published when HIGH or CRITICAL risk is detected.
 | **Redis** | Latest | In-Memory Cache | Millisecond latency, atomic operations for velocity counters |
 | **Apache Kafka** | Latest | Event Streaming | High-throughput, durable message queue, exactly-once semantics |
 | **Drools** | 10.1.0 | Rule Engine | Externalized business rules, declarative DSL, dynamic rule updates |
+
+### Account Service Integration
+
+| Technology | Purpose | Reasoning |
+|------------|---------|-----------|
+| **Account Service** | Customer Profile Data | Provides home location for distance-based fraud detection |
+| **Caffeine Cache** | Profile Caching | Reduces latency and load on Account Service |
 
 ### Infrastructure & DevOps
 

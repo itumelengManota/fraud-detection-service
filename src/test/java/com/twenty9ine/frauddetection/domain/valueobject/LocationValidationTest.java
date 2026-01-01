@@ -24,7 +24,7 @@ class LocationValidationTest {
 
     @Test
     void testValidLocation_NoViolations() {
-        Location location = new Location(40.7128, -74.0060, "US", "New York", Instant.now());
+        Location location = new Location(40.7128, -74.0060, "US", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -33,7 +33,7 @@ class LocationValidationTest {
 
     @Test
     void testNullLatitude_ViolatesNotNull() {
-        Location location = new Location(null, -74.0060, "US", "New York", Instant.now());
+        Location location = new Location(null, -74.0060, "US", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -44,7 +44,7 @@ class LocationValidationTest {
 
     @Test
     void testNullLongitude_ViolatesNotNull() {
-        Location location = new Location(40.7128, null, "US", "New York", Instant.now());
+        Location location = new Location(40.7128, null, "US", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -54,19 +54,8 @@ class LocationValidationTest {
     }
 
     @Test
-    void testNullTimestamp_ViolatesNotNull() {
-        Location location = new Location(40.7128, -74.0060, "US", "New York", null);
-
-        Set<ConstraintViolation<Location>> violations = validator.validate(location);
-
-        assertFalse(violations.isEmpty());
-        assertEquals(1, violations.size());
-        assertEquals("timestamp", violations.iterator().next().getPropertyPath().toString());
-    }
-
-    @Test
     void testNullCountry_NoViolation() {
-        Location location = new Location(40.7128, -74.0060, null, "New York", Instant.now());
+        Location location = new Location(40.7128, -74.0060, null, "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -75,7 +64,7 @@ class LocationValidationTest {
 
     @Test
     void testValidCountryCode_NoViolation() {
-        Location location = new Location(40.7128, -74.0060, "GB", "London", Instant.now());
+        Location location = new Location(40.7128, -74.0060, "GB", "London");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -84,7 +73,7 @@ class LocationValidationTest {
 
     @Test
     void testInvalidCountryCode_ViolatesValidCountry() {
-        Location location = new Location(40.7128, -74.0060, "INVALID", "New York", Instant.now());
+        Location location = new Location(40.7128, -74.0060, "INVALID", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -97,7 +86,7 @@ class LocationValidationTest {
 
     @Test
     void testCountryCodeCaseInsensitive_NoViolation() {
-        Location location = new Location(40.7128, -74.0060, "us", "New York", Instant.now());
+        Location location = new Location(40.7128, -74.0060, "us", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
@@ -106,16 +95,16 @@ class LocationValidationTest {
 
     @Test
     void testMultipleViolations() {
-        Location location = new Location(null, null, "INVALID", "New York", null);
+        Location location = new Location(null, null, "INVALID", "New York");
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 
-        assertEquals(4, violations.size());
+        assertEquals(3, violations.size());
     }
 
     @Test
     void testNullCity_NoViolation() {
-        Location location = new Location(40.7128, -74.0060, "US", null, Instant.now());
+        Location location = new Location(40.7128, -74.0060, "US", null);
 
         Set<ConstraintViolation<Location>> violations = validator.validate(location);
 

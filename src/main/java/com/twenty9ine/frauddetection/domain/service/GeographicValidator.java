@@ -24,15 +24,17 @@ public final class GeographicValidator {
         Location currentLocation = transaction.location();
         String accountId = transaction.accountId();
 
-        Optional<Location> optionalPreviousLocation = findPreviousLocationByAccountId(accountId);
+        Optional<Transaction> optionalPreviousTransaction = findPreviousLocationByAccountId(accountId);
 
-        if (optionalPreviousLocation.isEmpty()) {
+        if (optionalPreviousTransaction.isEmpty()) {
             return GeographicContext.normal();
         }
 
-        Location previousLocation = optionalPreviousLocation.get();
+        Transaction previousTransaction = optionalPreviousTransaction.get();
+        Location previousLocation = previousTransaction.location();
+
         double displacementKm = calculateDisplacement(currentLocation, previousLocation);
-        Duration durationBetween = calculateBetweenDuration(transaction, previousLocation);
+        Duration durationBetween = calculateBetweenDuration(transaction, previousTransaction);
 
         double requiredSpeedKmh = calculateRequiredSpeed(displacementKm, durationBetween);
         boolean impossibleTravel = isImpossibleTravel(requiredSpeedKmh);
@@ -64,12 +66,11 @@ public final class GeographicValidator {
         return currentLocation.distanceFrom(previousLocation);
     }
 
-    private static Duration calculateBetweenDuration(Transaction transaction, Location location) {
-        return Duration.between(location.timestamp(), transaction.timestamp());
+    private static Duration calculateBetweenDuration(Transaction transaction1, Transaction transaction2) {
+        return Duration.between(transaction2.timestamp(), transaction1.timestamp());
     }
 
-    private Optional<Location> findPreviousLocationByAccountId(String accountId) {
-        return transactionRepository.findEarliestByAccountId(accountId)
-                .map(Transaction::location);
+    private Optional<Transaction> findPreviousLocationByAccountId(String accountId) {
+        return transactionRepository.findEarliestByAccountId(accountId);
     }
 }

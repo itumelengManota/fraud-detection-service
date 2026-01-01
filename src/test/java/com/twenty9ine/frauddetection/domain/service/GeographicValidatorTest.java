@@ -34,7 +34,7 @@ class GeographicValidatorTest {
     @Test
     void validate_shouldReturnNormalContext_whenNoPreviousTransaction() {
         // Given
-        Transaction transaction = createTransaction("ACC123", Location.of(0.0, 0.0, Instant.now()));
+        Transaction transaction = createTransaction("ACC123", Location.of(0.0, 0.0), Instant.now());
         when(transactionRepository.findEarliestByAccountId("ACC123")).thenReturn(Optional.empty());
 
         // When
@@ -52,11 +52,11 @@ class GeographicValidatorTest {
     void validate_shouldDetectImpossibleTravel_whenSpeedExceedsThreshold() {
         // Given
         Instant now = Instant.now();
-        Location previousLocation = Location.of(40.7128, -74.0060, now.minusSeconds(3600)); // New York
-        Location currentLocation = Location.of(51.5074, -0.1278, now); // London (~5570km apart)
+        Location previousLocation = Location.of(40.7128, -74.0060); // New York
+        Location currentLocation = Location.of(51.5074, -0.1278); // London (~5570km apart)
 
-        Transaction previousTransaction = createTransaction("ACC123", previousLocation);
-        Transaction currentTransaction = createTransaction("ACC123", currentLocation);
+        Transaction previousTransaction = createTransaction("ACC123", previousLocation, now.minusSeconds(3600));
+        Transaction currentTransaction = createTransaction("ACC123", currentLocation, now);
 
         when(transactionRepository.findEarliestByAccountId("ACC123"))
                 .thenReturn(Optional.of(previousTransaction));
@@ -76,11 +76,11 @@ class GeographicValidatorTest {
     void validate_shouldNotDetectImpossibleTravel_whenSpeedIsReasonable() {
         // Given
         Instant now = Instant.now();
-        Location previousLocation = Location.of(40.7128, -74.0060, now.minusSeconds(36000)); // 10 hours ago
-        Location currentLocation = Location.of(34.0522, -118.2437, now); // Los Angeles (~3944km)
+        Location previousLocation = Location.of(40.7128, -74.0060); // 10 hours ago
+        Location currentLocation = Location.of(34.0522, -118.2437); // Los Angeles (~3944km)
 
-        Transaction previousTransaction = createTransaction("ACC123", previousLocation);
-        Transaction currentTransaction = createTransaction("ACC123", currentLocation);
+        Transaction previousTransaction = createTransaction("ACC123", previousLocation, now.minusSeconds(36000));
+        Transaction currentTransaction = createTransaction("ACC123", currentLocation, now);
 
         when(transactionRepository.findEarliestByAccountId("ACC123"))
                 .thenReturn(Optional.of(previousTransaction));
@@ -98,10 +98,8 @@ class GeographicValidatorTest {
     void validate_shouldHandleSameLocation() {
         // Given
         Instant now = Instant.now();
-        Location location = Location.of(40.7128, -74.0060, now.minusSeconds(3600));
-
-        Transaction previousTransaction = createTransaction("ACC123", location);
-        Transaction currentTransaction = createTransaction("ACC123", Location.of(40.7128, -74.0060, now));
+        Transaction previousTransaction = createTransaction("ACC123", Location.of(40.7128, -74.0060), now.minusSeconds(3600));
+        Transaction currentTransaction = createTransaction("ACC123", Location.of(40.7128, -74.0060), now);
 
         when(transactionRepository.findEarliestByAccountId("ACC123"))
                 .thenReturn(Optional.of(previousTransaction));
@@ -185,37 +183,18 @@ class GeographicValidatorTest {
     @Test
     void calculateBetweenDuration_shouldReturnCorrectDuration() throws Exception {
         // Given
-        Method method = GeographicValidator.class.getDeclaredMethod("calculateBetweenDuration", Transaction.class, Location.class);
+        Method method = GeographicValidator.class.getDeclaredMethod("calculateBetweenDuration", Transaction.class, Transaction.class);
         method.setAccessible(true);
         Instant now = Instant.now();
-        Location location = Location.of(0.0, 0.0, now.minusSeconds(3600));
-        Transaction transaction = createTransaction("ACC123", Location.of(0.0, 0.0, now));
+        Transaction transaction1 = createTransaction("ACC123", Location.of(0.0, 0.0), now);
+        Transaction transaction2 = createTransaction("ACC124", Location.of(0.0, 0.0), now.minusSeconds(3600));
 
         // When
-        Duration result = (Duration) method.invoke(null, transaction, location);
+        Duration result = (Duration) method.invoke(null, transaction1, transaction2);
 
         // Then
         assertEquals(3600, result.getSeconds());
     }
-
-//    @Test
-//    void findPreviousLocationByAccountId_shouldReturnLocation_whenTransactionExists() throws Exception {
-//        // Given
-//        Method method = GeographicValidator.class.getDeclaredMethod("findPreviousLocationByAccountId", String.class);
-//        method.setAccessible(true);
-//
-//        Location location = Location.of(40.7128, -74.0060);
-//        Transaction transaction = createTransaction("ACC123", location);
-////        when(transactionRepository.findEarliestByAccountId("ACC123")).thenReturn(Optional.of(transaction));
-//
-//        // When
-//        @SuppressWarnings("unchecked")
-//        Optional<Location> result = (Optional<Location>) method.invoke(validator, "ACC123");
-//
-//        // Then
-//        assertTrue(result.isPresent());
-//        assertEquals(location, result.get());
-//    }
 
     @Test
     void findPreviousLocationByAccountId_shouldReturnEmpty_whenNoTransaction() throws Exception {
@@ -232,11 +211,11 @@ class GeographicValidatorTest {
         assertFalse(result.isPresent());
     }
 
-    private Transaction createTransaction(String accountId, Location location) {
+    private Transaction createTransaction(String accountId, Location location, Instant timestamp) {
         return Transaction.builder()
                 .accountId(accountId)
                 .location(location)
-                .timestamp(location.timestamp())
+                .timestamp(timestamp)
                 .build();
     }
 }

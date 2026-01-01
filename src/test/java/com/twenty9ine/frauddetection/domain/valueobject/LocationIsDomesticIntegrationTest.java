@@ -34,7 +34,7 @@ class LocationIsDomesticIntegrationTest {
         Locale currentLocale = Locale.getDefault();
         assertThat(currentLocale.getCountry()).isEqualTo("ZA");
 
-        Location domesticLocation = new Location(-26.2041, 28.0473, "ZA", "Johannesburg", Instant.now());
+        Location domesticLocation = new Location(-26.2041, 28.0473, "ZA", "Johannesburg");
 
         // When
         boolean isDomestic = domesticLocation.isDomestic();
@@ -49,7 +49,7 @@ class LocationIsDomesticIntegrationTest {
         Locale currentLocale = Locale.getDefault();
         assertThat(currentLocale.getCountry()).isEqualTo("ZA");
 
-        Location foreignLocation = new Location(51.5074, -0.1278, "UK", "London", Instant.now());
+        Location foreignLocation = new Location(51.5074, -0.1278, "UK", "London");
 
         // When
         boolean isDomestic = foreignLocation.isDomestic();

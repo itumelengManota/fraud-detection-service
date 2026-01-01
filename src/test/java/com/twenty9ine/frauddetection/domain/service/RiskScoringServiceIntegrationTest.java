@@ -267,13 +267,13 @@ class RiskScoringServiceIntegrationTest {
         Instant now = Instant.now();
 
         // First transaction in New York
-        Location location1 = new Location(40.7128, -74.0060, "USA", "New York", now.minusSeconds(10));
-        Transaction transaction1 = createTransactionWithLocation(accountId, location1);
+        Location location1 = new Location(40.7128, -74.0060, "USA", "New York");
+        Transaction transaction1 = createTransactionWithLocation(accountId, location1, now.minusSeconds(10));
         transactionRepository.save(transaction1);
 
         // Second transaction in London 10 seconds later (impossible travel)
-        Location location2 = new Location(51.5074, -0.1278, "UK", "London", now);
-        Transaction transaction2 = createTransactionWithLocation(accountId, location2);
+        Location location2 = new Location(51.5074, -0.1278, "UK", "London");
+        Transaction transaction2 = createTransactionWithLocation(accountId, location2, now);
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction2);
@@ -298,8 +298,8 @@ class RiskScoringServiceIntegrationTest {
         Instant now = Instant.now();
 
         // Setup impossible travel
-        Location location1 = new Location(40.7128, -74.0060, "USA", "New York", now.minusSeconds(5));
-        Transaction previousTransaction = createTransactionWithLocation(accountId, location1);
+        Location location1 = new Location(40.7128, -74.0060, "USA", "New York");
+        Transaction previousTransaction = createTransactionWithLocation(accountId, location1, now.minusSeconds(5));
         transactionRepository.save(previousTransaction);
 
         // Setup high velocity
@@ -309,8 +309,8 @@ class RiskScoringServiceIntegrationTest {
         }
 
         // Create transaction with large amount and impossible travel
-        Location location2 = new Location(51.5074, -0.1278, "UK", "London", now);
-        Transaction transaction = createTransactionWithLocationAndAmount(accountId, location2, BigDecimal.valueOf(70000.00));
+        Location location2 = new Location(51.5074, -0.1278, "UK", "London");
+        Transaction transaction = createTransactionWithLocationAndAmount(accountId, location2, now, BigDecimal.valueOf(70000.00));
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction);
@@ -580,12 +580,13 @@ class RiskScoringServiceIntegrationTest {
                 .thenReturn(mockLowRiskPrediction());
 
         String accountId = uniqueAccountId("ACC-019");
-        Location location = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
+        Instant now = Instant.now();
+        Location location = new Location(40.7128, -74.0060, "USA", "New York");
 
-        Transaction transaction1 = createTransactionWithLocation(accountId, location);
+        Transaction transaction1 = createTransactionWithLocation(accountId, location, now);
         transactionRepository.save(transaction1);
 
-        Transaction transaction2 = createTransactionWithLocation(accountId, location);
+        Transaction transaction2 = createTransactionWithLocation(accountId, location, now);
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction2);
@@ -609,13 +610,13 @@ class RiskScoringServiceIntegrationTest {
         Instant now = Instant.now();
 
         // Transaction in New York 10 hours ago
-        Location location1 = new Location(40.7128, -74.0060, "USA", "New York", now.minusSeconds(36000));
-        Transaction transaction1 = createTransactionWithLocation(accountId, location1);
+        Location location1 = new Location(40.7128, -74.0060, "USA", "New York");
+        Transaction transaction1 = createTransactionWithLocation(accountId, location1, now.minusSeconds(36000));
         transactionRepository.save(transaction1);
 
         // Transaction in Los Angeles now (reasonable time for travel)
-        Location location2 = new Location(34.0522, -118.2437, "USA", "Los Angeles", now);
-        Transaction transaction2 = createTransactionWithLocation(accountId, location2);
+        Location location2 = new Location(34.0522, -118.2437, "USA", "Los Angeles");
+        Transaction transaction2 = createTransactionWithLocation(accountId, location2, now);
 
         // When
         RiskAssessment assessment = riskScoringService.assessRisk(transaction2);
@@ -648,13 +649,13 @@ class RiskScoringServiceIntegrationTest {
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.RETAIL))
-                .location(new Location(40.7128, -74.0060, "USA", "New York", Instant.now()))
+                .location(new Location(40.7128, -74.0060, "USA", "New York"))
                 .deviceId("DEVICE-001")
                 .timestamp(Instant.now())
                 .build();
     }
 
-    private Transaction createTransactionWithLocation(String accountId, Location location) {
+    private Transaction createTransactionWithLocation(String accountId, Location location, Instant timestamp) {
         return Transaction.builder()
                 .id(TransactionId.generate())
                 .accountId(accountId)
@@ -664,11 +665,11 @@ class RiskScoringServiceIntegrationTest {
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.RETAIL))
                 .location(location)
                 .deviceId("DEVICE-001")
-                .timestamp(location.timestamp())
+                .timestamp(timestamp)
                 .build();
     }
 
-    private Transaction createTransactionWithLocationAndAmount(String accountId, Location location, BigDecimal amount) {
+    private Transaction createTransactionWithLocationAndAmount(String accountId, Location location, Instant timestamp, BigDecimal amount) {
         return Transaction.builder()
                 .id(TransactionId.generate())
                 .accountId(accountId)
@@ -678,7 +679,7 @@ class RiskScoringServiceIntegrationTest {
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.RETAIL))
                 .location(location)
                 .deviceId("DEVICE-001")
-                .timestamp(location.timestamp())
+                .timestamp(timestamp)
                 .build();
     }
 
@@ -690,7 +691,7 @@ class RiskScoringServiceIntegrationTest {
                 .type(type)
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.RETAIL))
-                .location(new Location(40.7128, -74.0060, "USA", "New York", Instant.now()))
+                .location(new Location(40.7128, -74.0060, "USA", "New York"))
                 .deviceId("DEVICE-001")
                 .timestamp(Instant.now())
                 .build();
@@ -704,7 +705,7 @@ class RiskScoringServiceIntegrationTest {
                 .type(TransactionType.PURCHASE)
                 .channel(channel)
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.RETAIL))
-                .location(new Location(40.7128, -74.0060, "USA", "New York", Instant.now()))
+                .location(new Location(40.7128, -74.0060, "USA", "New York"))
                 .deviceId("DEVICE-001")
                 .timestamp(Instant.now())
                 .build();

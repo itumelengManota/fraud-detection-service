@@ -31,8 +31,7 @@ CREATE TABLE IF NOT EXISTS location
     latitude       DOUBLE PRECISION NOT NULL,
     longitude      DOUBLE PRECISION NOT NULL,
     country        VARCHAR(100),
-    city           VARCHAR(100),
-    timestamp      TIMESTAMP        NOT NULL
+    city           VARCHAR(100)
 );
 
 CREATE INDEX idx_transaction_account_id ON transaction (account_id);

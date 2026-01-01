@@ -464,7 +464,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Safe Store")
                 .merchantCategory("RETAIL")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "ZA", "Pretoria"))
                 .build();
     }
 
@@ -486,7 +486,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Electronics Store")
                 .merchantCategory("ELECTRONICS")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "ZA", "Pretoria"))
                 .build();
     }
 
@@ -506,7 +506,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Unknown Vendor")
                 .merchantCategory(MerchantCategory.GAMBLING.name())
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "ZA", "Pretoria"))
                 .build();
     }
 
@@ -526,7 +526,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Suspicious Vendor")
                 .merchantCategory(MerchantCategory.GAMBLING.name())
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "ZA", "Pretoria"))
                 .build();
     }
 
@@ -542,7 +542,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
                 .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -558,7 +558,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .merchantName("Test Store")
                 .merchantCategory("RETAIL")
                 .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -582,6 +582,6 @@ public class FraudDetectionApplicationServiceIntegrationTest {
     }
 
     private Location toDomain(LocationDto location) {
-        return new Location(location.latitude(), location.longitude(), location.country(), location.city(), location.timestamp());
+        return new Location(location.latitude(), location.longitude(), location.country(), location.city());
     }
 }

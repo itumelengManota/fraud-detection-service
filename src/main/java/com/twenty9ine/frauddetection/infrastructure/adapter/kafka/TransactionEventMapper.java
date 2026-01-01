@@ -32,6 +32,6 @@ public class TransactionEventMapper {
         if (locationAvro == null) return null;
 
         return new LocationDto(locationAvro.getLatitude(), locationAvro.getLongitude(), locationAvro.getCountry(),
-                locationAvro.getCity(), locationAvro.getTimestamp());
+                locationAvro.getCity());
     }
 }

@@ -17,11 +17,10 @@ public class CacheConfig {
     @Bean
     @Primary
     public CacheManager caffeineCacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-            "mlPredictions", "ruleConfigs", "merchantData", "velocityMetrics");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager("mlPredictions", "ruleConfigs", "merchantData", "velocityMetrics", "accountProfiles");
 
-        cacheManager.setCaffeine(Caffeine.newBuilder().maximumSize(10_000)
-                                                      .expireAfterWrite(Duration.ofMinutes(5))
+        cacheManager.setCaffeine(Caffeine.newBuilder().maximumSize(10_000)   //TODO: externalize to properties
+                                                      .expireAfterWrite(Duration.ofMinutes(5))   //TODO: externalize to properties
                                                       .recordStats());
 
         return cacheManager;

@@ -32,13 +32,7 @@
         {"name": "latitude", "type": "double"},
         {"name": "longitude", "type": "double"},
         {"name": "country", "type": ["null", "string"], "default": null},
-        {"name": "city", "type": ["null", "string"], "default": null},
-        {"name": "timestamp",
-          "type": {
-            "type": "long",
-            "logicalType": "timestamp-millis"
-          }
-        }
+        {"name": "city", "type": ["null", "string"], "default": null}
       ]
     }], "default": null},
     {"name": "deviceId", "type": ["null", "string"], "default": null},

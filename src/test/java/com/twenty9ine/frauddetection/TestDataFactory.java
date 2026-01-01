@@ -99,7 +99,7 @@ public final class TestDataFactory {
                 .merchantName("Safe Store")
                 .merchantCategory("RETAIL")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -122,7 +122,7 @@ public final class TestDataFactory {
                 .merchantName("Electronics Store")
                 .merchantCategory("ELECTRONICS")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -145,7 +145,7 @@ public final class TestDataFactory {
                 .merchantName("Unknown Vendor")
                 .merchantCategory("OTHER")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -168,7 +168,7 @@ public final class TestDataFactory {
                 .merchantName("Suspicious Vendor")
                 .merchantCategory("HIGH_RISK")
                 .transactionTimestamp(timestamp)
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", timestamp))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 
@@ -187,7 +187,7 @@ public final class TestDataFactory {
                 .merchantName("Test Merchant")
                 .merchantCategory("RETAIL")
                 .transactionTimestamp(Instant.now())
-                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now()))
+                .location(new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria"))
                 .build();
     }
 }

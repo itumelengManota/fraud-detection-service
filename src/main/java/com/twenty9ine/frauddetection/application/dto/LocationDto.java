@@ -1,13 +1,17 @@
 package com.twenty9ine.frauddetection.application.dto;
 
+import com.twenty9ine.frauddetection.domain.valueobject.validation.ValidCountry;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.Instant;
-
 public record LocationDto(
-    @NotNull double latitude,
-    @NotNull double longitude,
+    @NotNull Double latitude,
+    @NotNull Double longitude,
+
+    @NotNull
+    @ValidCountry
     String country,
-    String city,
-    @NotNull Instant timestamp
+
+    @NotBlank
+    String city
 ) { }

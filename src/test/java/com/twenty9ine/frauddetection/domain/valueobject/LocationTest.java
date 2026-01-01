@@ -9,7 +9,7 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_SameLocation_ReturnsZero() {
-        Location location = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
+        Location location = new Location(40.7128, -74.0060, "USA", "New York");
 
         double distance = location.distanceFrom(location);
 
@@ -18,8 +18,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_NewYorkToLondon_ReturnsAccurateDistance() {
-        Location newYork = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
-        Location london = new Location(51.5074, -0.1278, "UK", "London", Instant.now());
+        Location newYork = new Location(40.7128, -74.0060, "USA", "New York");
+        Location london = new Location(51.5074, -0.1278, "UK", "London");
 
         double distance = newYork.distanceFrom(london);
 
@@ -29,8 +29,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_SydneyToTokyo_ReturnsAccurateDistance() {
-        Location sydney = new Location(-33.8688, 151.2093, "Australia", "Sydney", Instant.now());
-        Location tokyo = new Location(35.6762, 139.6503, "Japan", "Tokyo", Instant.now());
+        Location sydney = new Location(-33.8688, 151.2093, "Australia", "Sydney");
+        Location tokyo = new Location(35.6762, 139.6503, "Japan", "Tokyo");
 
         double distance = sydney.distanceFrom(tokyo);
 
@@ -40,8 +40,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_ParisToRome_ReturnsAccurateDistance() {
-        Location paris = new Location(48.8566, 2.3522, "France", "Paris", Instant.now());
-        Location rome = new Location(41.9028, 12.4964, "Italy", "Rome", Instant.now());
+        Location paris = new Location(48.8566, 2.3522, "France", "Paris");
+        Location rome = new Location(41.9028, 12.4964, "Italy", "Rome");
 
         double distance = paris.distanceFrom(rome);
 
@@ -51,8 +51,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_ShortDistance_ReturnsAccurateDistance() {
-        Location location1 = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
-        Location location2 = new Location(40.7489, -73.9680, "USA", "Queens", Instant.now());
+        Location location1 = new Location(40.7128, -74.0060, "USA", "New York");
+        Location location2 = new Location(40.7489, -73.9680, "USA", "Queens");
 
         double distance = location1.distanceFrom(location2);
 
@@ -62,8 +62,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_AntipodePoints_ReturnsHalfEarthCircumference() {
-        Location location1 = new Location(0.0, 0.0, "Ecuador", "Quito", Instant.now());
-        Location location2 = new Location(0.0, 180.0, "Indonesia", "Jakarta", Instant.now());
+        Location location1 = new Location(0.0, 0.0, "Ecuador", "Quito");
+        Location location2 = new Location(0.0, 180.0, "Indonesia", "Jakarta");
 
         double distance = location1.distanceFrom(location2);
 
@@ -73,8 +73,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_NorthPoleToSouthPole_ReturnsHalfEarthCircumference() {
-        Location northPole = new Location(90.0, 0.0, null, null, Instant.now());
-        Location southPole = new Location(-90.0, 0.0, null, null, Instant.now());
+        Location northPole = new Location(90.0, 0.0, null, null);
+        Location southPole = new Location(-90.0, 0.0, null, null);
 
         double distance = northPole.distanceFrom(southPole);
 
@@ -84,8 +84,8 @@ class LocationTest {
 
     @Test
     void testDistanceFrom_IsSymmetric() {
-        Location location1 = new Location(40.7128, -74.0060, "USA", "New York", Instant.now());
-        Location location2 = new Location(51.5074, -0.1278, "UK", "London", Instant.now());
+        Location location1 = new Location(40.7128, -74.0060, "USA", "New York");
+        Location location2 = new Location(51.5074, -0.1278, "UK", "London");
 
         double distance1to2 = location1.distanceFrom(location2);
         double distance2to1 = location2.distanceFrom(location1);

@@ -1,53 +1,40 @@
-spring:
-  kafka:
-    # Disable OAuth for tests - use PLAINTEXT instead
-    security:
-      protocol: PLAINTEXT
-    
-    properties:
-      # Remove SASL configuration for tests
-      sasl.mechanism: null
-      sasl.jaas.config: null
-      security.protocol: PLAINTEXT
-    
-    consumer:
-      properties:
-        # Keep Apicurio but remove OAuth
-        security.protocol: PLAINTEXT
-        sasl.mechanism: null
-    
-    producer:
-      properties:
-        # Keep Apicurio but remove OAuth
-        security.protocol: PLAINTEXT
-        sasl.mechanism: null
-    
-    admin:
-      properties:
-        security.protocol: PLAINTEXT
-        sasl.mechanism: null
-    
-    streams:
-      properties:
-        security.protocol: PLAINTEXT
-        sasl.mechanism: null
+resilience4j:
+  circuitbreaker:
+    instances:
+      accountService:
+        register-health-indicator: false
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        automatic-transition-from-open-to-half-open-enabled: true
 
-  # OAuth disabled for most tests
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8180/realms/test
-          jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
+  retry:
+    instances:
+      accountService:
+        max-attempts: 3
+        wait-duration: 100ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.ConnectException
 
-# Disable AWS SageMaker in tests
-aws:
-  sagemaker:
-    enabled: false
+  timelimiter:
+    instances:
+      accountService:
+        timeout-duration: 3s
 
-logging:
-  level:
-    org.springframework.kafka: WARN
-    org.apache.kafka: WARN
-    org.springframework.security: WARN
-    com.twenty9ine.frauddetection: INFO
+  bulkhead:
+    instances:
+      accountService:
+        max-concurrent-calls: 25
+        max-wait-duration: 50ms
+
+# Account Service Integration (override for tests)
+account-service:
+  base-url: http://localhost:3000

@@ -33,7 +33,7 @@ class LocationIsDomesticGbLocaleIntegrationTest {
         Locale currentLocale = Locale.getDefault();
         assertThat(currentLocale.getCountry()).isEqualTo("GB");
 
-        Location gbLocation = new Location(51.5074, -0.1278, "GB", "London", Instant.now());
+        Location gbLocation = new Location(51.5074, -0.1278, "GB", "London");
 
         // When
         boolean isDomestic = gbLocation.isDomestic();
@@ -45,7 +45,7 @@ class LocationIsDomesticGbLocaleIntegrationTest {
     @Test
     void shouldReturnFalseForNonGbLocation_WithGbLocale() {
         // Given
-        Location foreignLocation = new Location(48.8566, 2.3522, "FR", "Paris", Instant.now());
+        Location foreignLocation = new Location(48.8566, 2.3522, "FR", "Paris");
 
         // When
         boolean isDomestic = foreignLocation.isDomestic();

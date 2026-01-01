@@ -39,7 +39,7 @@ class AssessTransactionRiskCommandTest {
         amount = new BigDecimal("100.00");
         currency = "USD";
         timestamp = Instant.now();
-        location = new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria", Instant.now());
+        location = new LocationDto(-25.7479, 28.2293, "South Africa", "Pretoria");
     }
 
     @Nested
@@ -200,7 +200,7 @@ class AssessTransactionRiskCommandTest {
         @Test
         @DisplayName("Should validate nested LocationDto when present")
         void shouldValidateNestedLocationDto() {
-            LocationDto invalidLocation = new LocationDto(0, 0, null, null, null);
+            LocationDto invalidLocation = new LocationDto(0.00, 0.00, null, null);
 
             AssessTransactionRiskCommand command = AssessTransactionRiskCommand.builder()
                     .transactionId(transactionId)

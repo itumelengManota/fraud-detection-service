@@ -1,0 +1,278 @@
+{
+  "uuid": "ea98a17b-bcee-4a14-b95f-bb1088a4b245",
+  "lastMigration": 33,
+  "name": "Account Management",
+  "endpointPrefix": "",
+  "latency": 0,
+  "port": 3000,
+  "hostname": "",
+  "folders": [],
+  "routes": [
+    {
+      "uuid": "483fd37e-478f-4290-8df3-aea207db12d5",
+      "type": "http",
+      "documentation": "",
+      "method": "get",
+      "endpoint": "accounts/:accountId/profiles",
+      "responses": [
+        {
+          "uuid": "d633d5a8-de21-4ff7-abee-e65c83b20011",
+          "body": "{\n  \"accountId\": \"ACC-12345-1\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
+          "latency": 1000,
+          "statusCode": 200,
+          "label": "",
+          "headers": [],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-12345-1",
+              "invert": false,
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": true,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "5d16a895-329e-4267-b3c4-c71fd69b0440",
+          "body": "{}",
+          "latency": 0,
+          "statusCode": 404,
+          "label": "",
+          "headers": [],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-12345-3",
+              "invert": false,
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "24248c80-c862-4781-82e2-52b94fbc8524",
+          "body": "{}",
+          "latency": 0,
+          "statusCode": 500,
+          "label": "",
+          "headers": [],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-12345-4",
+              "invert": false,
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "fbc7ccbd-990d-4cf4-a3a4-98c521fe7535",
+          "body": "{\n  \"accountId\": \"ACC-12345-2\",\n  \"homeLocation\": {\n    \"latitude\": 51.5074,\n    \"longitude\": -0.1278,\n    \"country\": \"UK\",\n    \"city\": \"London\"\n  },\n  \"accountCreatedAt\": \"2020-01-16T00:00:00Z\"\n}",
+          "latency": 1000,
+          "statusCode": 200,
+          "label": "",
+          "headers": [],
+          "bodyType": "INLINE",
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-12345-2",
+              "invert": false,
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "default": false,
+          "crudKey": "id",
+          "callbacks": []
+        },
+        {
+          "uuid": "resilience-timeout",
+          "body": "{\n  \"accountId\": \"ACC-TIMEOUT\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
+          "latency": 5000,
+          "statusCode": 200,
+          "label": "Timeout scenario - exceeds 3s TimeLimiter",
+          "headers": [],
+          "bodyType": "INLINE",
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-TIMEOUT",
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "default": false
+        },
+        {
+          "uuid": "resilience-intermittent-failure",
+          "body": "{}",
+          "latency": 100,
+          "statusCode": 503,
+          "label": "Intermittent failure for circuit breaker testing",
+          "headers": [],
+          "bodyType": "INLINE",
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-CIRCUIT-BREAKER",
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "default": false
+        },
+        {
+          "uuid": "resilience-slow-response",
+          "body": "{\n  \"accountId\": \"ACC-SLOW\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
+          "latency": 2500,
+          "statusCode": 200,
+          "label": "Slow response for circuit breaker slow call detection",
+          "headers": [],
+          "bodyType": "INLINE",
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-SLOW",
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "default": false
+        },
+        {
+          "uuid": "resilience-retry-success",
+          "body": "{\n  \"accountId\": \"ACC-RETRY\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
+          "latency": 100,
+          "statusCode": 200,
+          "label": "Success after retry",
+          "headers": [],
+          "bodyType": "INLINE",
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-RETRY",
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "default": false
+        },
+        {
+          "uuid": "resilience-bulkhead",
+          "body": "{\n  \"accountId\": \"ACC-BULKHEAD\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
+          "latency": 1000,
+          "statusCode": 200,
+          "label": "For bulkhead concurrency testing",
+          "headers": [],
+          "bodyType": "INLINE",
+          "rules": [
+            {
+              "target": "params",
+              "modifier": "accountId",
+              "value": "ACC-BULKHEAD",
+              "operator": "equals"
+            }
+          ],
+          "rulesOperator": "OR",
+          "default": false
+        }
+      ],
+      "responseMode": null,
+      "streamingMode": null,
+      "streamingInterval": 0
+    }
+  ],
+  "rootChildren": [
+    {
+      "type": "route",
+      "uuid": "483fd37e-478f-4290-8df3-aea207db12d5"
+    }
+  ],
+  "proxyMode": false,
+  "proxyHost": "",
+  "proxyRemovePrefix": false,
+  "tlsOptions": {
+    "enabled": false,
+    "type": "CERT",
+    "pfxPath": "",
+    "certPath": "",
+    "keyPath": "",
+    "caPath": "",
+    "passphrase": ""
+  },
+  "cors": true,
+  "headers": [
+    {
+      "key": "Content-Type",
+      "value": "application/json"
+    },
+    {
+      "key": "Access-Control-Allow-Origin",
+      "value": "*"
+    },
+    {
+      "key": "Access-Control-Allow-Methods",
+      "value": "GET,POST,PUT,PATCH,DELETE,HEAD,OPTIONS"
+    },
+    {
+      "key": "Access-Control-Allow-Headers",
+      "value": "Content-Type, Origin, Accept, Authorization, Content-Length, X-Requested-With"
+    }
+  ],
+  "proxyReqHeaders": [
+    {
+      "key": "",
+      "value": ""
+    }
+  ],
+  "proxyResHeaders": [
+    {
+      "key": "",
+      "value": ""
+    }
+  ],
+  "data": [],
+  "callbacks": []
+}

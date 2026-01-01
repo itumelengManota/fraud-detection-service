@@ -223,11 +223,11 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.empty();
 
-        Instant currentTime = Instant.now();
-        Instant previousTime = currentTime.minusSeconds(5);
+//        Instant currentTime = Instant.now();
+//        Instant previousTime = currentTime.minusSeconds(5);
 
-        Location previousLocation = new Location(40.7128, -74.0060, "New York", "US", previousTime);
-        Location currentLocation = new Location(51.5074, -0.1278, "London", "GB", currentTime);
+        Location previousLocation = new Location(40.7128, -74.0060, "New York", "US");
+        Location currentLocation = new Location(51.5074, -0.1278, "London", "GB");
 
         GeographicContext geographic = GeographicContext.builder()
                 .isImpossibleTravel(true)
@@ -277,11 +277,11 @@ class RuleEngineServiceIntegrationTest {
                 ))
                 .build();
 
-        Instant currentTime = Instant.now();
-        Instant previousTime = currentTime.minusSeconds(10);
+//        Instant currentTime = Instant.now();
+//        Instant previousTime = currentTime.minusSeconds(10);
 
-        Location previousLocation = new Location(40.7128, -74.0060, "New York", "US", previousTime);
-        Location currentLocation = new Location(51.5074, -0.1278, "London", "GB", currentTime);
+        Location previousLocation = new Location(40.7128, -74.0060, "New York", "US");
+        Location currentLocation = new Location(51.5074, -0.1278, "London", "GB");
         GeographicContext geographic = GeographicContext.builder()
                 .isImpossibleTravel(true)
                 .distanceKm(5570.0)
@@ -427,7 +427,7 @@ class RuleEngineServiceIntegrationTest {
                 .type(TransactionType.PURCHASE)
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MERCH-001"), "Test Merchant", MerchantCategory.ELECTRONICS))
-                .location(new Location(40.7128, -74.0060, "New York", "US", Instant.now()))
+                .location(new Location(40.7128, -74.0060, "New York", "US"))
                 .deviceId("DEV-001")
                 .timestamp(Instant.now())
                 .build();

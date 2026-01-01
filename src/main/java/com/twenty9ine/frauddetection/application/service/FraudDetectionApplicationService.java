@@ -139,6 +139,6 @@ public class FraudDetectionApplicationService implements AssessTransactionRiskUs
     }
 
     private Location toDomain(LocationDto location) {
-        return new Location(location.latitude(), location.longitude(), location.country(), location.city(), location.timestamp());
+        return new Location(location.latitude(), location.longitude(), location.country(), location.city());
     }
 }

@@ -66,7 +66,7 @@ class TransactionMapperTest {
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MERCH001"), "Test Merchant", MerchantCategory.RETAIL))
                 .deviceId("DEV456")
-                .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
+                .location(Location.of(40.7128, -74.0060, "USA", "New York"))
                 .timestamp(timestamp)
                 .build();
 
@@ -156,7 +156,7 @@ class TransactionMapperTest {
 
     @Test
     void testToEntity_Location_MapsAllLocationFields() {
-        Location location = Location.of(51.5074, -0.1278, "UK", "London", timestamp);
+        Location location = Location.of(51.5074, -0.1278, "UK", "London");
 
         Transaction transaction = Transaction.builder()
                 .id(TransactionId.of(UUID.randomUUID()))
@@ -175,7 +175,6 @@ class TransactionMapperTest {
         assertEquals(location.longitude(), entity.location().longitude());
         assertEquals(location.country(), entity.location().country());
         assertEquals(location.city(), entity.location().city());
-        assertEquals(location.timestamp(), entity.location().timestamp());
     }
 
     @Test
@@ -266,7 +265,6 @@ class TransactionMapperTest {
                 .longitude(2.3522)
                 .country("France")
                 .city("Paris")
-                .timestamp(timestamp)
                 .build();
     }
 
@@ -355,7 +353,6 @@ class TransactionMapperTest {
                 .longitude(151.2093)
                 .country("Australia")
                 .city("Sydney")
-                .timestamp(timestamp)
                 .build();
 
         TransactionEntity entity = TransactionEntity.builder()
@@ -376,7 +373,6 @@ class TransactionMapperTest {
         assertEquals(location.longitude(), transaction.location().longitude());
         assertEquals(location.country(), transaction.location().country());
         assertEquals(location.city(), transaction.location().city());
-        assertEquals(location.timestamp(), transaction.location().timestamp());
     }
 
     @Test
@@ -445,7 +441,7 @@ class TransactionMapperTest {
                 .channel(Channel.ONLINE)
                 .merchant(new Merchant(MerchantId.of("MERCH005"), "Fashion Store", MerchantCategory.RETAIL))
                 .deviceId("WEB123")
-                .location(Location.of(40.7128, -74.0060, "USA", "New York", timestamp))
+                .location(Location.of(40.7128, -74.0060, "USA", "New York"))
                 .timestamp(timestamp)
                 .build();
 
