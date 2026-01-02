@@ -36,7 +36,7 @@ public class AccountServiceRestAdapter implements AccountServicePort {
     }
 
     @Override
-    @Cacheable(value = "accountProfiles", key = "#accountId")
+    @Cacheable(value = "accountProfiles", key = "#accountId", unless = "#result == null")
     @CircuitBreaker(name = "accountService", fallbackMethod = "findAccountProfileFallback")
     @Retry(name = "accountService")
     @TimeLimiter(name = "accountService")
