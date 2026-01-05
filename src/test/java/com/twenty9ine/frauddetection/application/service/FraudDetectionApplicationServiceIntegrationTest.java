@@ -68,7 +68,7 @@ public class FraudDetectionApplicationServiceIntegrationTest {
     @Container
     static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379)
-            .withReuse(true);
+            .withReuse(false);  // Disabled reuse to prevent stale cache issues during development
 
     @Container
     static GenericContainer<?> schemaRegistry = new GenericContainer<>(DockerImageName.parse("apicurio/apicurio-registry-mem:2.6.13.Final"))
@@ -119,6 +119,18 @@ public class FraudDetectionApplicationServiceIntegrationTest {
     @Autowired
     private KafkaTemplate<String, RiskAssessmentCompletedAvro> kafkaTemplate;
 
+    @Autowired
+    private org.springframework.cache.CacheManager cacheManager;
+
+    @Autowired
+    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+
+    @BeforeAll
+    static void setupTests() {
+        // Ensure containers are started
+        redis.start();
+    }
+
     private KafkaConsumer<String, RiskAssessmentCompletedAvro> createTestConsumer() {
         Map<String, Object> consumerConfig = new HashMap<>();
         consumerConfig.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.getBootstrapServers());
@@ -131,6 +143,28 @@ public class FraudDetectionApplicationServiceIntegrationTest {
         consumerConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
         return new KafkaConsumer<>(consumerConfig);
+    }
+
+    @BeforeEach
+    void clearCaches() {
+        // Flush all data from Redis to ensure no stale cached data from previous runs
+        // This is critical when changing Redis serialization configuration
+        try {
+            Assertions.assertNotNull(redisTemplate.getConnectionFactory());
+            redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        } catch (Exception e) {
+            // Log but don't fail - fallback to cache manager clearing
+            System.err.println("Failed to flush Redis: " + e.getMessage());
+        }
+
+        // Also clear via cache manager as a backup
+        cacheManager.getCacheNames()
+                .forEach(cacheName -> {
+                    org.springframework.cache.Cache cache = cacheManager.getCache(cacheName);
+                    if (cache != null) {
+                        cache.clear();
+                    }
+                });
     }
 
     @Nested

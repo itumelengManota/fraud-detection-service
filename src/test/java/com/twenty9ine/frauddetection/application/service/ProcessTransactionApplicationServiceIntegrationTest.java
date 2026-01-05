@@ -12,11 +12,11 @@ import com.twenty9ine.frauddetection.domain.valueobject.*;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
-import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -109,7 +109,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
     private VelocityServicePort velocityService;
 
     @Autowired
-    private RedissonClient redissonClient;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
     private CacheManager cacheManager;
@@ -129,7 +129,7 @@ class ProcessTransactionApplicationServiceIntegrationTest {
 //        );
 
         // Clear Redis velocity counters
-        redissonClient.getKeys().deleteByPattern("velocity:*");
+        redisTemplate.keys("velocity:*").forEach(redisTemplate::delete);
 
         // Clear all Spring caches
         cacheManager.getCacheNames().forEach(cacheName -> {

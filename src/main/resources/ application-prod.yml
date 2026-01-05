@@ -145,16 +145,9 @@ management:
       enabled: true
     readinessState:
       enabled: true
-  metrics:
-    tags:
-      application: ${spring.application.name}
-      environment: production
   tracing:
     sampling:
       probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
-  otlp:
-    tracing:
-      endpoint: ${OTLP_ENDPOINT:https://tempo.observability.prod:4318/v1/traces}
 
 # Swagger UI - Production (typically disabled or secured)
 springdoc:

@@ -25,7 +25,7 @@ import org.springframework.web.client.RestClient;
 public class AccountServiceRestAdapter implements AccountServicePort {
 
     private final RestClient restClient;
-    private final CacheManager cacheManager;  //TODO: Use RedisCacheManager for distributed caching
+    private final CacheManager cacheManager;
 
     public AccountServiceRestAdapter(RestClient.Builder restClientBuilder,
                                      @Value("${account-service.base-url}")

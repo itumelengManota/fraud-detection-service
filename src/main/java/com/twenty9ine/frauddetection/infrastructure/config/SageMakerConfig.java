@@ -14,7 +14,6 @@ import java.net.URI;
 import java.time.Duration;
 
 @Configuration
-@ConditionalOnProperty(name = "aws.sagemaker.enabled", havingValue = "true")
 public class SageMakerConfig {
 
     @Value("${aws.region:us-east-1}")
@@ -29,7 +28,7 @@ public class SageMakerConfig {
     @Value("${aws.sagemaker.api-call-attempt-timeout:1s}")
     private Duration apiCallAttemptTimeout;
 
-    @Profile("!default")
+//    @Profile("!default")
     @Bean
     public SageMakerRuntimeClient sageMakerRuntimeClient() {
         return SageMakerRuntimeClient.builder()
@@ -41,18 +40,18 @@ public class SageMakerConfig {
                 .build();
     }
 
-    @Profile("default")
-    @Bean
-    public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
-        return SageMakerRuntimeClient.builder()
-                .region(Region.of(awsRegion))
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .endpointOverride(URI.create(awsEndpointUrl))
-                .overrideConfiguration(config -> config
-                        .apiCallTimeout(apiCallTimeout)
-                        .apiCallAttemptTimeout(apiCallAttemptTimeout))
-                .build();
-    }
+//    @Profile("default")
+//    @Bean
+//    public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
+//        return SageMakerRuntimeClient.builder()
+//                .region(Region.of(awsRegion))
+//                .credentialsProvider(DefaultCredentialsProvider.create())
+//                .endpointOverride(URI.create(awsEndpointUrl))
+//                .overrideConfiguration(config -> config
+//                        .apiCallTimeout(apiCallTimeout)
+//                        .apiCallAttemptTimeout(apiCallAttemptTimeout))
+//                .build();
+//    }
 
     @Bean
     @Profile("!test")

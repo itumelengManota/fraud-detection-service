@@ -86,10 +86,35 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      timeout: 3000ms
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:3000ms}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:3000ms}
+
+      enable-transaction-support: ${REDIS_ENABLE_TRANSACTIONS:true}
+
+      # Lettuce configuration (default client)
+      lettuce:
+        pool:
+          enabled: true
+          max-active: ${REDIS_POOL_MAX_ACTIVE:50}
+          max-idle: ${REDIS_POOL_MAX_IDLE:20}
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}
+          max-wait: ${REDIS_POOL_MAX_WAIT:3000ms}
+          time-between-eviction-runs: 30s
+
+        shutdown-timeout: 100ms
+
     jdbc:
       repositories:
         enabled: true
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: ${REDIS_CACHE_TTL:172800000}  # 48 hrs (in milliseconds)
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: ${REDIS_CACHE_KEY_PREFIX:fraud-detection:}
 
   flyway:
     enabled: true
@@ -132,9 +157,9 @@ account-service:
   base-url: ${ACCOUNT_SERVICE_URL:http://localhost:3000}
 
 fraud-detection:
-  transaction-event-consumer:
-    idempotency:
-      ttl-minutes: 10m
+#  transaction-event-consumer:
+#    idempotency:
+#      ttl-minutes: 10m
 
   scoring:
     ml-weight: 0.6
@@ -148,12 +173,14 @@ fraud-detection:
 aws:
   region: us-east-1
   sagemaker:
-    enabled: true
     endpoint-name: fraud-detection-endpoint
     model-version: 1.0.0-local
     api-call-timeout: 5s
     api-call-attempt-timeout: 3s
-    endpoint-url: http://localhost:8080/invocations  # Custom endpoint URL (optional)
+    endpoint-url: http://localhost:8080  # Custom endpoint URL (optional)
+    scaling:
+      min-raw-probability: 0.00001
+      max-raw-probability: 0.01
 
 resilience4j:
   circuitbreaker:
@@ -231,23 +258,30 @@ management:
       enabled: true
     readiness state:
       enabled: true
-  metrics:
-    tags:
-      application: ${spring.application.name}
-      environment: ${ENVIRONMENT:dev}
+
   tracing:
     sampling:
-      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}  # 100% sampling for development
   otlp:
+    metrics:
+      export:
+        url: ${OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+  opentelemetry:
     tracing:
-      endpoint: ${OTLP_ENDPOINT:http://tempo:4318/v1/traces}
+      export:
+        otlp:
+          endpoint: ${OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
+    logging:
+      export:
+        otlp:
+          endpoint: ${OTLP_LOGGING_ENDPOINT:http://localhost:4318/v1/logs}
 
 logging:
   pattern:
     level: '%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]'
   level:
-    com.twenty9ine.frauddetection: INFO
-    software.amazon.awssdk: INFO
+    com.twenty9ine.frauddetection: DEBUG
+    software.amazon.awssdk: DEBUG
     org.springframework.kafka: INFO
     org.apache.kafka: INFO
     org.springframework.security: INFO
@@ -267,5 +301,8 @@ springdoc:
   oAuthFlow:
     authorizationUrl: http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth
     tokenUrl: http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token
+  # Disable Querydsl support to avoid AOT/Native compilation issues
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
 server:
   port: 9001

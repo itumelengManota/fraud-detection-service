@@ -1,17 +1,14 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.cache;
 
+import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import com.twenty9ine.frauddetection.domain.valueobject.TimeWindow;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.valueobject.VelocityMetrics;
-import com.twenty9ine.frauddetection.application.port.out.VelocityServicePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RAtomicDouble;
-import org.redisson.api.RAtomicLong;
-import org.redisson.api.RHyperLogLog;
-import org.redisson.api.RedissonClient;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -24,156 +21,139 @@ import static com.twenty9ine.frauddetection.domain.valueobject.TimeWindow.*;
 @Slf4j
 public class VelocityCounterAdapter implements VelocityServicePort {
 
-    private static final String VELOCITY_METRICS = "velocityMetrics";
-    static final String TOTAL_AMOUNT_COUNTER_KEY = "velocity:amount";
-    static final String MERCHANTS_COUNTER_KEY = "velocity:merchants";
-    static final String TRANSACTION_COUNTER_KEY = "velocity:transaction:counter";
-    static final String LOCATIONS_COUNTER_KEY = "velocity:locations";
+    private static final String TOTAL_AMOUNT_KEY = "velocity:amount";
+    private static final String MERCHANTS_KEY = "velocity:merchants";
+    private static final String TRANSACTION_COUNTER_KEY = "velocity:transaction:counter";
+    private static final String LOCATIONS_KEY = "velocity:locations";
 
-    private final RedissonClient redissonClient;
-    private final CacheManager cacheManager;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
+    @Cacheable(value = "velocityMetrics", key = "#transaction.accountId()")
     public VelocityMetrics findVelocityMetricsByTransaction(Transaction transaction) {
-        Cache cache = getCache();
-        VelocityMetrics cachedVelocityMetrics = extractVelocityMetricsByAccountId(transaction.accountId(), cache);
-
-        if (cachedVelocityMetrics != null) {
-            return cachedVelocityMetrics;
-        }
-
-        VelocityMetrics metrics = fetchFromRedis(transaction);
-        updateCache(transaction.accountId(), cache, metrics);
-
-        return metrics;
+        return VelocityMetrics.builder()
+                .transactionCounts(findTransactionCounts(transaction))
+                .totalAmounts(findTotalAmounts(transaction))
+                .uniqueMerchants(findMerchantCounts(transaction))
+                .uniqueLocations(findLocationCounts(transaction))
+                .build();
     }
 
     @Override
+    @CacheEvict(value = "velocityMetrics", key = "#transaction.accountId()")
     public void incrementCounters(Transaction transaction) {
         incrementTransactionCounters(transaction);
         incrementTotalAmounts(transaction);
         incrementMerchantCounters(transaction);
         incrementLocationCounters(transaction);
-
-        evictCache(transaction.accountId());
     }
 
-    private static void updateCache(String accountId, Cache cache, VelocityMetrics metrics) {
-        if (cache != null) {
-            cache.put(accountId, metrics);
-        }
-    }
-
-    private static VelocityMetrics extractVelocityMetricsByAccountId(String accountId, Cache cache) {
-        return cache != null ? cache.get(accountId, VelocityMetrics.class) : null;
-    }
-
-    private Cache getCache() {
-        return cacheManager.getCache(VELOCITY_METRICS);
-    }
-
-    private VelocityMetrics fetchFromRedis(Transaction transaction) {
-        return VelocityMetrics.builder()
-                              .transactionCounts(findTransactionCounts(transaction))
-                              .totalAmounts(findTotalAmounts(transaction))
-                              .uniqueMerchants(findMerchantCounts(transaction))
-                              .uniqueLocations(findLocationCounts(transaction))
-                              .build();
+    private String buildKey(String prefix, TimeWindow window, String accountId) {
+        return String.format("%s:%s:%s", prefix, window.getLabel(), accountId);
     }
 
     private Map<TimeWindow, Long> findTransactionCounts(Transaction transaction) {
-        return Map.of(FIVE_MINUTES, findTransactionCounter(transaction, FIVE_MINUTES).get(),
-                      ONE_HOUR, findTransactionCounter(transaction, ONE_HOUR).get(),
-                      TWENTY_FOUR_HOURS, findTransactionCounter(transaction, TWENTY_FOUR_HOURS).get());
+        return Map.of(
+                FIVE_MINUTES, getCounter(transaction, FIVE_MINUTES),
+                ONE_HOUR, getCounter(transaction, ONE_HOUR),
+                TWENTY_FOUR_HOURS, getCounter(transaction, TWENTY_FOUR_HOURS)
+        );
     }
 
-    private Map<TimeWindow, BigDecimal> findTotalAmounts(Transaction transaction) {
-        return Map.of(FIVE_MINUTES, BigDecimal.valueOf(findTotalAmountCounter(transaction, FIVE_MINUTES).get()),
-                      ONE_HOUR, BigDecimal.valueOf(findTotalAmountCounter(transaction, ONE_HOUR).get()),
-                      TWENTY_FOUR_HOURS, BigDecimal.valueOf(findTotalAmountCounter(transaction, TWENTY_FOUR_HOURS).get()));
-    }
+    private Long getCounter(Transaction transaction, TimeWindow window) {
+        String key = buildKey(TRANSACTION_COUNTER_KEY, window, transaction.accountId());
 
-    private Map<TimeWindow, Long> findMerchantCounts(Transaction transaction) {
-        return Map.of(FIVE_MINUTES, findMerchantCounter(transaction, FIVE_MINUTES).count(),
-                      ONE_HOUR, findMerchantCounter(transaction, ONE_HOUR).count(),
-                      TWENTY_FOUR_HOURS, findMerchantCounter(transaction, TWENTY_FOUR_HOURS).count());
-    }
-
-    private Map<TimeWindow, Long> findLocationCounts(Transaction transaction) {
-        return Map.of(FIVE_MINUTES, findLocationCounter(transaction, FIVE_MINUTES).count(),
-                      ONE_HOUR, findLocationCounter(transaction, ONE_HOUR).count(),
-                      TWENTY_FOUR_HOURS, findLocationCounter(transaction, TWENTY_FOUR_HOURS).count());
-    }
-
-    private void incrementTotalAmounts(Transaction transaction) {
-        incrementTotalAmount(transaction, FIVE_MINUTES);
-        incrementTotalAmount(transaction, ONE_HOUR);
-        incrementTotalAmount(transaction, TWENTY_FOUR_HOURS);
-    }
-
-    private void incrementTotalAmount(Transaction transaction, TimeWindow timeWindow) {
-        RAtomicDouble totalAmount = findTotalAmountCounter(transaction, timeWindow);
-        totalAmount.addAndGet(transaction.amount().value().doubleValue());
-        totalAmount.expire(timeWindow.getDuration());
-    }
-
-    private RAtomicDouble findTotalAmountCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicDouble((TOTAL_AMOUNT_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
-    }
-
-    private void incrementMerchantCounters(Transaction transaction) {
-        incrementMerchantCounter(transaction, FIVE_MINUTES);
-        incrementMerchantCounter(transaction, ONE_HOUR);
-        incrementMerchantCounter(transaction, TWENTY_FOUR_HOURS);
-    }
-
-    private void incrementMerchantCounter(Transaction transaction, TimeWindow timeWindow) {
-        RHyperLogLog<String> merchantLog = findMerchantCounter(transaction, timeWindow);
-        merchantLog.add(transaction.merchant().id().merchantId());
-        merchantLog.expire(timeWindow.getDuration());
-    }
-
-    private RHyperLogLog<String> findMerchantCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog((MERCHANTS_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
+        Object value = redisTemplate.opsForValue().get(key);
+        return value != null ? ((Number) value).longValue() : 0L;
     }
 
     private void incrementTransactionCounters(Transaction transaction) {
-        incrementTransactionCounter(transaction, FIVE_MINUTES);
-        incrementTransactionCounter(transaction, ONE_HOUR);
-        incrementTransactionCounter(transaction, TWENTY_FOUR_HOURS);
+        incrementCounter(transaction, FIVE_MINUTES);
+        incrementCounter(transaction, ONE_HOUR);
+        incrementCounter(transaction, TWENTY_FOUR_HOURS);
     }
 
-    private void incrementTransactionCounter(Transaction transaction, TimeWindow timeWindow) {
-        RAtomicLong counter = findTransactionCounter(transaction, timeWindow);
-        counter.incrementAndGet();
-        counter.expire(timeWindow.getDuration());
+    private void incrementCounter(Transaction transaction, TimeWindow window) {
+        String key = buildKey(TRANSACTION_COUNTER_KEY, window, transaction.accountId());
+
+        redisTemplate.opsForValue().increment(key, 1);
+        redisTemplate.expire(key, window.getDuration());
     }
 
-    private RAtomicLong findTransactionCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getAtomicLong((TRANSACTION_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
+    private Map<TimeWindow, BigDecimal> findTotalAmounts(Transaction transaction) {
+        return Map.of(
+                FIVE_MINUTES, getTotalAmount(transaction, FIVE_MINUTES),
+                ONE_HOUR, getTotalAmount(transaction, ONE_HOUR),
+                TWENTY_FOUR_HOURS, getTotalAmount(transaction, TWENTY_FOUR_HOURS)
+        );
+    }
+
+    private BigDecimal getTotalAmount(Transaction transaction, TimeWindow window) {
+        String key = buildKey(TOTAL_AMOUNT_KEY, window, transaction.accountId());
+        Object value = redisTemplate.opsForValue().get(key);
+
+        if (value instanceof BigDecimal bigDecimal) {
+            return bigDecimal;
+        } else if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue());
+        }
+
+        return BigDecimal.ZERO;
+    }
+
+    private void incrementTotalAmounts(Transaction transaction) {
+        incrementAmount(transaction, FIVE_MINUTES);
+        incrementAmount(transaction, ONE_HOUR);
+        incrementAmount(transaction, TWENTY_FOUR_HOURS);
+    }
+
+    private void incrementAmount(Transaction transaction, TimeWindow window) {
+        String key = buildKey(TOTAL_AMOUNT_KEY, window, transaction.accountId());
+        double amount = transaction.amount().value().doubleValue();
+
+        redisTemplate.opsForValue().increment(key, amount);
+        redisTemplate.expire(key, window.getDuration());
+    }
+
+    private Map<TimeWindow, Long> findMerchantCounts(Transaction transaction) {
+        return Map.of(
+                FIVE_MINUTES, getHyperLogLogCount(transaction, FIVE_MINUTES, MERCHANTS_KEY),
+                ONE_HOUR, getHyperLogLogCount(transaction, ONE_HOUR, MERCHANTS_KEY),
+                TWENTY_FOUR_HOURS, getHyperLogLogCount(transaction, TWENTY_FOUR_HOURS, MERCHANTS_KEY)
+        );
+    }
+
+    private void incrementMerchantCounters(Transaction transaction) {
+        addToHyperLogLog(transaction, FIVE_MINUTES, MERCHANTS_KEY, transaction.merchant().id().merchantId());
+        addToHyperLogLog(transaction, ONE_HOUR, MERCHANTS_KEY, transaction.merchant().id().merchantId());
+        addToHyperLogLog(transaction, TWENTY_FOUR_HOURS, MERCHANTS_KEY, transaction.merchant().id().merchantId());
+    }
+
+    private Map<TimeWindow, Long> findLocationCounts(Transaction transaction) {
+        return Map.of(
+                FIVE_MINUTES, getHyperLogLogCount(transaction, FIVE_MINUTES, LOCATIONS_KEY),
+                ONE_HOUR, getHyperLogLogCount(transaction, ONE_HOUR, LOCATIONS_KEY),
+                TWENTY_FOUR_HOURS, getHyperLogLogCount(transaction, TWENTY_FOUR_HOURS, LOCATIONS_KEY)
+        );
     }
 
     private void incrementLocationCounters(Transaction transaction) {
-        incrementLocationCounter(transaction, FIVE_MINUTES);
-        incrementLocationCounter(transaction, ONE_HOUR);
-        incrementLocationCounter(transaction, TWENTY_FOUR_HOURS);
+        String location = transaction.location().toString();
+
+        addToHyperLogLog(transaction, FIVE_MINUTES, LOCATIONS_KEY, location);
+        addToHyperLogLog(transaction, ONE_HOUR, LOCATIONS_KEY, location);
+        addToHyperLogLog(transaction, TWENTY_FOUR_HOURS, LOCATIONS_KEY, location);
     }
 
-    private void incrementLocationCounter(Transaction transaction, TimeWindow timeWindow) {
-        RHyperLogLog<String> locationLog = findLocationCounter(transaction, timeWindow);
-        locationLog.add(transaction.location().toString());
-        locationLog.expire(timeWindow.getDuration());
+    private Long getHyperLogLogCount(Transaction transaction, TimeWindow window, String prefix) {
+        String key = buildKey(prefix, window, transaction.accountId());
+        return redisTemplate.opsForHyperLogLog().size(key);
     }
 
-    private RHyperLogLog<String> findLocationCounter(Transaction transaction, TimeWindow timeWindow) {
-        return redissonClient.getHyperLogLog((LOCATIONS_COUNTER_KEY + ":%s:%s").formatted(timeWindow.getLabel(), transaction.accountId()));
-    }
+    private void addToHyperLogLog(Transaction transaction, TimeWindow window, String prefix, String value) {
+        String key = buildKey(prefix, window, transaction.accountId());
 
-    private void evictCache(String accountId) {
-        Cache cache = getCache();
-
-        if (cache != null) {
-            cache.evict(accountId);
-        }
+        redisTemplate.opsForHyperLogLog().add(key, value);
+        redisTemplate.expire(key, window.getDuration());
     }
 }

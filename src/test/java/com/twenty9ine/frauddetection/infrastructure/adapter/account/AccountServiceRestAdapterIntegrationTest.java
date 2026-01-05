@@ -1,14 +1,12 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.account;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twenty9ine.frauddetection.domain.exception.AccountNotFoundException;
 import com.twenty9ine.frauddetection.domain.exception.AccountServiceException;
 import com.twenty9ine.frauddetection.domain.valueobject.AccountProfile;
 import com.twenty9ine.frauddetection.infrastructure.adapter.account.config.AccountServiceTestConfig;
 import com.twenty9ine.frauddetection.infrastructure.adapter.account.dto.AccountDto;
 import com.twenty9ine.frauddetection.infrastructure.adapter.account.dto.LocationDto;
-import com.twenty9ine.frauddetection.infrastructure.config.CacheConfig;
-import org.jspecify.annotations.NonNull;
+import com.twenty9ine.frauddetection.infrastructure.config.RedisConfig;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,22 +23,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.NONE,
-    classes = {
-        AccountServiceRestAdapter.class,
-        CacheConfig.class,
-        AccountServiceTestConfig.class
-    },
-    properties = {
-        "spring.flyway.enabled=false"
-    }
+    classes = {AccountServiceRestAdapter.class, RedisConfig.class, AccountServiceTestConfig.class}
+//    properties = {"spring.flyway.enabled=false"}
 )
 @ActiveProfiles("test")
 @DisabledInAotMode
@@ -68,11 +57,10 @@ class AccountServiceRestAdapterIntegrationTest {
             .withCommand("--data", "/data/data.json")
             .withReuse(true);
 
-    // Redis not needed - CacheConfig uses Caffeine (in-memory cache)
-    // @Container
-    // static GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse(REDIS_IMAGE))
-    //         .withExposedPorts(6379)
-    //         .withReuse(true);
+    @Container
+    static GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
+            .withExposedPorts(6379)
+            .withReuse(true);
 
     @Autowired
     private AccountServiceRestAdapter accountServiceRestAdapter;
@@ -80,15 +68,18 @@ class AccountServiceRestAdapterIntegrationTest {
     @Autowired
     private CacheManager cacheManager;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         mockoon.start();
+        redis.start();
 
         // Account Service
         registry.add("account-service.base-url", AccountServiceRestAdapterIntegrationTest::buildAccountServiceUrl);
+
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+
+        registry.add("spring.flyway.enabled", () -> false);
     }
 
     private static String buildAccountServiceUrl() {
@@ -111,7 +102,7 @@ class AccountServiceRestAdapterIntegrationTest {
 
         @Test
         @DisplayName("Should retrieve account profile successfully")
-        void shouldRetrieveAccountProfileSuccessfully() throws Exception {
+        void shouldRetrieveAccountProfileSuccessfully() {
 
             AccountProfile result = accountServiceRestAdapter.findAccountProfile(ACCOUNT_ID_SUCCESS);
 
@@ -296,7 +287,7 @@ class AccountServiceRestAdapterIntegrationTest {
         @Disabled
         @Test
         @DisplayName("Should open circuit breaker after multiple failures")
-        void shouldOpenCircuitBreakerAfterFailures() throws Exception {
+        void shouldOpenCircuitBreakerAfterFailures() {
             // Trigger multiple failures
             for (int i = 0; i < 15; i++) {
                 try {

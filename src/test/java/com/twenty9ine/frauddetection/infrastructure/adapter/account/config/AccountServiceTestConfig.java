@@ -1,11 +1,9 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.account.config;
 
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.data.jdbc.JdbcRepositoriesAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
-import org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.kafka.autoconfigure.KafkaAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
 
 /**
@@ -14,18 +12,9 @@ import org.springframework.boot.test.context.TestConfiguration;
  */
 @TestConfiguration
 @EnableAutoConfiguration(exclude = {
-    // Database auto-configurations
     DataSourceAutoConfiguration.class,
-    JdbcRepositoriesAutoConfiguration.class,
-    HibernateJpaAutoConfiguration.class,
     DataSourceTransactionManagerAutoConfiguration.class,
-    
-    // Kafka auto-configuration (not needed for this test)
-    KafkaAutoConfiguration.class,
-    
-    // Redis auto-configuration (using Caffeine for caching instead)
-    org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration.class,
-    org.redisson.spring.starter.RedissonAutoConfigurationV2.class
+    KafkaAutoConfiguration.class
 })
 public class AccountServiceTestConfig {
 }

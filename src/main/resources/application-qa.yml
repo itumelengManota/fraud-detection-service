@@ -125,9 +125,9 @@ kafka:
     domain-events: fraud-detection.domain-events
 
 fraud-detection:
-  transaction-event-consumer:
-    idempotency:
-      ttl-minutes: 10m
+#  transaction-event-consumer:
+#    idempotency:
+#      ttl-minutes: 10m
 
   scoring:
     ml-weight: 0.6

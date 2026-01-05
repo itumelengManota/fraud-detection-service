@@ -1,38 +1,34 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
-import org.redisson.api.RBucket;
-import org.redisson.api.RedissonClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class SeenMessageCache {
 
     private static final String SEEN_MESSAGE_KEY_PREFIX = "seen:transaction:";
-    private final RedissonClient redissonClient;
-    private final Duration ttl;
 
-    public SeenMessageCache(RedissonClient redissonClient,
-                            @Value("${fraud-detection.transaction-event-consumer.idempotency.ttl-minutes}")
-                            Duration ttl) {
-        this.redissonClient = redissonClient;
-        this.ttl = ttl;
-    }
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    @Value("${spring.cache.redis.time-to-live:172800000}") // Default 48 hours
+    private long ttlMillis;
 
     public void markProcessed(UUID transactionId) {
-        getRBucket(transactionId).set(true, ttl);
+        redisTemplate.opsForValue().set(buildKey(transactionId), true, Duration.ofMillis(ttlMillis));
     }
 
     public boolean hasProcessed(UUID transactionId) {
-        Boolean result = getRBucket(transactionId).get();
+        Boolean result = (Boolean) redisTemplate.opsForValue().get(buildKey(transactionId));
         return result != null && result;
     }
 
-    private RBucket<Boolean> getRBucket(UUID transactionId) {
-        return redissonClient.getBucket(SEEN_MESSAGE_KEY_PREFIX + transactionId);
+    private static String buildKey(UUID transactionId) {
+        return SEEN_MESSAGE_KEY_PREFIX + transactionId;
     }
 }
-

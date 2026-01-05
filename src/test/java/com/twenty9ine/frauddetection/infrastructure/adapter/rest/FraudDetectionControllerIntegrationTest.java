@@ -1,6 +1,5 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.twenty9ine.frauddetection.application.port.in.command.AssessTransactionRiskCommand;
 import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
 import com.twenty9ine.frauddetection.application.port.out.RiskAssessmentRepository;
@@ -26,17 +25,17 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.test.web.servlet.client.RestTestClient;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.kafka.KafkaContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -70,7 +69,7 @@ class FraudDetectionControllerIntegrationTest {
     private static final String CLIENT_SECRET = "test-secret";
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse(POSTGRES_IMAGE))
+    static PostgreSQLContainer postgres = new PostgreSQLContainer(DockerImageName.parse(POSTGRES_IMAGE))
             .withDatabaseName("frauddetection_test")
             .withUsername("test")
             .withPassword("test")
@@ -82,7 +81,7 @@ class FraudDetectionControllerIntegrationTest {
             .withReuse(true);
 
     @Container
-    static org.testcontainers.kafka.KafkaContainer kafka = new org.testcontainers.kafka.KafkaContainer(
+    static KafkaContainer kafka = new KafkaContainer(
             DockerImageName.parse(KAFKA_IMAGE))
             .withReuse(true);
 
@@ -152,8 +151,8 @@ class FraudDetectionControllerIntegrationTest {
     @LocalServerPort
     private int port;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+//    @Autowired
+//    private ObjectMapper objectMapper;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -161,7 +160,7 @@ class FraudDetectionControllerIntegrationTest {
     @MockitoBean
     private MLServicePort mlServicePort;
 
-    private WebTestClient webTestClient;
+    private RestTestClient restTestClient;
     private RestClient restClient;
     private String detectorToken;
     private String analystToken;
@@ -169,10 +168,10 @@ class FraudDetectionControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         // Initialize WebTestClient bound to the actual running server
-        webTestClient = WebTestClient
+        restTestClient = RestTestClient
                 .bindToServer()
                 .baseUrl("http://localhost:" + port)
-                .responseTimeout(Duration.ofSeconds(30))
+//                .responseTimeout(Duration.ofSeconds(30))
                 .build();
 
         // Initialize RestClient for token acquisition
@@ -205,11 +204,11 @@ class FraudDetectionControllerIntegrationTest {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
             // When & Then
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
@@ -228,11 +227,11 @@ class FraudDetectionControllerIntegrationTest {
 
             AssessTransactionRiskCommand command = buildHighRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
@@ -251,11 +250,11 @@ class FraudDetectionControllerIntegrationTest {
 
             AssessTransactionRiskCommand command = buildCriticalRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
@@ -276,11 +275,11 @@ class FraudDetectionControllerIntegrationTest {
                     }
                     """;
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(invalidRequestBody)
+                    .body(invalidRequestBody)
                     .exchange()
                     .expectStatus().isBadRequest();
         }
@@ -295,11 +294,11 @@ class FraudDetectionControllerIntegrationTest {
         void shouldRejectAssessmentWithoutDetectScope() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isForbidden();
         }
@@ -309,10 +308,10 @@ class FraudDetectionControllerIntegrationTest {
         void shouldRejectRequestWithoutToken() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isUnauthorized();
         }
@@ -322,11 +321,11 @@ class FraudDetectionControllerIntegrationTest {
         void shouldRejectRequestWithInvalidToken() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-token-12345")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isUnauthorized();
         }
@@ -341,17 +340,17 @@ class FraudDetectionControllerIntegrationTest {
         void shouldGetAssessmentWithReadScope() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isOk();
 
             UUID transactionId = command.transactionId();
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .exchange()
@@ -369,17 +368,17 @@ class FraudDetectionControllerIntegrationTest {
         void shouldGetAssessmentWithDetectScope() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
-            webTestClient.post()
+            restTestClient.post()
                     .uri("/fraud/assessments")
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(command)
+                    .body(command)
                     .exchange()
                     .expectStatus().isOk();
 
             UUID transactionId = command.transactionId();
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                     .exchange()
@@ -393,7 +392,7 @@ class FraudDetectionControllerIntegrationTest {
         void shouldReturn404ForNonExistentAssessment() {
             UUID nonExistentTransactionId = UUID.randomUUID();
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", nonExistentTransactionId)
                     .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .exchange()
@@ -405,7 +404,7 @@ class FraudDetectionControllerIntegrationTest {
         void shouldRejectGetRequestWithoutAuth() {
             UUID transactionId = UUID.randomUUID();
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
                     .exchange()
                     .expectStatus().isUnauthorized();
@@ -419,7 +418,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to health endpoint without authentication")
         void shouldAllowAccessToHealthEndpoint() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/actuator/health")
                     .exchange()
                     .expectStatus().isOk()
@@ -430,7 +429,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to info endpoint without authentication")
         void shouldAllowAccessToInfoEndpoint() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/actuator/info")
                     .exchange()
                     .expectStatus().isOk();
@@ -439,7 +438,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should allow access to Swagger API docs without authentication")
         void shouldAllowAccessToSwaggerApiDocs() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri("/v3/api-docs")
                     .exchange()
                     .expectStatus().isOk();
@@ -463,7 +462,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(5);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -498,7 +497,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(3);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("fromDate", yesterday)
@@ -528,7 +527,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(4);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -557,7 +556,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(5);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -575,7 +574,7 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.page.number").isEqualTo(0);
 
             // When & Then - Request second page
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -590,7 +589,7 @@ class FraudDetectionControllerIntegrationTest {
                     .jsonPath("$.page.number").isEqualTo(1);
 
             // When & Then - Request last page
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -619,7 +618,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(3);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -650,7 +649,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(2);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "CRITICAL")
@@ -680,7 +679,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should reject search without authentication")
         void shouldRejectSearchWithoutAuthentication() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -699,7 +698,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(1);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -717,7 +716,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should validate invalid risk level parameter")
         void shouldValidateInvalidRiskLevel() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "INVALID_LEVEL")
@@ -732,7 +731,7 @@ class FraudDetectionControllerIntegrationTest {
         @Test
         @DisplayName("Should validate invalid date format")
         void shouldValidateInvalidDateFormat() {
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("fromDate", "invalid-date")
@@ -753,7 +752,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer count = countRiskAssessments();
             assertThat(count).isEqualTo(2);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("transactionRiskLevels", "HIGH")
@@ -782,7 +781,7 @@ class FraudDetectionControllerIntegrationTest {
             Integer riskAssessmentCount = countRiskAssessments();
             assertThat(riskAssessmentCount).isEqualTo(2);
 
-            webTestClient.get()
+            restTestClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/fraud/assessments")
                             .queryParam("fromDate", yesterday.toString())
@@ -865,11 +864,11 @@ class FraudDetectionControllerIntegrationTest {
 
         AssessTransactionRiskCommand command = buildAssessTransactionRiskCommand(riskLevel, TransactionId.generate(), assessmentTime);
 
-        webTestClient.post()
+        restTestClient.post()
                 .uri("/fraud/assessments")
                 .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(command)
+                .body(command)
                 .exchange()
                 .expectStatus().isOk();
 

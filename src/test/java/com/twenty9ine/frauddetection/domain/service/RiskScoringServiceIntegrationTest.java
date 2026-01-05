@@ -10,26 +10,22 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
-import org.redisson.Redisson;
-import org.redisson.api.RedissonClient;
-import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -54,10 +50,11 @@ import static org.mockito.Mockito.when;
 class RiskScoringServiceIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine")
+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test")
+//            .withExposedPorts(PostgreSQLContainer.POSTGRESQL_PORT)
             .withReuse(true);
 
     @Container
@@ -75,6 +72,9 @@ class RiskScoringServiceIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
 
+        registry.add("spring.data.redis.host", redis::getHost);
+        registry.add("spring.data.redis.port", redis::getFirstMappedPort);
+
         registry.add("aws.sagemaker.enabled", () -> "false");
     }
 
@@ -87,23 +87,11 @@ class RiskScoringServiceIntegrationTest {
     })
     static class TestConfig {
 
-        @Bean
-        public RedissonClient redissonClient() {
-            Config config = new Config();
-            config.useSingleServer().setAddress(String.format("redis://%s:%d", redis.getHost(), redis.getFirstMappedPort()));
-
-            return Redisson.create(config);
-        }
-
-        @Bean
-        public CacheManager cacheManager() {
-            return new CaffeineCacheManager("velocityMetrics");
-        }
-
         @Primary
         @Bean
-        public VelocityServicePort velocityServicePort(RedissonClient redissonClient, CacheManager cacheManager) {
-            return new VelocityCounterAdapter(redissonClient, cacheManager);
+        public VelocityServicePort velocityServicePort(
+                RedisTemplate<String, Object> redisTemplate) {
+            return new VelocityCounterAdapter(redisTemplate);
         }
     }
 
@@ -117,16 +105,16 @@ class RiskScoringServiceIntegrationTest {
     private VelocityServicePort velocityService;
 
     @Autowired
-    private RedissonClient redissonClient;
+    private RedisTemplate<String, Object> redisTemplate;
 
     @MockitoBean
     private MLServicePort mlServicePort;
 
     @BeforeEach
     void setUp() {
-        if (redissonClient != null) {
+        if (redisTemplate != null) {
             // Clean up Redis before each test
-            redissonClient.getKeys().flushall();
+            redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
         }
     }
 

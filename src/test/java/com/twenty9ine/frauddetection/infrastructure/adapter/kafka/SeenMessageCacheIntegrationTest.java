@@ -1,14 +1,11 @@
 package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
+import com.twenty9ine.frauddetection.infrastructure.config.RedisConfig;
 import org.junit.jupiter.api.*;
-import org.redisson.Redisson;
-import org.redisson.api.RedissonClient;
-import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.data.redis.DataRedisTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
+import org.springframework.boot.data.redis.test.autoconfigure.DataRedisTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -26,7 +23,7 @@ import static org.awaitility.Awaitility.await;
 
 @DataRedisTest
 @Testcontainers
-@Import({SeenMessageCache.class, SeenMessageCacheIntegrationTest.RedisTestConfig.class})
+@Import({SeenMessageCache.class, RedisConfig.class})
 @Execution(ExecutionMode.CONCURRENT)
 @ResourceLock("redis")
 class SeenMessageCacheIntegrationTest {
@@ -42,39 +39,23 @@ class SeenMessageCacheIntegrationTest {
 
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
-    }
-
-    @TestConfiguration
-    static class RedisTestConfig {
-        @Bean
-        public RedissonClient redissonClient() {
-            Config config = new Config();
-            config.useSingleServer().setAddress("redis://" + redis.getHost() + ":" + redis.getFirstMappedPort());
-            return Redisson.create(config);
-        }
+        registry.add("spring.cache.redis.time-to-live", () -> "10000"); // 10 seconds TTL
     }
 
     @Autowired
     private SeenMessageCache seenMessageCache;
 
     @Autowired
-    private RedissonClient redissonClient;
-
-    private final Duration ttl = Duration.ofSeconds(10);
+    private RedisTemplate<String, Object> redisTemplate;
 
     @BeforeEach
     void setUp() {
-        seenMessageCache = new SeenMessageCache(redissonClient, ttl);
-        cleanupRedis();
-    }
-
-    @AfterEach
-    void tearDown() {
         cleanupRedis();
     }
 
     private void cleanupRedis() {
-        redissonClient.getKeys().flushall();
+        Assertions.assertNotNull(redisTemplate.getConnectionFactory());
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
     }
 
     @Test
@@ -131,6 +112,8 @@ class SeenMessageCacheIntegrationTest {
     @Test
     @DisplayName("Should expire entries after TTL")
     void shouldExpireEntriesAfterTtl() {
+        Duration ttl = Duration.ofSeconds(10);
+
         // Given
         UUID transactionId = UUID.randomUUID();
         seenMessageCache.markProcessed(transactionId);
@@ -218,11 +201,14 @@ class SeenMessageCacheIntegrationTest {
     @DisplayName("Should verify Redis connection is working")
     void shouldVerifyRedisConnectionIsWorking() {
         // When & Then
-        assertThat(redissonClient.getConfig().isClusterConfig())
-                .as("Redis should be accessible")
-                .isFalse();
         assertThat(redis.isRunning())
                 .as("Redis container should be running")
                 .isTrue();
+        
+        // Verify we can ping Redis
+        String pong = redisTemplate.getConnectionFactory().getConnection().ping();
+        assertThat(pong)
+                .as("Redis should respond to ping")
+                .isEqualTo("PONG");
     }
 }

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
-import java.time.Instant;
 import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,8 +18,10 @@ class LocationIsDomesticIntegrationTest {
     @BeforeEach
     void setUp() {
         originalLocale = Locale.getDefault();
-        // Set South African locale
-        Locale.setDefault(new Locale("af", "ZA"));
+        Locale.setDefault(new Locale.Builder()
+                .setLanguage("af")
+                .setRegion("ZA")
+                .build());
     }
 
     @AfterEach
