@@ -111,11 +111,11 @@ services:
       KC_HTTP_PORT: 8080
     ports:
       - "8180:8080"
+    restart: unless-stopped
     volumes:
       - ./keycloak-config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
     depends_on:
       - postgres
-    restart: unless-stopped
 
   grafana-lgtm:
     image: 'grafana/otel-lgtm:latest'
@@ -123,5 +123,6 @@ services:
       - '3000:3000'
       - '4317:4317'
       - '4318:4318'
+    restart: unless-stopped
 
 

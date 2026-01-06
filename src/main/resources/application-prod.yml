@@ -143,6 +143,8 @@ management:
 
 # Swagger UI - Production (typically disabled or secured)
 springdoc:
+  api-docs:
+    enabled: false  # Disable in production or use internal-only
   swagger-ui:
     enabled: ${SWAGGER_UI_ENABLED:false}  # Disable in production or use internal-only
     oauth:
