@@ -1,11 +1,3 @@
-# ==============================================================================
-# Production Configuration Profile
-# ==============================================================================
-# File: src/main/resources/application-prod.yml
-# Activate with: --spring.profiles.active=prod
-# Or environment variable: SPRING_PROFILES_ACTIVE=prod
-# ==============================================================================
-
 spring:
   application:
     name: fraud-detection-service
@@ -116,8 +108,8 @@ aws:
     enabled: ${AWS_SAGEMAKER_ENABLED:true}
     endpoint-name: ${SAGEMAKER_ENDPOINT_NAME:fraud-detection-prod}
     model-version: ${SAGEMAKER_MODEL_VERSION:2.1.0}
-    api-call-timeout: 2s
-    api-call-attempt-timeout: 1s
+    api-call-timeout: 5s
+    api-call-attempt-timeout: 3s
 
 # Logging - Production
 logging:

@@ -10,6 +10,22 @@ services:
     volumes:
       - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  sagemaker-model:
+    image: ghcr.io/itumelengmanota/fraud-detection-model:latest
+    container_name: fraud-detection-model
+    ports:
+      - '8080:8080'
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+      - MODEL_NAME=fraud-detection-model
+      - MODEL_VERSION=1.0.0
+
   mockoon:
     image: 'mockoon/cli:latest'
     ports:

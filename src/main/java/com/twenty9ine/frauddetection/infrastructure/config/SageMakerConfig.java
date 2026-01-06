@@ -28,9 +28,13 @@ public class SageMakerConfig {
     @Value("${aws.sagemaker.api-call-attempt-timeout:1s}")
     private Duration apiCallAttemptTimeout;
 
-//    @Profile("!default")
+    /**
+     * Cloud/AWS SageMaker Runtime Client
+     * Used when aws.sagemaker.local-mode=false
+     */
     @Bean
-    public SageMakerRuntimeClient sageMakerRuntimeClient() {
+    @ConditionalOnProperty(name = "aws.sagemaker.local-mode", havingValue = "false")
+    public SageMakerRuntimeClient sageMakerRuntimeClientCloud() {
         return SageMakerRuntimeClient.builder()
                 .region(Region.of(awsRegion))
                 .credentialsProvider(DefaultCredentialsProvider.create())
@@ -40,26 +44,31 @@ public class SageMakerConfig {
                 .build();
     }
 
-//    @Profile("default")
-//    @Bean
-//    public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
-//        return SageMakerRuntimeClient.builder()
-//                .region(Region.of(awsRegion))
-//                .credentialsProvider(DefaultCredentialsProvider.create())
-//                .endpointOverride(URI.create(awsEndpointUrl))
-//                .overrideConfiguration(config -> config
-//                        .apiCallTimeout(apiCallTimeout)
-//                        .apiCallAttemptTimeout(apiCallAttemptTimeout))
-//                .build();
-//    }
-
+    /**
+     * Local SageMaker Runtime Client
+     * Used when aws.sagemaker.local-mode=true (default)
+     * Points to local Docker container running SageMaker endpoint
+     */
     @Bean
-    @Profile("!test")
-    @ConditionalOnProperty(name = "aws.sagemaker.feature-store.enabled", havingValue = "true")
-    public SageMakerFeatureStoreRuntimeClient sageMakerFeatureStoreRuntimeClient() {
-        return SageMakerFeatureStoreRuntimeClient.builder()
+    @ConditionalOnProperty(name = "aws.sagemaker.local-mode", havingValue = "true", matchIfMissing = true)
+    public SageMakerRuntimeClient sageMakerRuntimeClientLocal() {
+        return SageMakerRuntimeClient.builder()
                 .region(Region.of(awsRegion))
                 .credentialsProvider(DefaultCredentialsProvider.create())
+                .endpointOverride(URI.create(awsEndpointUrl))
+                .overrideConfiguration(config -> config
+                        .apiCallTimeout(apiCallTimeout)
+                        .apiCallAttemptTimeout(apiCallAttemptTimeout))
                 .build();
     }
+//
+//    @Bean
+//    @Profile("!test")
+//    @ConditionalOnProperty(name = "aws.sagemaker.feature-store.enabled", havingValue = "true")
+//    public SageMakerFeatureStoreRuntimeClient sageMakerFeatureStoreRuntimeClient() {
+//        return SageMakerFeatureStoreRuntimeClient.builder()
+//                .region(Region.of(awsRegion))
+//                .credentialsProvider(DefaultCredentialsProvider.create())
+//                .build();
+//    }
 }

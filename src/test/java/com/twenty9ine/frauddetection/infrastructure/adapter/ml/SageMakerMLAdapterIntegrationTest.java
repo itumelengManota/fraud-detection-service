@@ -28,12 +28,14 @@ import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -109,6 +111,21 @@ class SageMakerMLAdapterIntegrationTest {
         }
     }
 
+    /**
+     * SageMaker Model Container from GitHub Container Registry
+     * This container runs the trained XGBoost model in a Flask server.
+     * The image is built and published via GitHub Actions in the ML project.
+     */
+    @Container
+    static GenericContainer<?> sagemakerModel = new GenericContainer<>(
+            DockerImageName.parse("ghcr.io/itumelengmanota/fraud-detection-model:latest")
+                    .asCompatibleSubstituteFor("fraud-detection-model"))
+            .withExposedPorts(8080)
+            .withReuse(true)
+            .waitingFor(Wait.forHttp("/ping")
+                    .forStatusCode(200)
+                    .withStartupTimeout(Duration.ofMinutes(2)));
+
     @Container
     static GenericContainer<?> mockoon = new GenericContainer<>(DockerImageName.parse("mockoon/cli:latest"))
             .withExposedPorts(3000)
@@ -137,24 +154,47 @@ class SageMakerMLAdapterIntegrationTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
+        sagemakerModel.start();
         mockoon.start();
         redis.start();
+
+        // SageMaker Model Configuration (Local Mode)
+        registry.add("aws.sagemaker.local-mode", () -> true);
+        registry.add("aws.sagemaker.endpoint-url", () ->
+                String.format("http://%s:%d/invocations", sagemakerModel.getHost(), sagemakerModel.getFirstMappedPort()));
+        registry.add("aws.sagemaker.endpoint-name", () -> "fraud-detection-endpoint");
+        registry.add("aws.sagemaker.model-version", () -> "1.0.0-test");
+        registry.add("aws.sagemaker.api-call-timeout", () -> "10s");
+        registry.add("aws.sagemaker.api-call-attempt-timeout", () -> "5s");
 
         // Account Service
         registry.add("account-service.base-url", SageMakerMLAdapterIntegrationTest::buildAccountServiceUrl);
 
+        // Redis
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", redis::getFirstMappedPort);
 
+        // Disable Flyway
         registry.add("spring.flyway.enabled", () -> false);
-
-        registry.add("aws.sagemaker.enabled", () -> true);
-        registry.add("aws.sagemaker.endpoint-name", () -> "fraud-detection-endpoint");
-        registry.add("aws.sagemaker.model-version", () -> "1.0.0");
     }
 
     private static String buildAccountServiceUrl() {
         return "http://%s:%s".formatted(mockoon.getHost(), mockoon.getFirstMappedPort());
+    }
+
+    @BeforeAll
+    static void beforeAll() {
+        // Verify SageMaker container is healthy
+        System.out.println("=".repeat(60));
+        System.out.println("SageMaker Model Container Status");
+        System.out.println("=".repeat(60));
+
+        System.out.println("Container ID: " + sagemakerModel.getContainerId());
+        System.out.println("Host: " + sagemakerModel.getHost());
+        System.out.println("Port: " + sagemakerModel.getFirstMappedPort());
+        System.out.println("Endpoint: http://" + sagemakerModel.getHost() + ":" + sagemakerModel.getFirstMappedPort() + "/invocations");
+
+        System.out.println("=".repeat(60));
     }
 
     @BeforeEach
@@ -562,7 +602,7 @@ class SageMakerMLAdapterIntegrationTest {
                 Instant.parse("2024-01-15T14:00:00Z")
         );
     }
-    
+
     private void clearCache() {
         Cache cache = cacheManager.getCache("mlPredictions");
         if (cache != null) {

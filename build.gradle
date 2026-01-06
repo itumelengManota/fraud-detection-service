@@ -29,7 +29,7 @@ ext {
     mapstructVersion = '1.6.3'
     lombokMapstructBindingVersion = '0.2.0'
     droolsVersion = '10.1.0'
-    kieVersion = '7.74.1.Final'
+//    kieVersion = '7.74.1.Final'
     resilience4jVersion = '2.2.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '3.0.0'
@@ -96,9 +96,6 @@ dependencies {
     implementation 'io.strimzi:kafka-oauth-client:0.17.1' // Add OAuth support for Kafka
     implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
 
-//    implementation 'org.springframework.integration:spring-integration-core'
-//    implementation 'org.springframework.integration:spring-integration-kafka'
-//    implementation 'org.springframework.integration:spring-integration-redis'
 
     implementation "io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion"
     implementation "io.github.resilience4j:resilience4j-circuitbreaker:$resilience4jVersion"
@@ -114,7 +111,7 @@ dependencies {
     implementation "org.drools:drools-verifier:$droolsVersion"
     implementation "org.drools:drools-mvel:$droolsVersion"
     testImplementation "org.drools:drools-xml-support:$droolsVersion"
-    implementation "org.kie:kie-spring:$kieVersion"
+//    implementation "org.kie:kie-spring:$kieVersion"
 
 
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
@@ -128,31 +125,11 @@ dependencies {
     implementation 'software.amazon.awssdk:auth'
     implementation 'software.amazon.awssdk:sts'
 
-//    compileOnly 'org.projectlombok:lombok'
-//    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-//    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-//    implementation 'org.postgresql:postgresql'
-
-//    annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
     annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
-//    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-
-//    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-//    testImplementation 'org.springframework.boot:spring-boot-starter-webflux'
-//    testImplementation 'org.springframework.kafka:spring-kafka-test'
-//    testImplementation 'org.springframework.security:spring-security-test'
-//    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-//    testImplementation 'org.testcontainers:junit-jupiter'
-//    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
-//    testImplementation 'org.testcontainers:kafka'
-//    testImplementation 'org.testcontainers:postgresql'
-//    testImplementation 'org.testcontainers:localstack:1.19.3'
-//    testImplementation 'cloud.localstack:localstack-utils:0.2.23'
     testImplementation "com.github.dasniko:testcontainers-keycloak:$keycloakTestcontainersVersion"
 
     testImplementation 'org.awaitility:awaitility:4.2.0'
-//    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     testAnnotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
 }
@@ -193,6 +170,56 @@ processResources.finalizedBy generateDroolsMetadata
 
 tasks.named('test') {
     useJUnitPlatform()
+
+    // Check if Docker image exists before running tests
+    doFirst {
+        def localImageName = 'fraud-detection-model:latest'
+        def ghcrImageName = 'ghcr.io/itumelengmanota/fraud-detection-model:latest'
+
+        try {
+            // Check for local image first
+            def process = "docker images -q ${localImageName}".execute()
+            process.waitFor()
+            def imageId = process.text.trim()
+
+            if (imageId.isEmpty()) {
+                logger.warn('')
+                logger.warn('=' * 60)
+                logger.warn('⚠️  WARNING: Local model image not found!')
+                logger.warn('=' * 60)
+                logger.warn('Attempting to pull from GitHub Container Registry...')
+                logger.warn('')
+
+                try {
+                    // Try to pull from GHCR
+                    def pullProcess = "docker pull ${ghcrImageName}".execute()
+                    pullProcess.waitForProcessOutput(System.out, System.err)
+
+                    if (pullProcess.exitValue() == 0) {
+                        // Tag as local for compatibility
+                        "docker tag ${ghcrImageName} ${localImageName}".execute().waitFor()
+                        logger.lifecycle("✅ Successfully pulled and tagged model image from GHCR")
+                    } else {
+                        logger.warn('')
+                        logger.warn('Failed to pull from GHCR. Build the image locally:')
+                        logger.warn('  1. cd /Users/ignatiusitumelengmanota/git/fraud-detection-ml-model/scripts')
+                        logger.warn('  2. ./download_model_from_s3.sh')
+                        logger.warn('  3. ./build_docker_image.sh')
+                        logger.warn('')
+                        logger.warn('Or authenticate with GitHub:')
+                        logger.warn('  docker login ghcr.io -u YOUR_USERNAME -p YOUR_GITHUB_TOKEN')
+                        logger.warn('=' * 60)
+                    }
+                } catch (Exception e) {
+                    logger.warn('Could not pull from GHCR: ' + e.message)
+                }
+            } else {
+                logger.lifecycle("✅ Found local model image: ${localImageName}")
+            }
+        } catch (Exception e) {
+            logger.warn('⚠️  Could not check for Docker image: ' + e.message)
+        }
+    }
 
     // Enable parallel execution at Gradle level
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
