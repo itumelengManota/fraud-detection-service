@@ -6,7 +6,7 @@ services:
       - 'POSTGRES_PASSWORD=postgres'
       - 'POSTGRES_USER=postgres'
     ports:
-      - '5432'
+      - '5432:5432'
     volumes:
       - ./postgresql/init.sql:/docker-entrypoint-initdb.d/init.sql
 
@@ -29,7 +29,7 @@ services:
   mockoon:
     image: 'mockoon/cli:latest'
     ports:
-      - '3000:3000'
+      - '3001:3000'
     restart: unless-stopped
     volumes:
       - ./mockoon/data.json:/data/data.json
@@ -39,7 +39,7 @@ services:
     image: 'redis:7.4'
     restart: unless-stopped
     ports:
-      - '6379'
+      - '6379:6379'
 
   kafka:
     image: 'apache/kafka:3.8.1'
@@ -120,8 +120,8 @@ services:
   grafana-lgtm:
     image: 'grafana/otel-lgtm:latest'
     ports:
-      - '3000'
-      - '4317'
-      - '4318'
+      - '3000:3000'
+      - '4317:4317'
+      - '4318:4318'
 
 

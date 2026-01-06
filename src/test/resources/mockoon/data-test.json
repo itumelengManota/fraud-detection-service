@@ -18,7 +18,7 @@
         {
           "uuid": "d633d5a8-de21-4ff7-abee-e65c83b20011",
           "body": "{\n  \"accountId\": \"ACC-12345-1\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
-          "latency": 1000,
+          "latency": 0,
           "statusCode": 200,
           "label": "",
           "headers": [],
@@ -38,7 +38,7 @@
           "rulesOperator": "OR",
           "disableTemplating": false,
           "fallbackTo404": false,
-          "default": true,
+          "default": false,
           "crudKey": "id",
           "callbacks": []
         },
@@ -65,7 +65,7 @@
           "rulesOperator": "OR",
           "disableTemplating": false,
           "fallbackTo404": false,
-          "default": false,
+          "default": true,
           "crudKey": "id",
           "callbacks": []
         },
@@ -99,7 +99,7 @@
         {
           "uuid": "fbc7ccbd-990d-4cf4-a3a4-98c521fe7535",
           "body": "{\n  \"accountId\": \"ACC-12345-2\",\n  \"homeLocation\": {\n    \"latitude\": 51.5074,\n    \"longitude\": -0.1278,\n    \"country\": \"UK\",\n    \"city\": \"London\"\n  },\n  \"accountCreatedAt\": \"2020-01-16T00:00:00Z\"\n}",
-          "latency": 1000,
+          "latency": 0,
           "statusCode": 200,
           "label": "",
           "headers": [],

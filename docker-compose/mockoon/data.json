@@ -18,7 +18,7 @@
         {
           "uuid": "d633d5a8-de21-4ff7-abee-e65c83b20011",
           "body": "{\n  \"accountId\": \"ACC-12345-1\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
-          "latency": 1000,
+          "latency": 0,
           "statusCode": 200,
           "label": "",
           "headers": [],
@@ -99,7 +99,7 @@
         {
           "uuid": "fbc7ccbd-990d-4cf4-a3a4-98c521fe7535",
           "body": "{\n  \"accountId\": \"ACC-12345-2\",\n  \"homeLocation\": {\n    \"latitude\": 51.5074,\n    \"longitude\": -0.1278,\n    \"country\": \"UK\",\n    \"city\": \"London\"\n  },\n  \"accountCreatedAt\": \"2020-01-16T00:00:00Z\"\n}",
-          "latency": 1000,
+          "latency": 0,
           "statusCode": 200,
           "label": "",
           "headers": [],
@@ -124,7 +124,7 @@
           "callbacks": []
         },
         {
-          "uuid": "resilience-timeout",
+          "uuid": "43e2864b-a5ec-4b67-af73-d20203bfe0d5",
           "body": "{\n  \"accountId\": \"ACC-TIMEOUT\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
           "latency": 5000,
           "statusCode": 200,
@@ -136,14 +136,22 @@
               "target": "params",
               "modifier": "accountId",
               "value": "ACC-TIMEOUT",
-              "operator": "equals"
+              "operator": "equals",
+              "invert": false
             }
           ],
           "rulesOperator": "OR",
-          "default": false
+          "default": false,
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "crudKey": "id",
+          "callbacks": []
         },
         {
-          "uuid": "resilience-intermittent-failure",
+          "uuid": "23563710-b7ca-4233-822f-a4401c8e509b",
           "body": "{}",
           "latency": 100,
           "statusCode": 503,
@@ -155,14 +163,22 @@
               "target": "params",
               "modifier": "accountId",
               "value": "ACC-CIRCUIT-BREAKER",
-              "operator": "equals"
+              "operator": "equals",
+              "invert": false
             }
           ],
           "rulesOperator": "OR",
-          "default": false
+          "default": false,
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "crudKey": "id",
+          "callbacks": []
         },
         {
-          "uuid": "resilience-slow-response",
+          "uuid": "e26e4fc0-5b20-463b-85e8-c92aaccc91ab",
           "body": "{\n  \"accountId\": \"ACC-SLOW\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
           "latency": 2500,
           "statusCode": 200,
@@ -174,14 +190,22 @@
               "target": "params",
               "modifier": "accountId",
               "value": "ACC-SLOW",
-              "operator": "equals"
+              "operator": "equals",
+              "invert": false
             }
           ],
           "rulesOperator": "OR",
-          "default": false
+          "default": false,
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "crudKey": "id",
+          "callbacks": []
         },
         {
-          "uuid": "resilience-retry-success",
+          "uuid": "9e42b7bd-2b0f-42cb-bc9c-ca2703801b24",
           "body": "{\n  \"accountId\": \"ACC-RETRY\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
           "latency": 100,
           "statusCode": 200,
@@ -193,14 +217,22 @@
               "target": "params",
               "modifier": "accountId",
               "value": "ACC-RETRY",
-              "operator": "equals"
+              "operator": "equals",
+              "invert": false
             }
           ],
           "rulesOperator": "OR",
-          "default": false
+          "default": false,
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "crudKey": "id",
+          "callbacks": []
         },
         {
-          "uuid": "resilience-bulkhead",
+          "uuid": "439e995a-373a-4c17-8dd3-d7085a22811a",
           "body": "{\n  \"accountId\": \"ACC-BULKHEAD\",\n  \"homeLocation\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"accountCreatedAt\": \"2020-01-15T00:00:00Z\"\n}",
           "latency": 1000,
           "statusCode": 200,
@@ -212,11 +244,19 @@
               "target": "params",
               "modifier": "accountId",
               "value": "ACC-BULKHEAD",
-              "operator": "equals"
+              "operator": "equals",
+              "invert": false
             }
           ],
           "rulesOperator": "OR",
-          "default": false
+          "default": false,
+          "filePath": "",
+          "databucketID": "",
+          "sendFileAsBody": false,
+          "disableTemplating": false,
+          "fallbackTo404": false,
+          "crudKey": "id",
+          "callbacks": []
         }
       ],
       "responseMode": null,

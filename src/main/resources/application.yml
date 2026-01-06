@@ -154,7 +154,7 @@ kafka:
 
 # Account Service Integration
 account-service:
-  base-url: ${ACCOUNT_SERVICE_URL:http://localhost:3000}
+  base-url: ${ACCOUNT_SERVICE_URL:http://localhost:3001}
 
 fraud-detection:
 #  transaction-event-consumer:
