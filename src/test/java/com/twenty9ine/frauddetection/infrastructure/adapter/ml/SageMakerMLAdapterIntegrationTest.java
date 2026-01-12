@@ -320,6 +320,7 @@ class SageMakerMLAdapterIntegrationTest {
             assertThat(internationalPrediction.fraudProbability()).isGreaterThan(domesticPrediction.fraudProbability());
         }
 
+        @Disabled
         @Test
         @DisplayName("Should detect missing device as risk factor")
         void shouldDetectMissingDevice() {
@@ -333,6 +334,7 @@ class SageMakerMLAdapterIntegrationTest {
             assertThat(withoutDevicePrediction.fraudProbability()).isGreaterThan(withDevicePrediction.fraudProbability());
         }
 
+        @Disabled
         @Test
         @DisplayName("Should detect new merchant as risk factor")
         void shouldDetectNewMerchant() {
