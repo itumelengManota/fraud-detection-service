@@ -29,7 +29,6 @@ ext {
     mapstructVersion = '1.6.3'
     lombokMapstructBindingVersion = '0.2.0'
     droolsVersion = '10.1.0'
-//    kieVersion = '7.74.1.Final'
     resilience4jVersion = '2.2.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '3.0.0'
@@ -42,8 +41,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
-    // Required for SpringDoc Querydsl support during AOT compilation
-//    implementation 'com.querydsl:querydsl-core:5.1.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springframework.boot:spring-boot-starter-integration'
@@ -90,9 +87,6 @@ dependencies {
 //    TODO: Add a config server
 
     implementation "com.fasterxml.uuid:java-uuid-generator:$uuidGeneratorVersion" //For UUIDv7 (defined in RFC 9562)
-//    implementation 'org.flywaydb:flyway-core'
-//    implementation 'org.flywaydb:flyway-database-postgresql'
-//    implementation 'org.springframework.kafka:spring-kafka'
     implementation 'io.strimzi:kafka-oauth-client:0.17.1' // Add OAuth support for Kafka
     implementation "io.apicurio:apicurio-registry-serdes-avro-serde:$apicurioVersion"
 
@@ -111,7 +105,6 @@ dependencies {
     implementation "org.drools:drools-verifier:$droolsVersion"
     implementation "org.drools:drools-mvel:$droolsVersion"
     testImplementation "org.drools:drools-xml-support:$droolsVersion"
-//    implementation "org.kie:kie-spring:$kieVersion"
 
 
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
@@ -266,3 +259,15 @@ tasks.named("bootBuildImage") {
                    "BP_JVM_VERSION"        : "25.*"]
     imagePlatform = "linux/arm64"
 }
+
+tasks.named("bootRun") {
+    jvmArgs = [
+            '-XX:+HeapDumpOnOutOfMemoryError',
+            '-XX:HeapDumpPath=./heapdump.hprof',
+            '-XX:+UseG1GC',
+            '-Xms512m',
+            '-Xmx2g',
+            '-XX:MaxMetaspaceSize=512m'
+    ]
+}
+

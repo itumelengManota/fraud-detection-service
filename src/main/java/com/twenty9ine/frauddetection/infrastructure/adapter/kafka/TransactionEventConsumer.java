@@ -2,14 +2,12 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.kafka;
 
 import com.twenty9ine.frauddetection.application.port.in.ProcessTransactionUseCase;
 import com.twenty9ine.frauddetection.application.port.in.command.ProcessTransactionCommand;
-import com.twenty9ine.frauddetection.infrastructure.config.KafkaTopicProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -31,10 +29,8 @@ public class TransactionEventConsumer {
     private final ProcessTransactionUseCase processTransactionUseCase;
     private final TransactionEventMapper mapper;
     private final SeenMessageCache seenMessageCache;
-    private final KafkaTopicProperties kafkaTopicProperties;
 
-    @KafkaListener(topics = "#{kafkaTopicProperties.name}", groupId = "#{kafkaTopicProperties.groupId}",
-                   concurrency = "#{kafkaTopicProperties.concurrency}")
+    @KafkaListener(topics = "${kafka.topics.transactions.name}", groupId = "${kafka.topics.transactions.group-id}")
     @Transactional
     public void consume(TransactionAvro avroTransaction, Acknowledgment acknowledgment) {
 

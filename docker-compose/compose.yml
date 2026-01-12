@@ -1,6 +1,7 @@
 services:
   postgres:
     image: 'postgres:16'
+    container_name: fraud-detection-postgres
     restart: unless-stopped
     environment:
       - 'POSTGRES_PASSWORD=postgres'
@@ -16,18 +17,19 @@ services:
     ports:
       - '8080:8080'
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:8080/ping"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 5
+#      start_period: 120s
     environment:
       - MODEL_NAME=fraud-detection-model
       - MODEL_VERSION=1.0.0
 
   mockoon:
     image: 'mockoon/cli:latest'
+    container_name: fraud-detection-mockoon
     ports:
       - '3001:3000'
     restart: unless-stopped
@@ -37,12 +39,14 @@ services:
 
   redis:
     image: 'redis:7.4'
+    container_name: fraud-detection-redis
     restart: unless-stopped
     ports:
       - '6379:6379'
 
   kafka:
     image: 'apache/kafka:3.8.1'
+    container_name: fraud-detection-kafka
     ports:
       - '9092:9092'
     restart: unless-stopped
@@ -63,6 +67,7 @@ services:
 
   apicurio-registry:
     image: 'apicurio/apicurio-registry:3.0.6'
+    container_name: fraud-detection-apicurio-registry
     ports:
       - '8081:8080'
     restart: unless-stopped
@@ -73,6 +78,7 @@ services:
 
   apicurio-registry-ui:
     image: 'apicurio/apicurio-registry-ui:3.0.6'
+    container_name: fraud-detection-apicurio-registry-ui
     ports:
       - '8082:8080'
     restart: unless-stopped
@@ -83,6 +89,7 @@ services:
 
   kafka-ui:
     image: 'provectuslabs/kafka-ui:v0.7.2'
+    container_name: fraud-detection-kafka-ui
     ports:
       - '8083:8080'
     restart: unless-stopped
@@ -96,29 +103,46 @@ services:
       - apicurio-registry
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.0.7
-    container_name: keycloak
-    command:
-      - start-dev
-      - --import-realm
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: fraud-detection-keycloak
+    command: start-dev
+#    command: start-dev --import-realm
+#    volumes:
+#      - ./keycloak-config:/opt/keycloak/data/import
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: postgres
-      KC_DB_PASSWORD: postgres
-      KC_HTTP_PORT: 8080
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
     ports:
-      - "8180:8080"
+      - '8180:8080'
     restart: unless-stopped
-    volumes:
-      - ./keycloak-config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
-    depends_on:
-      - postgres
+
+#  keycloak:
+#    image: quay.io/keycloak/keycloak:26.0.7
+#    container_name: fraud-detection-keycloak
+#    command:
+#      - start-dev
+#      - --import-realm
+#    environment:
+#      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+#      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+#      KC_DB: postgres
+#      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+#      KC_DB_USERNAME: postgres
+#      KC_DB_PASSWORD: postgres
+#    ports:
+#      - "8180:8080"
+##      - '8443:8443'
+#    restart: unless-stopped
+#    volumes:
+#      - ./keycloak-config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+##      - ./keycloak-config/server.crt.pem:/opt/keycloak/conf/server.crt.pem
+##      - ./keycloak-config/server.key.pem:/opt/keycloak/conf/server.key.pem
+#    depends_on:
+#      - postgres
 
   grafana-lgtm:
     image: 'grafana/otel-lgtm:latest'
+    container_name: fraud-detection-grafana-lgtm
     ports:
       - '3000:3000'
       - '4317:4317'
