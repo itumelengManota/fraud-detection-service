@@ -103,42 +103,27 @@ services:
       - apicurio-registry
 
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:26.5
     container_name: fraud-detection-keycloak
-    command: start-dev
-#    command: start-dev --import-realm
-#    volumes:
-#      - ./keycloak-config:/opt/keycloak/data/import
+    command:
+      - start-dev
+      - --import-realm
     environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: postgres
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
     ports:
-      - '8180:8080'
+      - "8180:8080"
     restart: unless-stopped
-
-#  keycloak:
-#    image: quay.io/keycloak/keycloak:26.0.7
-#    container_name: fraud-detection-keycloak
-#    command:
-#      - start-dev
-#      - --import-realm
-#    environment:
-#      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-#      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
-#      KC_DB: postgres
-#      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-#      KC_DB_USERNAME: postgres
-#      KC_DB_PASSWORD: postgres
-#    ports:
-#      - "8180:8080"
-##      - '8443:8443'
-#    restart: unless-stopped
-#    volumes:
-#      - ./keycloak-config/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
-##      - ./keycloak-config/server.crt.pem:/opt/keycloak/conf/server.crt.pem
-##      - ./keycloak-config/server.key.pem:/opt/keycloak/conf/server.key.pem
-#    depends_on:
-#      - postgres
+    volumes:
+      - ./keycloak-config:/opt/keycloak/data/import
+    depends_on:
+      - postgres
 
   grafana-lgtm:
     image: 'grafana/otel-lgtm:latest'
@@ -148,5 +133,3 @@ services:
       - '4317:4317'
       - '4318:4318'
     restart: unless-stopped
-
-

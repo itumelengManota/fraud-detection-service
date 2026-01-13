@@ -17,12 +17,14 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.client.RestTestClient;
@@ -30,12 +32,14 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -49,16 +53,17 @@ import static org.mockito.Mockito.when;
 /**
  * Integration test for FraudDetectionController with OAuth2 security using Keycloak.
  * Uses Testcontainers for complete infrastructure setup.
- * Uses WebTestClient for API testing and RestClient for token acquisition.
+ * Uses RestTestClient for API testing and RestClient for token acquisition.
  */
 @DisabledInAotMode
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
+@TestPropertySource(locations = "classpath:testcontainers.properties")
 @DisplayName("FraudDetectionController Integration Tests with OAuth2")
 @Execution(ExecutionMode.SAME_THREAD)
 class FraudDetectionControllerIntegrationTest {
 
-    private static final String KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.0.7";
+    private static final String KEYCLOAK_IMAGE = "quay.io/keycloak/keycloak:26.5";
     private static final String POSTGRES_IMAGE = "postgres:17-alpine";
     private static final String REDIS_IMAGE = "redis:7-alpine";
     private static final String KAFKA_IMAGE = "apache/kafka:latest";
@@ -94,6 +99,8 @@ class FraudDetectionControllerIntegrationTest {
     @Container
     static KeycloakContainer keycloak = new KeycloakContainer(KEYCLOAK_IMAGE)
             .withRealmImportFile("keycloak/realm-export-test.json")
+            .waitingFor(Wait.forLogMessage(".*Keycloak.*started.*", 1)
+                    .withStartupTimeout(Duration.ofSeconds(120)))
             .withReuse(true);
 
     @Autowired
@@ -150,9 +157,6 @@ class FraudDetectionControllerIntegrationTest {
 
     @LocalServerPort
     private int port;
-
-//    @Autowired
-//    private ObjectMapper objectMapper;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
