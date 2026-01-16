@@ -37,12 +37,27 @@ Built using **Hexagonal Architecture** and **Domain-Driven Design** principles, 
 - **Velocity Tracking**: Redis-backed counters for transaction frequency analysis
 - **Geographic Validation**: Impossible travel detection using Haversine distance calculations
 - **Account Service Integration**: Home location verification via Account Management bounded context
+- **Privacy-by-Design**: Minimal PII storage, caching strategies, and fallback mechanisms
 - **Event-Driven Architecture**: Kafka-based event streaming with Avro serialization
-- **Idempotency**: Redis-backed deduplication for exactly-once processing
-- **Multi-Architecture Support**: Docker images for AMD64 and ARM64
-- **OAuth2 Security**: Keycloak-based authentication and authorization with SASL/OAuth2 Bearer Tokens
-- **Observability**: OpenTelemetry tracing, Prometheus metrics, comprehensive health checks
 - **Schema Evolution**: Apicurio Registry for Avro schema management
+- **Domain Events**: Captures significant business events for integration and auditing
+- **High-throughput Messaging**: Kafka for low-latency, reliable event processing
+- **Idempotency**: Redis-backed deduplication for exactly-once processing
+- **High-performance Caching**: Redis for low-latency access to velocity metrics and idempotency data
+- **OAuth2 Security**: Keycloak-based authentication and authorization with SASL/OAuth2 Bearer Tokens
+- **Observability**: OpenTelemetry tracing, metrics, comprehensive health checks, and structured logging with correlation IDs for traceability
+- **High-throughput Concurrency**: Virtual threads for efficient resource utilisation
+- **High Availability**: Stateless design for horizontal scaling and fault tolerance
+- **Resilience Patterns**: Circuit Breaker, Retry, Time Limiter, Bulkhead for external service calls
+- **Configurable Rules Engine**: Drools-based rule engine for dynamic business rule management
+- **CQRS Pattern**: Clear separation of command and query responsibilities
+- **Ubiquitous Language**: Shared vocabulary between domain experts and developers for clarity
+- **Extensible Design**: Easily adaptable to new requirements and integrations
+- **Scalable Infrastructure**: Designed for cloud-native deployments with Kubernetes and Docker
+- **Comprehensive Testing**: Unit, integration, and end-to-end tests with Testcontainers
+- **Documentation**: OpenAPI/Swagger documentation for REST APIs
+- **CI/CD Pipeline**: Automated builds, and tests via GitHub Actions
+- **Multi-Architecture Support**: Docker images for AMD64 and ARM64
 
 ---
 
@@ -139,7 +154,8 @@ fraud-detection-service/
 ├── docker-compose/                          # Local Infrastructure
 │   ├── compose.yml                          # Service definitions
 │   ├── keycloak-config/
-│   │   └── realm-export.json               # Pre-configured Keycloak realm
+│   │   ├── fraud-detection-realm.json       # Pre-configured Keycloak realm
+│   │   └── master-realm.json                # Keycloak master realm override
 │   ├── mockoon/
 │   │   └── data.json                       # Mock Account Service data
 │   └── postgresql/
@@ -148,9 +164,9 @@ fraud-detection-service/
 ├── src/
 │   ├── main/
 │   │   ├── avro/                           # Kafka Event Schemas
-│   │   │   ├── transaction-event.avsc      # Input transaction event
+│   │   │   ├── transaction-event.avsc          # Input transaction event
 │   │   │   ├── risk-assessment-completed.avsc  # Assessment result event
-│   │   │   └── high-risk-detected.avsc     # High-risk alert event
+│   │   │   └── high-risk-detected.avsc         # High-risk alert event
 │   │   │
 │   │   ├── java/com/twenty9ine/frauddetection/
 │   │   │   │
@@ -163,20 +179,20 @@ fraud-detection-service/
 │   │   │   │   │   └── PagedResultDto.java
 │   │   │   │   │
 │   │   │   │   ├── port/                  # Port Interfaces (Hexagonal Architecture)
-│   │   │   │   │   ├── in/               # Input Ports (Use Case Interfaces)
+│   │   │   │   │   ├── in/                   # Input Ports (Use Case Interfaces)
 │   │   │   │   │   │   ├── AssessTransactionRiskUseCase.java
 │   │   │   │   │   │   ├── GetRiskAssessmentUseCase.java
 │   │   │   │   │   │   ├── FindRiskLeveledAssessmentsUseCase.java
 │   │   │   │   │   │   ├── ProcessTransactionUseCase.java
-│   │   │   │   │   │   ├── command/      # Command Objects (CQS Pattern)
+│   │   │   │   │   │   ├── command/              # Command Objects (CQS Pattern)
 │   │   │   │   │   │   │   ├── AssessTransactionRiskCommand.java
 │   │   │   │   │   │   │   └── ProcessTransactionCommand.java
-│   │   │   │   │   │   └── query/        # Query Objects (CQS Pattern)
+│   │   │   │   │   │   └── query/                # Query Objects (CQS Pattern)
 │   │   │   │   │   │       ├── GetRiskAssessmentQuery.java
 │   │   │   │   │   │       ├── FindRiskLeveledAssessmentsQuery.java
 │   │   │   │   │   │       └── PageRequestQuery.java
 │   │   │   │   │   │
-│   │   │   │   │   └── out/              # Output Ports (SPI)
+│   │   │   │   │   └── out/                   # Output Ports (SPI)
 │   │   │   │   │       ├── AccountServicePort.java
 │   │   │   │   │       ├── EventPublisherPort.java
 │   │   │   │   │       ├── MLServicePort.java
@@ -188,23 +204,23 @@ fraud-detection-service/
 │   │   │   │       ├── FraudDetectionApplicationService.java
 │   │   │   │       └── ProcessTransactionApplicationService.java
 │   │   │   │
-│   │   │   ├── domain/                    # DOMAIN LAYER (Business Logic)
-│   │   │   │   ├── aggregate/            # Domain Aggregates (DDD)
-│   │   │   │   │   └── RiskAssessment.java   # Aggregate Root
+│   │   │   ├── domain/                   # DOMAIN LAYER (Business Logic)
+│   │   │   │   ├── aggregate/                # Domain Aggregates (DDD)
+│   │   │   │   │   └── RiskAssessment.java       # Aggregate Root
 │   │   │   │   │
-│   │   │   │   ├── event/                # Domain Events (Event Sourcing)
+│   │   │   │   ├── event/                    # Domain Events (Event Sourcing)
 │   │   │   │   │   ├── DomainEvent.java
 │   │   │   │   │   ├── RiskAssessmentCompleted.java
 │   │   │   │   │   └── HighRiskDetected.java
 │   │   │   │   │
-│   │   │   │   ├── exception/            # Domain Exceptions
+│   │   │   │   ├── exception/                # Domain Exceptions
 │   │   │   │   │   ├── AccountNotFoundException.java
 │   │   │   │   │   ├── AccountServiceException.java
 │   │   │   │   │   ├── EventPublishingException.java
 │   │   │   │   │   ├── InvariantViolationException.java
 │   │   │   │   │   └── RiskAssessmentNotFoundException.java
 │   │   │   │   │
-│   │   │   │   ├── service/              # Domain Services
+│   │   │   │   ├── service/                  # Domain Services
 │   │   │   │   │   ├── RiskScoringService.java     # Composite risk scoring
 │   │   │   │   │   ├── RuleEngineService.java      # Drools integration
 │   │   │   │   │   ├── GeographicValidator.java    # Impossible travel detection
@@ -215,7 +231,7 @@ fraud-detection-service/
 │   │   │   │   │   ├── HighRiskStrategy.java
 │   │   │   │   │   └── CriticalRiskStrategy.java
 │   │   │   │   │
-│   │   │   │   └── valueobject/          # Value Objects (DDD)
+│   │   │   │   └── valueobject/              # Value Objects (DDD)
 │   │   │   │       ├── AccountProfile.java
 │   │   │   │       ├── AssessmentId.java
 │   │   │   │       ├── Channel.java
@@ -242,33 +258,33 @@ fraud-detection-service/
 │   │   │   │       ├── TransactionRiskLevel.java
 │   │   │   │       ├── TransactionType.java
 │   │   │   │       ├── VelocityMetrics.java
-│   │   │   │       └── validation/       # Custom Validators
+│   │   │   │       └── validation/             # Custom Validators
 │   │   │   │           ├── ValidCountry.java
 │   │   │   │           └── ValidCountryValidator.java
 │   │   │   │
 │   │   │   └── infrastructure/           # INFRASTRUCTURE LAYER (Technical Concerns)
-│   │   │       ├── adapter/              # Adapter Implementations (Hexagonal)
+│   │   │       ├── adapter/                  # Adapter Implementations (Hexagonal)
 │   │   │       │   │
-│   │   │       │   ├── account/          # Account Service Adapter (Output)
+│   │   │       │   ├── account/                # Account Service Adapter (Output)
 │   │   │       │   │   ├── AccountServiceRestAdapter.java
 │   │   │       │   │   └── dto/
 │   │   │       │   │       ├── AccountDto.java
 │   │   │       │   │       └── LocationDto.java
 │   │   │       │   │
-│   │   │       │   ├── cache/            # Velocity Counter Adapter (Output)
+│   │   │       │   ├── cache/                  # Velocity Counter Adapter (Output)
 │   │   │       │   │   └── VelocityCounterAdapter.java  # Redis-based velocity tracking
 │   │   │       │   │
-│   │   │       │   ├── kafka/            # Kafka Adapters (Input/Output)
+│   │   │       │   ├── kafka/                  # Kafka Adapters (Input/Output)
 │   │   │       │   │   ├── TransactionEventConsumer.java      # Input adapter
 │   │   │       │   │   ├── TransactionEventMapper.java
 │   │   │       │   │   ├── EventPublisherAdapter.java         # Output adapter
 │   │   │       │   │   ├── DomainEventToAvroMapper.java
 │   │   │       │   │   └── SeenMessageCache.java              # Idempotency
 │   │   │       │   │
-│   │   │       │   ├── ml/               # Machine Learning Adapters (Output)
+│   │   │       │   ├── ml/                     # Machine Learning Adapters (Output)
 │   │   │       │   │   └── SageMakerMLAdapter.java           # AWS SageMaker integration
 │   │   │       │   │
-│   │   │       │   ├── persistence/               # Database Adapters (Output)
+│   │   │       │   ├── persistence/            # Database Adapters (Output)
 │   │   │       │   │   ├── RiskAssessmentJdbcRepository.java
 │   │   │       │   │   ├── RiskAssessmentRepositoryAdapter.java
 │   │   │       │   │   ├── TransactionJdbcRepository.java
@@ -289,21 +305,21 @@ fraud-detection-service/
 │   │   │       │   │       ├── MerchantMapper.java
 │   │   │       │   │       └── LocationMapper.java
 │   │   │       │   │
-│   │   │       │   └── rest/             # REST API Adapter (Input)
+│   │   │       │   └── rest/                   # REST API Adapter (Input)
 │   │   │       │       ├── FraudDetectionController.java
 │   │   │       │       ├── GlobalExceptionHandler.java
 │   │   │       │       └── dto/
 │   │   │       │           └── ErrorResponse.java
 │   │   │       │
-│   │   │       └── config/                         # Spring Configuration
-│   │   │           ├── DomainServiceConfig.java      # Domain beans
-│   │   │           ├── DroolsInfrastructureConfig.java  # Rule engine
-│   │   │           ├── JdbcConfig.java               # Database
-│   │   │           ├── KafkaTopicProperties.java     # Kafka topics
-│   │   │           ├── OpenApiConfig.java            # Swagger/OpenAPI
-│   │   │           ├── RedisConfig.java              # Cache
-│   │   │           ├── SageMakerConfig.java          # ML service
-│   │   │           └── SecurityConfig.java           # OAuth2
+│   │   │       └── config/                     # Spring Configuration
+│   │   │           ├── DomainServiceConfig.java          # Domain beans
+│   │   │           ├── DroolsInfrastructureConfig.java   # Rule engine
+│   │   │           ├── JdbcConfig.java                   # Database
+│   │   │           ├── KafkaTopicProperties.java         # Kafka topics
+│   │   │           ├── OpenApiConfig.java                # Swagger/OpenAPI
+│   │   │           ├── RedisConfig.java                  # Cache
+│   │   │           ├── SageMakerConfig.java              # ML service
+│   │   │           └── SecurityConfig.java               # OAuth2
 │   │   │
 │   │   └── resources/
 │   │       ├── META-INF/
@@ -369,7 +385,7 @@ fraud-detection-service/
 ├── build.gradle                                     # Gradle Build Configuration
 ├── settings.gradle                                  # Gradle Settings
 ├── Dockerfile                                       # Multi-stage Docker build
-└── README.md                                        # Project Documentation
+└── README.md                                        # Project Documentation (this document)
 ```
 
 #### 3. **Domain-Driven Design (DDD)**
@@ -389,27 +405,39 @@ The application implements tactical and strategic DDD patterns:
 - **Context Mapping**: Integration with other contexts (Account Management Context, Transaction Processing Context, Case Management Context, and Machine Learning Context) via well-defined interfaces
 - **Ubiquitous Language**: A shared vocabulary between domain experts and developers for the Fraud Detection bounded context.
 
-**Locations:**
-- **Aggregates**: `domain.aggregate.RiskAssessment`
-- **Value Objects**: `domain.valueobject.*`
-- **Domain Services**: `domain.service.*`
-- **Domain Events**: `domain.event.*`
-- **Repositories**: `application.port.out.*Repository`
-
 #### 4. **Event-Driven Architecture**
 
 Asynchronous communication via domain events and Kafka:
 
 ```
-Transaction Event → Kafka Consumer → Process Transaction Use Case
-                                                    ↓
-                                          Assess Risk → Publish Events
-                                                                ↓
-                                                ┌───────────────┴───────────────┐
-                                                ↓                               ↓
-                                    RiskAssessmentCompleted           HighRiskDetected
-                                                ↓                               ↓
-                              fraud-detection.risk-assessments   fraud-detection.high-risk-alerts
+                                             ┌────────────────────────────────┐           
+                                             │ Transaction Processing Context │            
+                                             └────────────────────────────────┘      
+                                                       Event Streaming              REST API
+                                                              ↓                         ↓↑ 
+                                      ┌─────────────────────────────────────────────────────────────────────────┐
+                                      │                          Fraud Detection Context (this application)     │
+                                      │ ┌─────────────────────────────────────────────────────────────────────┐ │
+                                      │ │              Transaction Event   HTTP Assessment Request            │ │ 
+                                      │ │                     ↓                       ↓                       │ │ 
+                                      │ │              Kafka Consumer          REST Controller                │ │  
+┌────────────────────────────┐        │ │                     ↓                       ↓                       │ │
+│ Account Management Context │ REST → │ │ AccountProfile → Assess Transaction Risk Use Case                   │ │
+└────────────────────────────┘        │ │       ┌─────── →               ↓                                    │ │ 
+┌────────────────────────────┐      → │ │ MLPrediction              Publish Events                            │ │ 
+│  Machine Learning Context  │ REST   │ │                                 ↓                                   │ │ 
+└────────────────────────────┘      ← │ │                 ┌───────────────┴───────────────┐                   │ │ 
+                                      │ │                 ↓                               ↓                   │ │ 
+                                      │ │     RiskAssessmentCompleted           HighRiskDetected              │ │ 
+                                      │ │                 ↓                               ↓                   │ │ 
+                                      │ │ fraud-detection.risk-assessments   fraud-detection.high-risk-alerts │ │ 
+                                      │ └─────────────────────────────────────────────────────────────────────┘ │
+                                      └─────────────────────────────────────────────────────────────────────────┘
+                                                                    Event Streaming                        
+                                                                           ↓
+                                                             ┌─────────────────────────┐
+                                                             │ Case Management Context │
+                                                             └─────────────────────────┘
 ```
 
 **Locations:**
@@ -535,11 +563,11 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 
 **Core Concepts**
 
-- **Risk Assessment**: The complete evaluation of a transaction's fraud risk, combining ML predictions, rule evaluations, velocity checks, and geographic validation. Results in a risk score, risk level, and decision. Aggregate root in DDD terms.
+- **Risk Assessment**: The complete evaluation of a transaction's fraud risk, combining ML predictions, rule evaluations, velocity checks, and geographic validation.  Results in a risk score, risk level, and decision.  Aggregate root in DDD terms.
 
-- **Transaction**: A financial operation initiated by an account holder through various channels (card, online, mobile, POS, ATM). Contains amount, merchant, location, device, and timestamp information.
+- **Transaction**: A financial operation initiated by an account holder through various channels (card, online, mobile, POS, ATM).  Contains amount, merchant, location, device, and timestamp information.
 
-- **Risk Score**: A numeric value from 0-100 representing the likelihood of fraud. Calculated as a weighted composite of ML prediction and rule evaluation scores (default: 60% ML, 40% Rules).
+- **Risk Score**: A numeric value from 0-100 representing the likelihood of fraud.  Calculated as a weighted composite of ML prediction and rule evaluation scores (default: 60% ML, 40% Rules).
 
 - **Transaction Risk Level**: Strategic classification of risk assessment outcome into four categories:
    - **LOW** (0-40): Normal transaction behavior
@@ -555,9 +583,9 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 
 **Assessment Components**
 
-- **ML Prediction**: Machine learning model output indicating fraud probability (0.0-1.0) with confidence score. Generated by AWS SageMaker endpoint using transaction features and historical patterns.
+- **ML Prediction**: Machine learning model output indicating fraud probability (0.0-1.0) with confidence score.  Generated by AWS SageMaker endpoint using transaction features and historical patterns.
 
-- **Rule Evaluation**: Business rule check performed by Drools rule engine. Each triggered rule contributes to the overall risk score based on its severity.
+- **Rule Evaluation**: Business rule check performed by Drools rule engine.  Each triggered rule contributes to the overall risk score based on its severity.
 
 - **Rule Trigger**: A specific business rule that fired during evaluation, containing rule ID, name, severity, and the value that triggered it.
 
@@ -587,13 +615,13 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
    - Account creation date (for new account risk)
    - Minimal data following privacy-by-design principles
 
-- **Device ID**: Unique identifier for the device used in the transaction. Consistency across transactions indicates lower risk; absence or frequent changes indicate higher risk.
+- **Device ID**: Unique identifier for the device used in the transaction.  Consistency across transactions indicates lower risk; absence or frequent changes indicate higher risk.
 
 **Transaction Properties**
 
-- **Money**: Financial value with currency. Represented as decimal amount with ISO currency code (e.g., 100.00 USD, 85.50 EUR).
+- **Money**: Financial value with currency.  Represented as decimal amount with ISO currency code (e.g., 100.00 USD, 85.50 EUR).
 
-- **Location**: Geographic coordinates (latitude, longitude) with optional country and city. Used for:
+- **Location**: Geographic coordinates (latitude, longitude) with optional country and city.  Used for:
    - Distance calculations (Haversine formula)
    - Impossible travel detection
    - Cross-border transaction identification
@@ -627,9 +655,9 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 
 **Events**
 
-- **Risk Assessment Completed**: Domain event published when assessment finishes successfully. Contains assessment ID, final risk score, risk level, and decision. Consumed by downstream systems for transaction processing.
+- **Risk Assessment Completed**: Domain event published when assessment finishes successfully.  Contains assessment ID, final risk score, risk level, and decision.  Consumed by downstream systems for transaction processing.
 
-- **High Risk Detected**: Critical alert event published when risk level is HIGH or CRITICAL. Triggers immediate notifications to fraud analysts and case management systems.
+- **High Risk Detected**: Critical alert event published when risk level is HIGH or CRITICAL.  Triggers immediate notifications to fraud analysts and case management systems.
 
 **Business Rules**
 
@@ -648,13 +676,13 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 
 **Integration Concepts**
 
-- **Assessment ID**: Unique identifier (UUIDv7) for a risk assessment instance. Time-ordered for efficient database indexing.
+- **Assessment ID**: Unique identifier (UUIDv7) for a risk assessment instance.  Time-ordered for efficient database indexing.
 
-- **Transaction ID**: Unique identifier (UUIDv7) for a financial transaction. Used to link assessments, events, and audit trails.
+- **Transaction ID**: Unique identifier (UUIDv7) for a financial transaction.  Used to link assessments, events, and audit trails.
 
-- **Idempotency**: Guarantee that processing the same transaction multiple times produces the same result. Implemented via 48-hour Redis cache of seen transaction IDs.
+- **Idempotency**: Guarantee that processing the same transaction multiple times produces the same result.  Implemented via 48-hour Redis cache of seen transaction IDs.
 
-- **Circuit Breaker**: Fault tolerance pattern that prevents cascading failures when external services (ML model, Account Service) are unavailable. States: CLOSED (normal), OPEN (failing), HALF_OPEN (testing recovery).
+- **Circuit Breaker**: Fault tolerance pattern that prevents cascading failures when external services (ML model, Account Service) are unavailable.  States: CLOSED (normal), OPEN (failing), HALF_OPEN (testing recovery).
 
 **Quality Attributes**
 
@@ -692,13 +720,13 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 
 **Bounded Context Integration**
 
-- **Account Management Context**: External system providing account holder information. Anti-corruption layer implemented via `AccountServicePort` with circuit breaker and caching.
+- **Account Management Context**: External system providing account holder information.  Anti-corruption layer implemented via `AccountServicePort` with circuit breaker and caching.
 
-- **Transaction Processing Context**: External system generating transaction events. Consumes normalized transaction events via Kafka.
+- **Transaction Processing Context**: External system generating transaction events.  Consumes normalized transaction events via Kafka.
 
 - **Case Management Context**: Downstream system consuming high-risk alerts for manual review workflow.
 
-- **Machine Learning Context**: AWS SageMaker endpoint providing fraud probability predictions. Supports both cloud and local Docker deployment modes.
+- **Machine Learning Context**: AWS SageMaker endpoint providing fraud probability predictions.  Supports both cloud and local Docker deployment modes.
 
 **Caching Strategy**
 
