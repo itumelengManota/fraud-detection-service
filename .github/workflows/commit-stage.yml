@@ -70,12 +70,6 @@ jobs:
           chmod +x gradlew
           ./gradlew build jacocoTestReport sonar --info
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
       - name: Code Vulnerability Scanning
         uses: anchore/scan-action@v6
         id: scan
