@@ -23,7 +23,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -143,12 +143,12 @@ class EventPublisherAdapterIntegrationTest {
         ConsumerRecords<String, Object> records = poolConsumerRecord();
 
         assertThat(records).isNotEmpty();
-        ConsumerRecord<String, Object> record = records.iterator().next();
+        ConsumerRecord<String, Object> consumerRecord = records.iterator().next();
 
-        assertThat(record.topic()).isEqualTo("fraud-detection.risk-assessments");
-        assertThat(record.key()).isEqualTo(event.id().toString());
+        assertThat(consumerRecord.topic()).isEqualTo("fraud-detection.risk-assessments");
+        assertThat(consumerRecord.key()).isEqualTo(event.id().toString());
 
-        RiskAssessmentCompletedAvro avroEvent = (RiskAssessmentCompletedAvro) record.value();
+        RiskAssessmentCompletedAvro avroEvent = (RiskAssessmentCompletedAvro) consumerRecord.value();
         assertThat(avroEvent.getAssessmentId()).isEqualTo(event.assessmentId().toString());
         assertThat(avroEvent.getId()).isEqualTo(event.id().toString());
         assertThat(avroEvent.getFinalScore()).isEqualTo(event.finalScore().value());
@@ -171,12 +171,12 @@ class EventPublisherAdapterIntegrationTest {
         ConsumerRecords<String, Object> records = poolConsumerRecord();
 
         assertThat(records).isNotEmpty();
-        ConsumerRecord<String, Object> record = records.iterator().next();
+        ConsumerRecord<String, Object> consumerRecord = records.iterator().next();
 
-        assertThat(record.topic()).isEqualTo("fraud-detection.high-risk-alerts");
-        assertThat(record.key()).isEqualTo(event.id().toString());
+        assertThat(consumerRecord.topic()).isEqualTo("fraud-detection.high-risk-alerts");
+        assertThat(consumerRecord.key()).isEqualTo(event.id().toString());
 
-        HighRiskDetectedAvro avroEvent = (HighRiskDetectedAvro) record.value();
+        HighRiskDetectedAvro avroEvent = (HighRiskDetectedAvro) consumerRecord.value();
         assertThat(avroEvent.getAssessmentId()).isEqualTo(event.assessmentId().toString());
         assertThat(avroEvent.getId()).isEqualTo(event.id().toString());
         assertThat(avroEvent.getRiskLevel()).isEqualTo(event.transactionRiskLevel().name());
@@ -214,15 +214,16 @@ class EventPublisherAdapterIntegrationTest {
         Map<String, Long> topicCounts = groupByTopic(receivedRecords);
 
         // Verify correct distribution
-        assertThat(topicCounts.get("fraud-detection.risk-assessments")).isEqualTo(2L);
-        assertThat(topicCounts.get("fraud-detection.high-risk-alerts")).isEqualTo(1L);
+        assertThat(topicCounts)
+                .containsEntry("fraud-detection.risk-assessments", 2L)
+                .containsEntry("fraud-detection.high-risk-alerts", 1L);
 
         // Verify the types match the topics
-        receivedRecords.forEach(record -> {
-            if (record.topic().equals("fraud-detection.risk-assessments")) {
-                assertThat(record.value()).isInstanceOf(RiskAssessmentCompletedAvro.class);
-            } else if (record.topic().equals("fraud-detection.high-risk-alerts")) {
-                assertThat(record.value()).isInstanceOf(HighRiskDetectedAvro.class);
+        receivedRecords.forEach(consumerRecord -> {
+            if (consumerRecord.topic().equals("fraud-detection.risk-assessments")) {
+                assertThat(consumerRecord.value()).isInstanceOf(RiskAssessmentCompletedAvro.class);
+            } else if (consumerRecord.topic().equals("fraud-detection.high-risk-alerts")) {
+                assertThat(consumerRecord.value()).isInstanceOf(HighRiskDetectedAvro.class);
             }
         });
     }
@@ -240,9 +241,9 @@ class EventPublisherAdapterIntegrationTest {
 
         // Then
         ConsumerRecords<String, Object> records = poolConsumerRecord();
-        ConsumerRecord<String, Object> record = records.iterator().next();
+        ConsumerRecord<String, Object> consumerRecord = records.iterator().next();
 
-        assertThat(record.key()).isEqualTo(event.id().toString());
+        assertThat(consumerRecord.key()).isEqualTo(event.id().toString());
     }
 
     @Test
@@ -280,12 +281,12 @@ class EventPublisherAdapterIntegrationTest {
         assertThat(receivedRecords).hasSize(numberOfEvents);
 
         Map<String, Long> topicCounts = groupByTopic(receivedRecords);
-        assertThat(topicCounts.get("fraud-detection.risk-assessments")).isEqualTo(numberOfEvents);
+        assertThat(topicCounts).containsEntry("fraud-detection.risk-assessments", (long) numberOfEvents);
 
         // Verify the types match the topics
-        receivedRecords.forEach(record -> {
-            if (record.topic().equals("fraud-detection.risk-assessments")) {
-                assertThat(record.value()).isInstanceOf(RiskAssessmentCompletedAvro.class);
+        receivedRecords.forEach(consumerRecord -> {
+            if (consumerRecord.topic().equals("fraud-detection.risk-assessments")) {
+                assertThat(consumerRecord.value()).isInstanceOf(RiskAssessmentCompletedAvro.class);
             }
         });
     }

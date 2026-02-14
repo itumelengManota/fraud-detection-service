@@ -223,9 +223,6 @@ class RuleEngineServiceIntegrationTest {
         Transaction transaction = createTestTransaction(BigDecimal.valueOf(100));
         VelocityMetrics velocity = VelocityMetrics.empty();
 
-//        Instant currentTime = Instant.now();
-//        Instant previousTime = currentTime.minusSeconds(5);
-
         Location previousLocation = new Location(40.7128, -74.0060, "New York", "US");
         Location currentLocation = new Location(51.5074, -0.1278, "London", "GB");
 
@@ -276,9 +273,6 @@ class RuleEngineServiceIntegrationTest {
                         TWENTY_FOUR_HOURS, 40L
                 ))
                 .build();
-
-//        Instant currentTime = Instant.now();
-//        Instant previousTime = currentTime.minusSeconds(10);
 
         Location previousLocation = new Location(40.7128, -74.0060, "New York", "US");
         Location currentLocation = new Location(51.5074, -0.1278, "London", "GB");

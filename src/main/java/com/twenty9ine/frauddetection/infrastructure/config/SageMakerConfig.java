@@ -4,10 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.sagemakerfeaturestoreruntime.SageMakerFeatureStoreRuntimeClient;
 import software.amazon.awssdk.services.sagemakerruntime.SageMakerRuntimeClient;
 
 import java.net.URI;
@@ -61,14 +59,4 @@ public class SageMakerConfig {
                         .apiCallAttemptTimeout(apiCallAttemptTimeout))
                 .build();
     }
-//
-//    @Bean
-//    @Profile("!test")
-//    @ConditionalOnProperty(name = "aws.sagemaker.feature-store.enabled", havingValue = "true")
-//    public SageMakerFeatureStoreRuntimeClient sageMakerFeatureStoreRuntimeClient() {
-//        return SageMakerFeatureStoreRuntimeClient.builder()
-//                .region(Region.of(awsRegion))
-//                .credentialsProvider(DefaultCredentialsProvider.create())
-//                .build();
-//    }
 }

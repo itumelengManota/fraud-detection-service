@@ -64,7 +64,7 @@ public class GlobalExceptionHandler {
 
         log.error("Business rule violation: {}", exception.getMessage());
 
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                              .body(buildBusinessRuleViolation(exception));
     }
 

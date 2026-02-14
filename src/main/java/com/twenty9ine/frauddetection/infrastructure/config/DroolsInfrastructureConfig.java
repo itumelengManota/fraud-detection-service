@@ -1,5 +1,6 @@
 package com.twenty9ine.frauddetection.infrastructure.config;
 
+import com.twenty9ine.frauddetection.infrastructure.exception.RulesEngineException;
 import org.kie.api.KieServices;
 import org.kie.api.builder.KieBuilder;
 import org.kie.api.builder.KieFileSystem;
@@ -25,7 +26,7 @@ public class DroolsInfrastructureConfig {
         kieBuilder.buildAll();
 
         if (kieBuilder.getResults().hasMessages(Message.Level.ERROR)) {
-            throw new RuntimeException("Rule compilation errors: %s".formatted(kieBuilder.getResults().toString()));
+            throw new RulesEngineException("Rule compilation errors: %s".formatted(kieBuilder.getResults().toString()));
         }
 
         return kieServices.newKieContainer(kieBuilder.getKieModule().getReleaseId());

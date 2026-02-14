@@ -8,6 +8,7 @@ import com.twenty9ine.frauddetection.domain.aggregate.RiskAssessment;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RuleEvaluationEntity;
+import com.twenty9ine.frauddetection.infrastructure.exception.BoundaryMapperException;
 import org.mapstruct.InjectionStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -118,7 +119,7 @@ public interface RiskAssessmentMapper {
                     )
             );
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to deserialize MLPrediction", e);
+            throw new BoundaryMapperException("Failed to deserialize MLPrediction", e);
         }
     }
 
@@ -143,7 +144,7 @@ public interface RiskAssessmentMapper {
             pgObject.setValue(objectMapper.writeValueAsString(json));
             return pgObject;
         } catch (SQLException | JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize MLPrediction", e);
+            throw new BoundaryMapperException("Failed to serialize MLPrediction", e);
         }
     }
 }

@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 import java.util.UUID;
@@ -37,44 +39,20 @@ class DecisionServiceTest {
     @DisplayName("Decision Making Tests")
     class DecisionMakingTests {
 
-        @Test
-        @DisplayName("Should return ALLOW for low risk score")
-        void shouldReturnAllowForLowRiskScore() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(10));
+        @ParameterizedTest(name = "Should return {1} for risk score {0} with risk level {2}")
+        @CsvSource({
+                "10,  ALLOW,     LOW",
+                "50,  CHALLENGE, MEDIUM",
+                "75,  REVIEW,    HIGH",
+                "95,  BLOCK,     CRITICAL"
+        })
+        @DisplayName("Should make correct decisions for different risk scores")
+        void shouldMakeCorrectDecisionsForRiskScores(int score, Decision expectedDecision, TransactionRiskLevel expectedRiskLevel) {
+            RiskAssessment assessment = createAssessment(expectedDecision, RiskScore.of(score));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(Decision.ALLOW, decision);
-            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
-        }
-
-        @Test
-        @DisplayName("Should return CHALLENGE for medium risk score")
-        void shouldReturnChallengeForMediumRiskScore() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(50));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(Decision.CHALLENGE, decision);
-            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
-        }
-
-        @Test
-        @DisplayName("Should return REVIEW for high risk score")
-        void shouldReturnReviewForHighRiskScore() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(75));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(Decision.REVIEW, decision);
-            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
-        }
-
-        @Test
-        @DisplayName("Should return BLOCK for critical risk score")
-        void shouldReturnBlockForCriticalRiskScore() {
-            RiskAssessment assessment = createAssessment(Decision.BLOCK, RiskScore.of(95));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(Decision.BLOCK, decision);
-            assertEquals(TransactionRiskLevel.CRITICAL, assessment.getTransactionRiskLevel());
+            assertEquals(expectedDecision, decision);
+            assertEquals(expectedRiskLevel, assessment.getTransactionRiskLevel());
         }
     }
 
@@ -82,84 +60,31 @@ class DecisionServiceTest {
     @DisplayName("Risk Level Boundary Tests")
     class TransactionRiskLevelBoundaryTests {
 
-        @Test
-        @DisplayName("Should classify score 0 as LOW")
-        void shouldClassifyZeroAsLow() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(0));
+        @ParameterizedTest(name = "Score {0} should be classified as {1} with decision {2}")
+        @CsvSource({
+                "0,   LOW,      ALLOW",
+                "29,  LOW,      ALLOW",
+                "30,  LOW,      ALLOW",
+                "59,  MEDIUM,   CHALLENGE",
+                "60,  MEDIUM,   CHALLENGE",
+                "84,  HIGH,     REVIEW",
+                "85,  HIGH,     REVIEW",
+                "100, CRITICAL, BLOCK"
+        })
+        @DisplayName("Should classify risk scores at boundary values correctly")
+        void shouldClassifyRiskScoresAtBoundaries(int score, TransactionRiskLevel expectedRiskLevel, Decision expectedDecision) {
+            Decision initialDecision = switch (expectedDecision) {
+                case ALLOW -> Decision.ALLOW;
+                case CHALLENGE -> Decision.ALLOW;
+                case REVIEW -> Decision.REVIEW;
+                case BLOCK -> Decision.BLOCK;
+            };
+
+            RiskAssessment assessment = createAssessment(initialDecision, RiskScore.of(score));
             Decision decision = decisionService.makeDecision(assessment);
 
-            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.ALLOW, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 29 as LOW")
-        void shouldClassify29AsLow() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(29));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.ALLOW, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 30 as MEDIUM")
-        void shouldClassify30AsMedium() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(30));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.LOW, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.ALLOW, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 59 as MEDIUM")
-        void shouldClassify59AsMedium() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(59));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.CHALLENGE, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 60 as HIGH")
-        void shouldClassify60AsHigh() {
-            RiskAssessment assessment = createAssessment(Decision.CHALLENGE, RiskScore.of(60));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.MEDIUM, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.CHALLENGE, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 84 as HIGH")
-        void shouldClassify84AsHigh() {
-            RiskAssessment assessment = createAssessment(Decision.ALLOW, RiskScore.of(84));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.REVIEW, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 85 as CRITICAL")
-        void shouldClassify85AsCritical() {
-            RiskAssessment assessment = createAssessment(Decision.REVIEW, RiskScore.of(85));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.HIGH, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.REVIEW, decision);
-        }
-
-        @Test
-        @DisplayName("Should classify score 100 as CRITICAL")
-        void shouldClassify100AsCritical() {
-            RiskAssessment assessment = createAssessment(Decision.BLOCK, RiskScore.of(100));
-            Decision decision = decisionService.makeDecision(assessment);
-
-            assertEquals(TransactionRiskLevel.CRITICAL, assessment.getTransactionRiskLevel());
-            assertEquals(Decision.BLOCK, decision);
+            assertEquals(expectedRiskLevel, assessment.getTransactionRiskLevel());
+            assertEquals(expectedDecision, decision);
         }
     }
 
@@ -186,7 +111,6 @@ class DecisionServiceTest {
                     new HighRiskStrategy(),
                     new CriticalRiskStrategy()
             );
-//            DecisionService service = new DecisionService(strategies);
             DecisionStrategy strategy = strategies.stream()
                     .filter(s -> s.getRiskLevel().equals(level))
                     .findFirst()

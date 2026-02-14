@@ -3,6 +3,7 @@ package com.twenty9ine.frauddetection.infrastructure.adapter.ml;
 import com.twenty9ine.frauddetection.application.port.out.AccountServicePort;
 import com.twenty9ine.frauddetection.application.port.out.MLServicePort;
 import com.twenty9ine.frauddetection.application.port.out.TransactionRepository;
+import com.twenty9ine.frauddetection.domain.exception.MachineLearningException;
 import com.twenty9ine.frauddetection.domain.valueobject.*;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -126,7 +127,7 @@ public class SageMakerMLAdapter implements MLServicePort {
                     .body(String.class);
         } catch (Exception e) {
             log.error("Failed to invoke local endpoint", e);
-            throw new RuntimeException("Local endpoint invocation failed", e);
+            throw new MachineLearningException("Local endpoint invocation failed", e);
         }
     }
 

@@ -31,7 +31,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.aot.DisabledInAotMode;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -55,7 +55,7 @@ import static org.mockito.Mockito.when;
 public class FraudDetectionApplicationServiceIntegrationTest {
 
     @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
+    static PostgreSQLContainer postgres = new PostgreSQLContainer(DockerImageName.parse("postgres:17-alpine"))
             .withDatabaseName("frauddetection_test")
             .withUsername("test")
             .withPassword("test")
@@ -439,7 +439,6 @@ public class FraudDetectionApplicationServiceIntegrationTest {
         }
     }
 
-    //TODO: Add more tests for when ML service is down
     // Mock prediction helpers
     public static  MLPrediction mockLowRiskPrediction() {
         return new MLPrediction(
@@ -502,12 +501,6 @@ public class FraudDetectionApplicationServiceIntegrationTest {
                 .build();
     }
 
-    //TODO: Adjust parameters to better reflect medium risk since it is currently not generating medium risk in tests
-    public static  AssessTransactionRiskCommand buildMediumRiskCommand(TransactionId transactionId) {
-        return buildMediumRiskCommand(transactionId, Instant.now());
-    }
-
-    //TODO: Adjust parameters to better reflect medium risk since it is currently not generating medium risk in tests
     public static  AssessTransactionRiskCommand buildMediumRiskCommand(TransactionId transactionId, Instant timestamp) {
         return AssessTransactionRiskCommand.builder()
                 .transactionId(transactionId.toUUID())

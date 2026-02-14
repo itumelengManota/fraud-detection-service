@@ -174,7 +174,7 @@ class VelocityCounterAdapterIntegrationTest {
         assertThat(metrics.getUniqueLocations(FIVE_MINUTES)).isEqualTo(2L); // Only 2 unique locations
     }
 
-    @Disabled
+    @Disabled("Requires cache eviction logic to be implemented in VelocityCounterAdapter for this test to pass")
     @Test
     @DisplayName("Should cache velocity metrics after first fetch")
     void shouldCacheVelocityMetricsAfterFirstFetch() {
@@ -193,7 +193,7 @@ class VelocityCounterAdapterIntegrationTest {
         assertThat(metrics2.getTransactionCount(FIVE_MINUTES)).isZero();
     }
 
-    @Disabled
+    @Disabled("Requires cache eviction logic to be implemented in VelocityCounterAdapter for this test to pass")
     @Test
     @DisplayName("Should evict cache after incrementing counters")
     void shouldEvictCacheAfterIncrementingCounters() {
@@ -233,98 +233,6 @@ class VelocityCounterAdapterIntegrationTest {
         BigDecimal expectedTotal = new BigDecimal("250.49");
         assertThat(metrics.getTotalAmount(FIVE_MINUTES)).isEqualByComparingTo(expectedTotal);
     }
-
-//    @Test
-//    @DisplayName("Should test private method findTransactionCounts using reflection")
-//    void shouldTestFindTransactionCountsUsingReflection() throws Exception {
-//        // Arrange
-//        String accountId = uniqueAccountId("ACC-009");
-//        Transaction transaction = createTestTransaction(accountId, "MERCH-001");
-//        velocityService.incrementCounters(transaction);
-//
-//        // Act - Use reflection to access private method
-//        Method method = VelocityCounterAdapter.class.getDeclaredMethod("findTransactionCounts", Transaction.class);
-//        method.setAccessible(true);
-//
-//        @SuppressWarnings("unchecked")
-//        Map<TimeWindow, Long> counts = (Map<TimeWindow, Long>) method.invoke(velocityService, transaction);
-//
-//        // Assert
-//        assertThat(counts)
-//                .isNotNull()
-//                .hasSize(3)
-//                .containsEntry(FIVE_MINUTES, 1L)
-//                .containsEntry(ONE_HOUR, 1L)
-//                .containsEntry(TWENTY_FOUR_HOURS, 1L);
-//    }
-
-//    @Test
-//    @DisplayName("Should test private method findTotalAmounts using reflection")
-//    void shouldTestFindTotalAmountsUsingReflection() throws Exception {
-//        // Arrange
-//        String accountId = uniqueAccountId("ACC-010");
-//        Transaction transaction = createTransactionWithAmount(accountId, new BigDecimal("150.75"));
-//        velocityService.incrementCounters(transaction);
-//
-//        // Act - Use reflection to access private method
-//        Method method = VelocityCounterAdapter.class.getDeclaredMethod("findTotalAmounts", Transaction.class);
-//        method.setAccessible(true);
-//
-//        @SuppressWarnings("unchecked")
-//        Map<TimeWindow, BigDecimal> amounts = (Map<TimeWindow, BigDecimal>) method.invoke(velocityService, transaction);
-//
-//        // Assert
-//        assertThat(amounts)
-//                .isNotNull()
-//                .hasSize(3);
-//        assertThat(amounts.get(FIVE_MINUTES)).isEqualByComparingTo(new BigDecimal("150.75"));
-//    }
-
-//    @Test
-//    @DisplayName("Should test private method findMerchantCounts using reflection")
-//    void shouldTestFindMerchantCountsUsingReflection() throws Exception {
-//        // Arrange
-//        String accountId = uniqueAccountId("ACC-011");
-//        velocityService.incrementCounters(createTestTransaction(accountId, "MERCH-001"));
-//        velocityService.incrementCounters(createTestTransaction(accountId, "MERCH-002"));
-//        Transaction transaction = createTestTransaction(accountId, "MERCH-003");
-//
-//        // Act - Use reflection to access private method
-//        Method method = VelocityCounterAdapter.class.getDeclaredMethod("findMerchantCounts", Transaction.class);
-//        method.setAccessible(true);
-//
-//        @SuppressWarnings("unchecked")
-//        Map<TimeWindow, Long> merchantCounts = (Map<TimeWindow, Long>) method.invoke(velocityService, transaction);
-//
-//        // Assert
-//        assertThat(merchantCounts)
-//                .isNotNull()
-//                .hasSize(3)
-//                .containsEntry(FIVE_MINUTES, 2L);
-//    }
-
-//    @Test
-//    @DisplayName("Should test private method findLocationCounts using reflection")
-//    void shouldTestFindLocationCountsUsingReflection() throws Exception {
-//        // Arrange
-//        String accountId = uniqueAccountId("ACC-012");
-//        velocityService.incrementCounters(createTransactionWithLocation(accountId, 40.7128, -74.0060));
-//        velocityService.incrementCounters(createTransactionWithLocation(accountId, 51.5074, -0.1278));
-//        Transaction transaction = createTransactionWithLocation(accountId, 48.8566, 2.3522);
-//
-//        // Act - Use reflection to access private method
-//        Method method = VelocityCounterAdapter.class.getDeclaredMethod("findLocationCounts", Transaction.class);
-//        method.setAccessible(true);
-//
-//        @SuppressWarnings("unchecked")
-//        Map<TimeWindow, Long> locationCounts = (Map<TimeWindow, Long>) method.invoke(velocityService, transaction);
-//
-//        // Assert
-//        assertThat(locationCounts)
-//                .isNotNull()
-//                .hasSize(3)
-//                .containsEntry(FIVE_MINUTES, 2L);
-//    }
 
     @Test
     @DisplayName("Should separate metrics by account ID")

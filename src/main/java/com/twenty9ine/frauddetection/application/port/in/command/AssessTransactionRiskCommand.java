@@ -1,7 +1,6 @@
 package com.twenty9ine.frauddetection.application.port.in.command;
 
 import com.twenty9ine.frauddetection.application.dto.LocationDto;
-import com.twenty9ine.frauddetection.domain.valueobject.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

@@ -320,7 +320,7 @@ class SageMakerMLAdapterIntegrationTest {
             assertThat(internationalPrediction.fraudProbability()).isGreaterThan(domesticPrediction.fraudProbability());
         }
 
-        @Disabled
+        @Disabled("Requires more complex mocking of transaction history and merchant data")
         @Test
         @DisplayName("Should detect missing device as risk factor")
         void shouldDetectMissingDevice() {
@@ -334,7 +334,7 @@ class SageMakerMLAdapterIntegrationTest {
             assertThat(withoutDevicePrediction.fraudProbability()).isGreaterThan(withDevicePrediction.fraudProbability());
         }
 
-        @Disabled
+        @Disabled("Requires more complex mocking of transaction history and merchant data")
         @Test
         @DisplayName("Should detect new merchant as risk factor")
         void shouldDetectNewMerchant() {
@@ -642,20 +642,6 @@ class SageMakerMLAdapterIntegrationTest {
                 createLocation(),
                 "DEVICE-123",
                 Instant.now()
-        );
-    }
-
-    private Transaction createHighRiskTransaction(String accountId) {
-        return new Transaction(
-                TransactionId.of(UUID.randomUUID()),
-                accountId,
-                amount(BigDecimal.valueOf(10000.00)),
-                TransactionType.ATM_WITHDRAWAL,
-                Channel.ATM,
-                createMerchant(),
-                Location.of(-1.2921, 36.8219, "KE", "Nairobi"),
-                null,
-                Instant.now().minus(2, ChronoUnit.HOURS)
         );
     }
 

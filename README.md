@@ -20,6 +20,7 @@
 - [Performance Tuning](#performance-tuning)
 - [Troubleshooting](#troubleshooting)
 - [Additional Resources](#additional-resources)
+- [TODO](#todo)
 
 ---
 
@@ -5183,10 +5184,17 @@ If you continue experiencing issues:
 - **Drools**: https://docs.drools.org/
 - **Apicurio Registry**: https://www.apicur.io/registry/docs/
 - **Testcontainers**: https://testcontainers.com/
+
+---
+## TODO
+- [ ] Add API Gateway with rate limiting
+- [ ] Replace Resilience4j with Spring Framework 7 native resilience features
+- [ ] Externalise configurations
+- [ ] Add Kubernetes deployment manifests
 ---
 
-**Last Updated**: 6 January 2026  
+**Last Updated**: 16 January 2026  
 **Maintained By**: Ignatius Itumeleng Manota - itumeleng.manota@gmail.com  
-**Version**: 1.0.3
+**Version**: 1.0.4
 
 ---

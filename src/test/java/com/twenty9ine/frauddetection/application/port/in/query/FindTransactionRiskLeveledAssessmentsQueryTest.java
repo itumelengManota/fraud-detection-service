@@ -45,19 +45,6 @@ class FindTransactionRiskLeveledAssessmentsQueryTest {
             assertThat(violations).isEmpty();
         }
 
-//        @Test
-//        @DisplayName("Should fail validation when fromDate timestamp is null")
-//        void shouldFailValidationWhenFromIsNull() {
-//            FindRiskLeveledAssessmentsQuery query = FindRiskLeveledAssessmentsQuery.builder()
-//                    .fromDate(null)
-//                    .build();
-//
-//            Set<ConstraintViolation<FindRiskLeveledAssessmentsQuery>> violations = validator.validate(query);
-//
-//            assertThat(violations).hasSize(1);
-//            assertThat(violations.iterator().next().getMessage()).isEqualTo("From transactionTimestamp cannot be null");
-//        }
-
         @Test
         @DisplayName("Should fail validation when fromDate timestamp is in the future")
         void shouldFailValidationWhenFromIsInFuture() {

@@ -1,8 +1,5 @@
 package com.twenty9ine.frauddetection.infrastructure.config;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -20,12 +17,6 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class RedisConfig {
-
-//    private final ObjectMapper objectMapper;
-////
-//    public RedisConfig() {
-//        this.objectMapper = createObjectMapper();
-//    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(LettuceConnectionFactory redisConnectionFactory,
@@ -63,25 +54,4 @@ public class RedisConfig {
                 .cacheDefaults(cacheConfig)
                 .build();
     }
-
-//    @Bean
-//    public ObjectMapper redisObjectMapper() {
-//        return objectMapper;
-//    }
-
-//    private ObjectMapper createObjectMapper() {
-//        ObjectMapper mapper = new ObjectMapper();
-//        mapper.registerModule(new JavaTimeModule());
-//        mapper.findAndRegisterModules();
-//
-//        // Enable default typing for proper deserialization
-//        // Use NON_FINAL to include all non-final types (includes collections, maps, etc.)
-//        mapper.activateDefaultTyping(
-//                mapper.getPolymorphicTypeValidator(),
-//                ObjectMapper.DefaultTyping.NON_FINAL,
-//                JsonTypeInfo.As.PROPERTY
-//        );
-//
-//        return mapper;
-//    }
 }

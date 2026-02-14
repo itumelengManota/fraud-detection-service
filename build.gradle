@@ -1,9 +1,9 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.1'
+    id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
-//    id 'org.graalvm.buildtools.native' version '0.11.3'
     id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
+    id "org.sonarqube" version "7.2.2.6593"
 }
 
 group = 'com.twenty9ine'
@@ -56,34 +56,6 @@ dependencies {
     implementation 'org.springframework.integration:spring-integration-redis'
     implementation 'org.springframework.security:spring-security-messaging'
     implementation 'org.postgresql:postgresql'
-
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-
-    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-    annotationProcessor 'org.projectlombok:lombok'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-opentelemetry-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-restclient-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testImplementation 'org.springframework.integration:spring-integration-test'
-    testImplementation 'org.testcontainers:testcontainers-grafana'
-    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
-    testImplementation 'org.testcontainers:testcontainers-kafka'
-    testImplementation 'org.testcontainers:testcontainers-postgresql'
-
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
 //    TODO: Add a config server
 
     implementation "com.fasterxml.uuid:java-uuid-generator:$uuidGeneratorVersion" //For UUIDv7 (defined in RFC 9562)
@@ -104,8 +76,6 @@ dependencies {
     implementation "org.drools:drools-compiler:$droolsVersion"
     implementation "org.drools:drools-verifier:$droolsVersion"
     implementation "org.drools:drools-mvel:$droolsVersion"
-    testImplementation "org.drools:drools-xml-support:$droolsVersion"
-
 
     implementation "org.mapstruct:mapstruct:$mapstructVersion"
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion"
@@ -118,8 +88,44 @@ dependencies {
     implementation 'software.amazon.awssdk:auth'
     implementation 'software.amazon.awssdk:sts'
 
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor "org.mapstruct:mapstruct-processor:$mapstructVersion"
     annotationProcessor "org.projectlombok:lombok-mapstruct-binding:$lombokMapstructBindingVersion"
+
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+//    testImplementation 'org.springframework.boot:spring-boot-test'
+//    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-opentelemetry-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-restclient-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-kafka-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.springframework.integration:spring-integration-test'
+    testImplementation 'org.testcontainers:testcontainers-grafana'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-kafka'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    testImplementation "org.drools:drools-xml-support:$droolsVersion"
+
+
+
     testImplementation "com.github.dasniko:testcontainers-keycloak:$keycloakTestcontainersVersion"
 
     testImplementation 'org.awaitility:awaitility:4.2.0'
@@ -132,6 +138,43 @@ avro {
     stringType = 'String'
     fieldVisibility = 'PRIVATE'
     enableDecimalLogicalType = true
+}
+
+sonarqube {
+    properties {
+        // Project identification
+        property "sonar.projectKey", "fraud-detection-service"
+        property "sonar.projectName", "fraud-detection-service"
+        property "sonar.projectVersion", version
+
+        // SonarQube server configuration
+        property "sonar.host.url", System.getenv("SONAR_HOST_URL") ?: "http://localhost:9009"
+        property "sonar.token", System.getenv("SONAR_TOKEN") ?: "sqp_dabc3912dbefd9048c00e70cf7aeba9c355a498d"
+
+        // Source and binary directories
+        property "sonar.sources", "src/main/java,src/main/resources"
+        property "sonar.tests", "src/test/java"
+        property "sonar.java.binaries", "build/classes/java/main"
+        property "sonar.java.test.binaries", "build/classes/java/test"
+
+        // Exclusions for generated code
+        property "sonar.exclusions", "**/build/generated-main-avro-java/**,**/build/generated/**"
+        property "sonar.coverage.exclusions", "**/build/generated-main-avro-java/**,**/build/generated/**,**/*Config.java,**/*Configuration.java,**/Application.java"
+
+        // Java version
+        property "sonar.java.source", "25"
+        property "sonar.java.target", "25"
+
+        // Coverage reports (JaCoCo)
+        property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
+
+        // Test execution reports
+        property "sonar.junit.reportPaths", "build/test-results/test"
+
+        // SCM configuration
+        property "sonar.scm.disabled", "false"
+        property "sonar.scm.provider", "git"
+    }
 }
 
 // Task to generate Avro Java classes

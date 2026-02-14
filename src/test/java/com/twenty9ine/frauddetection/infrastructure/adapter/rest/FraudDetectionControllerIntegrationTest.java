@@ -9,7 +9,6 @@ import com.twenty9ine.frauddetection.domain.valueobject.MLPrediction;
 import com.twenty9ine.frauddetection.domain.valueobject.Transaction;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionRiskLevel;
-import com.twenty9ine.frauddetection.infrastructure.adapter.persistence.entity.RiskAssessmentEntity;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.parallel.Execution;
@@ -17,8 +16,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -42,7 +39,6 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.UUID;
 
 import static com.twenty9ine.frauddetection.application.service.FraudDetectionApplicationServiceIntegrationTest.*;
@@ -674,11 +670,6 @@ class FraudDetectionControllerIntegrationTest {
         private Integer countRiskAssessments() {
             return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM risk_assessments", Integer.class);
         }
-
-        private List<RiskAssessmentEntity> getRiskAssessments() {
-            return jdbcTemplate.query("SELECT * FROM risk_assessments", new BeanPropertyRowMapper<>(RiskAssessmentEntity.class));
-        }
-
 
         @Test
         @DisplayName("Should reject search without authentication")

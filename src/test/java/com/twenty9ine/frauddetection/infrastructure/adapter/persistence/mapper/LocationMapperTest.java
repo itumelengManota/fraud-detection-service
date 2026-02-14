@@ -8,8 +8,6 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 
-import java.time.Instant;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 @Execution(ExecutionMode.CONCURRENT)
@@ -24,7 +22,6 @@ class LocationMapperTest {
 
     @Test
     void testToEntity_CompleteLocation_MapsAllFields() {
-        Instant timestamp = Instant.now();
         Location location = Location.of(40.7128, -74.0060, "USA", "New York");
 
         LocationEntity entity = mapper.toEntity(location);
@@ -76,7 +73,6 @@ class LocationMapperTest {
 
     @Test
     void testToEntity_ZeroCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
         Location location = Location.of(0.0, 0.0, "Ghana", "Null Island");
 
         LocationEntity entity = mapper.toEntity(location);
@@ -96,8 +92,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_CompleteEntity_MapsAllFields() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(35.6762)
                 .longitude(139.6503)
@@ -116,8 +110,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_MinimalEntity_MapsRequiredFields() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(55.7558)
                 .longitude(37.6173)
@@ -136,8 +128,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_NegativeCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(-34.6037)
                 .longitude(-58.3816)
@@ -155,8 +145,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_ZeroCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(0.0)
                 .longitude(0.0)
@@ -194,8 +182,6 @@ class LocationMapperTest {
 
     @Test
     void testRoundTrip_EntityToDomainToEntity_PreservesData() {
-        Instant timestamp = Instant.now();
-
         LocationEntity originalEntity = LocationEntity.builder()
                 .latitude(41.9028)
                 .longitude(12.4964)
@@ -239,8 +225,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_ExtremeCoordinates_MapsCorrectly() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(-90.0)
                 .longitude(-180.0)
@@ -268,8 +252,6 @@ class LocationMapperTest {
 
     @Test
     void testToDomain_PrecisionPreservation_MaintainsAccuracy() {
-        Instant timestamp = Instant.now();
-
         LocationEntity entity = LocationEntity.builder()
                 .latitude(51.507351)
                 .longitude(-0.127758)

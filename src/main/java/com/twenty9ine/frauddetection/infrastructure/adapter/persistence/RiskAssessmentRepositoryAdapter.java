@@ -55,19 +55,6 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                              .map(mapper::toDomain);
     }
 
-//    @Override
-//    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
-//        Set<String> riskLevelStrings = toRiskLevelStrings(levels);
-//        Instant fromTime = since != null ? since : Instant.EPOCH;
-//        Pageable pageable = toSpringPageable(pageRequest);
-//
-//        Page<RiskAssessmentEntity> page = riskLevelStrings.isEmpty()
-//                ? jdbcRepository.findByAssessmentTimeGreaterThanEqual(fromTime, pageable)
-//                : jdbcRepository.findByRiskLevelInAndAssessmentTimeGreaterThanEqual(riskLevelStrings, fromTime, pageable);
-//
-//        return toPagedResult(toRiskAssessments(page), page);
-//    }
-
     @Override
     public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
         Page<RiskAssessmentEntity> page = findByRiskLevelsSince(since, toRiskLevelStrings(levels), toSpringPageable(pageRequest));

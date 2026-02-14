@@ -24,8 +24,8 @@ public class SeenMessageCache {
     }
 
     public boolean hasProcessed(UUID transactionId) {
-        Boolean result = (Boolean) redisTemplate.opsForValue().get(buildKey(transactionId));
-        return result != null && result;
+        Boolean isKeyFound = (Boolean) redisTemplate.opsForValue().get(buildKey(transactionId));
+        return Boolean.TRUE.equals(isKeyFound);
     }
 
     private static String buildKey(UUID transactionId) {
