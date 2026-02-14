@@ -123,6 +123,10 @@ public class RiskAssessment {
     }
 
     private TransactionRiskLevel determineRiskLevel(RiskScore riskScore) {
+        if (riskScore == null) {
+            return TransactionRiskLevel.LOW;
+        }
+
         int score = riskScore.value();
 
         if (score <= 40) {
