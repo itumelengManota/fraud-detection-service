@@ -48,7 +48,6 @@ public class SecurityConfig {
                                 .decoder(jwtDecoder)
                         )
                 )
-                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );

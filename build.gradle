@@ -3,6 +3,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'com.github.davidmc24.gradle.plugin.avro' version '1.9.1'
+    id "jacoco"
     id "org.sonarqube" version "7.2.2.6593"
 }
 
@@ -140,22 +141,32 @@ avro {
     enableDecimalLogicalType = true
 }
 
+jacocoTestReport {
+    reports {
+        xml.required = true
+    }
+}
+
 sonarqube {
     properties {
         // Project identification
-        property "sonar.projectKey", "fraud-detection-service"
+        property "sonar.projectKey", "itumelengManota_fraud-detection-service"
         property "sonar.projectName", "fraud-detection-service"
         property "sonar.projectVersion", version
 
         // SonarQube server configuration
         property "sonar.host.url", System.getenv("SONAR_HOST_URL") ?: "http://localhost:9009"
-        property "sonar.token", System.getenv("SONAR_TOKEN") ?: "sqp_dabc3912dbefd9048c00e70cf7aeba9c355a498d"
+        property "sonar.token", System.getenv("SONAR_TOKEN")
 
         // Source and binary directories
         property "sonar.sources", "src/main/java,src/main/resources"
         property "sonar.tests", "src/test/java"
         property "sonar.java.binaries", "build/classes/java/main"
         property "sonar.java.test.binaries", "build/classes/java/test"
+
+        // Library dependencies - crucial for resolving imports
+        property "sonar.java.libraries", configurations.compileClasspath.files.join(',')
+        property "sonar.java.test.libraries", configurations.testCompileClasspath.files.join(',')
 
         // Exclusions for generated code
         property "sonar.exclusions", "**/build/generated-main-avro-java/**,**/build/generated/**"
@@ -164,6 +175,9 @@ sonarqube {
         // Java version
         property "sonar.java.source", "25"
         property "sonar.java.target", "25"
+
+        // Enable preview features for Java 25
+        property "sonar.java.enablePreview", "true"
 
         // Coverage reports (JaCoCo)
         property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml"
@@ -175,6 +189,11 @@ sonarqube {
         property "sonar.scm.disabled", "false"
         property "sonar.scm.provider", "git"
     }
+}
+
+// Ensure classes are compiled before SonarQube analysis
+tasks.named('sonar') {
+    dependsOn 'compileJava', 'compileTestJava', 'generateAvroJava'
 }
 
 // Task to generate Avro Java classes

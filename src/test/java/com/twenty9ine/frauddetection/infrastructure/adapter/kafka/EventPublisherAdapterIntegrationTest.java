@@ -45,7 +45,7 @@ class EventPublisherAdapterIntegrationTest {
     private static final Network NETWORK = Network.newNetwork();
 
     @Container
-    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"))
+    static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("apache/kafka:3.8.1"))
             .withNetwork(NETWORK)
             .withNetworkAliases("kafka")
             .withReuse(true);
