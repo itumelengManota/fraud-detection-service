@@ -45,3 +45,7 @@ __pycache__/
 env/
 ENV/
 .aws/venv/
+
+# docs build tooling
+docs/node_modules/
+docs/package-lock.json
