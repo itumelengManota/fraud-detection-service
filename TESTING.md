@@ -56,7 +56,7 @@ See `.mcp.json` at the project root and `.claude/MCP_SETUP.md` for install/verif
 | Tier | Name | Use Cases Covered | Cases | Passed | Failed | Status | Session |
 |------|------|-------------------|-------|--------|--------|--------|---------|
 | 1 | Infrastructure | — | 7 | 7 | 0 | PASSED | 2026-04-23 |
-| 2 | Service Startup | — | 6 |  |  | NOT_TESTED |  |
+| 2 | Service Startup | — | 6 | 4 | 2 | FAILED | 2026-04-24 |
 | 3 | UC-02 Assess Transaction Risk | UC-02 | 12 |  |  | NOT_TESTED |  |
 | 4 | UC-01 Process Transaction | UC-01 | 6 |  |  | NOT_TESTED |  |
 | 5 | UC-03 Get Risk Assessment | UC-03 | 4 |  |  | NOT_TESTED |  |
@@ -104,17 +104,42 @@ Legend: `NOT_TESTED` → `IN_PROGRESS` → `PASSED` / `FAILED` / `BLOCKED`.
 
 ### Tier 2: Service Startup
 - **Pre-session:** Tier 1 passed; `./gradlew bootRun` in a separate terminal
-- **MCP servers used:** spring-boot, rest-api, postgres
+- **MCP servers used:** spring-boot (`check_configuration`, `migration_info`, `package_structure`), rest-api (actuator health/flyway/metrics), postgres (DB table verification), github (bug filing)
 - **Session command:**
   ```bash
   claude -n "test-startup" --model claude-sonnet-4-6
   ```
 - **Opening prompt:**
   > Execute Tier 2. Use the `spring-boot` MCP server to verify `/actuator/health` is UP, Flyway migrations applied (list from `flyway_schema_history`), Spring beans `RiskScoringService`, `DecisionService`, `RuleEngineService`, `GeographicValidator`, the four `DecisionStrategy` implementations, and `DroolsInfrastructureConfig` are all present, and circuit breakers `sagemakerML` and `accountService` are registered. Record outcomes in `TESTING.md`.
-- **Date:**
-- **Result:**
-- **Bugs found:**
-- **Fixes applied:**
+- **Date:** 2026-04-24
+- **Result:** FAILED (4/6 PASS, 2 bugs; BUG-T2-001 fixed in-session)
+- **Bugs found:** BUG-T2-001 (get-token.sh wrong client ID — fixed), BUG-T2-002 (CB actuator metrics not registered)
+- **Fixes applied:** `scripts/get-token.sh` updated to use `fraud-detection-web` client
+
+#### MCP Tool Notes
+
+- `spring-boot` actuator tools (`app_health`, `app_beans`, `app_metrics`) returned "Unknown tool" — the spring-boot MCP server provides project-analysis tools but does NOT proxy live actuator endpoints over HTTP. Actuator calls were made via `rest-api` MCP and direct `curl` instead.
+- `/actuator/beans` is **not exposed** in `management.endpoints.web.exposure.include` (only `health,liveness,readiness,info,metrics,heapdump,caches,env,flyway,loggers` are exposed). Bean verification was performed via spring-boot `package_structure` and source code read.
+- Tokens could not be obtained via `get-token.sh` (BUG-T2-001). Workaround: direct `curl` with `fraud-detection-web` client and correct secret from realm JSON.
+- `/actuator/health` returns minimal response to unauthenticated callers (status only); full component detail requires a valid JWT (confirmed correct behaviour — `show-details: when-authorized`).
+
+#### Session-Setup Issue (Not a Code Bug)
+
+The postgres Docker volume was wiped between Tier 1 and Tier 2 sessions (likely `docker compose down -v` or volume prune), but the Spring app was **not restarted**. Consequently:
+- `/actuator/flyway` reports SUCCESS for all 3 migrations (cached from April 23 startup — correct migration definitions).
+- `pg_tables` and `docker exec psql \dt` both show **no tables** in `fraud_detection` DB (volume is fresh).
+- **Required action before Tier 3:** restart the application so Flyway re-applies all migrations to the clean DB.
+
+#### Test Case Results
+
+| TC | Description | Tool(s) Used | Result | Notes |
+|----|-------------|-------------|--------|-------|
+| TC-2.1 | `/actuator/health` returns `status: UP` | rest-api (`GET /actuator/health`) | ✅ PASS | All 7 components UP: db (PostgreSQL), diskSpace, livenessState, ping, readinessState, redis 7.4.7, ssl |
+| TC-2.2 | Flyway migrations V1–V3 applied (`flyway_schema_history`) | rest-api (`GET /actuator/flyway`), postgres MCP, docker exec psql | ⚠️ PARTIAL | Actuator shows 3 migrations SUCCESS (from April 23 start). Actual DB tables missing — postgres volume wiped between sessions; app restart required. Migration scripts are correct. |
+| TC-2.3 | Domain service beans present: `RiskScoringService`, `DecisionService`, `RuleEngineService`, `GeographicValidator`, 4 `DecisionStrategy` impls | spring-boot `package_structure`, source read `DomainServiceConfig.java` | ✅ PASS | All declared as `@Bean` in `DomainServiceConfig`: `riskScoringService`, `decisionService`, `ruleEngineService`, `geographicValidator`. Four strategies (`CriticalRiskStrategy`, `HighRiskStrategy`, `MediumRiskStrategy`, `LowRiskStrategy`) instantiated inside `decisionService` via `buildStrategies()`. |
+| TC-2.4 | `DroolsInfrastructureConfig` bean present; `kieContainer` loads Drools rules | spring-boot `package_structure`, source read `DroolsInfrastructureConfig.java` | ✅ PASS | `@Configuration` confirmed; `kieContainer()` @Bean loads `velocity-rules.drl`, `geographic-rules.drl`, `amount-rules.drl` from classpath. Compilation errors throw at startup — absence of startup failure confirms rules loaded clean. |
+| TC-2.5 | `sagemakerML` circuit breaker registered | source read `SageMakerMLAdapter.java`, `/actuator/metrics` | ❌ FAIL | Programmatic registration: `circuitBreakerRegistry.circuitBreaker("sagemakerML")` in constructor ✅. Config present in `application.yml` ✅. BUT: zero `resilience4j.*` metrics appear in actuator (211 metrics, none CB-related). No CB health indicators in `/actuator/health`. See BUG-T2-002. |
+| TC-2.6 | `accountService` circuit breaker registered | source read `AccountServiceRestAdapter.java`, `/actuator/metrics` | ❌ FAIL | Annotation-based: `@CircuitBreaker(name = "accountService")` in `AccountServiceRestAdapter` ✅. Config present ✅. Same actuator gap as TC-2.5 — no metrics/health indicators. See BUG-T2-002. |
 
 ### Tier 3: UC-02 Assess Transaction Risk
 - **Pre-session:** Tiers 1–2 passed; service running on port 9001
@@ -196,7 +221,9 @@ Mirror each issue below for quick reference.
 
 | Bug ID | Tier | Test Case | Summary | GitHub Issue | Fix Commit | Re-test Status |
 |--------|------|-----------|---------|--------------|------------|----------------|
-| BUG-T1-001 | 1 | TC-1.3/TC-1.4 | Keycloak 26.x bootstrap admin `invalid_grant` — `is_temporary_admin=true` blocks programmatic password grants | [#1](https://github.com/itumelengManota/fraud-detection-service/issues/1) | (see fix below) | FIXED — verified TOKEN_OK on 2026-04-23 |
+| BUG-T1-001 | 1 | TC-1.3/TC-1.4 | Keycloak 26.x bootstrap admin `invalid_grant` — `is_temporary_admin=true` blocks programmatic password grants | [#1](https://github.com/itumelengManota/fraud-detection-service/issues/1) | see fix below | FIXED — verified TOKEN_OK on 2026-04-23 |
+| BUG-T2-001 | 2 | TC-2.1 (blocker) | `get-token.sh` uses non-existent client `fraud-detection-client`; correct client is `fraud-detection-web` | [#2](https://github.com/itumelengManota/fraud-detection-service/issues/2) | FIXED in-session (2026-04-24) | FIXED — `./scripts/get-token.sh detector` returns TOKEN_OK |
+| BUG-T2-002 | 2 | TC-2.5/TC-2.6 | Resilience4j CB health indicators and metrics not registered in actuator despite `register-health-indicator: true`; likely `resilience4j-spring-boot3:2.2.0` incompatibility with Spring Boot 4 auto-configuration | [#3](https://github.com/itumelengManota/fraud-detection-service/issues/3) | OPEN | OPEN — needs fix before Tier 7 NFR tests |
 
 ---
 
