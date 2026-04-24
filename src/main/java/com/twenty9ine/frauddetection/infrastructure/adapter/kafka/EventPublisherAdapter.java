@@ -6,9 +6,9 @@ import com.twenty9ine.frauddetection.domain.event.RiskAssessmentCompleted;
 import com.twenty9ine.frauddetection.domain.exception.EventPublishingException;
 import com.twenty9ine.frauddetection.application.port.out.EventPublisherPort;
 import com.twenty9ine.frauddetection.domain.valueobject.TransactionId;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
@@ -16,13 +16,28 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-@RequiredArgsConstructor
 @Component
 @Slf4j
 public class EventPublisherAdapter implements EventPublisherPort {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final DomainEventToAvroMapper avroMapper;
+    private final String riskAssessmentsTopic;
+    private final String highRiskAlertsTopic;
+    private final String domainEventsTopic;
+
+    public EventPublisherAdapter(
+            KafkaTemplate<String, Object> kafkaTemplate,
+            DomainEventToAvroMapper avroMapper,
+            @Value("${kafka.topics.risk-assessments:fraud-detection.risk-assessments}") String riskAssessmentsTopic,
+            @Value("${kafka.topics.high-risk-alerts:fraud-detection.high-risk-alerts}") String highRiskAlertsTopic,
+            @Value("${kafka.topics.domain-events:fraud-detection.domain-events}") String domainEventsTopic) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.avroMapper = avroMapper;
+        this.riskAssessmentsTopic = riskAssessmentsTopic;
+        this.highRiskAlertsTopic = highRiskAlertsTopic;
+        this.domainEventsTopic = domainEventsTopic;
+    }
 
     @Override
     public void publish(DomainEvent<TransactionId> event) {
@@ -59,9 +74,9 @@ public class EventPublisherAdapter implements EventPublisherPort {
 
     private String determineTopicForEvent(DomainEvent<?> event) {
         return switch (event) {
-            case RiskAssessmentCompleted _ -> "fraud-detection.risk-assessments";
-            case HighRiskDetected _ -> "fraud-detection.high-risk-alerts";
-            default -> "fraud-detection.domain-events";
+            case RiskAssessmentCompleted _ -> riskAssessmentsTopic;
+            case HighRiskDetected _ -> highRiskAlertsTopic;
+            default -> domainEventsTopic;
         };
     }
 

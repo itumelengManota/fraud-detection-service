@@ -146,9 +146,8 @@ kafka:
     transactions:
       name: transactions.normalized
       group-id: ${spring.kafka.consumer.group-id}
-    fraud-alerts-critical: fraud.alerts.critical
-    fraud-alerts-high: fraud.alerts.high
-    fraud-alerts-medium: fraud.alerts.medium
+    risk-assessments: fraud-detection.risk-assessments
+    high-risk-alerts: fraud-detection.high-risk-alerts
     domain-events: fraud-detection.domain-events
 
 # Account Service Integration
@@ -180,7 +179,7 @@ aws:
     model-version: 1.0.0
 
     # Local mode configuration (used when local-mode=true)
-    endpoint-url: ${SAGEMAKER_ENDPOINT_URL:http://sagemaker-model:9002/invocations}
+    endpoint-url: ${SAGEMAKER_ENDPOINT_URL:http://localhost:8080/invocations}
 
     # Timeout configuration (applies to both modes)
     api-call-timeout: 10s  # Longer timeout for local Docker
@@ -256,7 +255,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,liveness,readiness,info,metrics,heapdump,caches,env,flyway,loggers
+        include: health,liveness,readiness,info,metrics,heapdump,caches,env,flyway,loggers,circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads,timelimiters,ratelimiters
   endpoint:
     health:
       show-details: when-authorized
@@ -266,6 +265,10 @@ management:
     liveness state:
       enabled: true
     readiness state:
+      enabled: true
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
       enabled: true
 
   tracing:

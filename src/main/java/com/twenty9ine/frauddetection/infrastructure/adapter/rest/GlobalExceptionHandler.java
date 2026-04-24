@@ -81,12 +81,27 @@ public class GlobalExceptionHandler {
             IllegalArgumentException ex,
             WebRequest request) {
 
-        // Check if it's an invalid risk level error
-        if (ex.getMessage() != null && ex.getMessage().contains("Unknown risk level")) {
-            log.warn("Invalid risk level provided: {}", ex.getMessage());
+        String message = ex.getMessage();
+
+        // Invalid risk level error — return structured 400
+        if (message != null && message.contains("Unknown risk level")) {
+            log.warn("Invalid risk level provided: {}", message);
             ErrorResponse errorResponse = ErrorResponse.builder()
                     .code("INVALID_RISK_LEVEL")
                     .message("Invalid transaction risk level. Valid values are: LOW, MEDIUM, HIGH, CRITICAL")
+                    .timestamp(Instant.now())
+                    .build();
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+
+        // Enum-parse failures from Channel/TransactionType/MerchantCategory etc. throw
+        // IllegalArgumentException("Unknown <field>: <value>"). These are client-input
+        // errors, not server errors — return 400.
+        if (message != null && message.startsWith("Unknown ")) {
+            log.warn("Invalid input provided: {}", message);
+            ErrorResponse errorResponse = ErrorResponse.builder()
+                    .code("VALIDATION_ERROR")
+                    .message(message)
                     .timestamp(Instant.now())
                     .build();
             return ResponseEntity.badRequest().body(errorResponse);

@@ -30,7 +30,7 @@ ext {
     mapstructVersion = '1.6.3'
     lombokMapstructBindingVersion = '0.2.0'
     droolsVersion = '10.1.0'
-    resilience4jVersion = '2.2.0'
+    resilience4jVersion = '2.3.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '3.0.0'
     uuidGeneratorVersion = '5.1.1'

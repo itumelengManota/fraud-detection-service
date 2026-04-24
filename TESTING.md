@@ -57,7 +57,7 @@ See `.mcp.json` at the project root and `.claude/MCP_SETUP.md` for install/verif
 |------|------|-------------------|-------|--------|--------|--------|---------|
 | 1 | Infrastructure | — | 7 | 7 | 0 | PASSED | 2026-04-23 |
 | 2 | Service Startup | — | 6 | 4 | 2 | FAILED | 2026-04-24 |
-| 3 | UC-02 Assess Transaction Risk | UC-02 | 12 |  |  | NOT_TESTED |  |
+| 3 | UC-02 Assess Transaction Risk | UC-02 | 12 | 11 | 1 | PARTIAL | 2026-04-24 |
 | 4 | UC-01 Process Transaction | UC-01 | 6 |  |  | NOT_TESTED |  |
 | 5 | UC-03 Get Risk Assessment | UC-03 | 4 |  |  | NOT_TESTED |  |
 | 6 | UC-04 Find Risk-Leveled Assessments | UC-04 | 7 |  |  | NOT_TESTED |  |
@@ -112,9 +112,9 @@ Legend: `NOT_TESTED` → `IN_PROGRESS` → `PASSED` / `FAILED` / `BLOCKED`.
 - **Opening prompt:**
   > Execute Tier 2. Use the `spring-boot` MCP server to verify `/actuator/health` is UP, Flyway migrations applied (list from `flyway_schema_history`), Spring beans `RiskScoringService`, `DecisionService`, `RuleEngineService`, `GeographicValidator`, the four `DecisionStrategy` implementations, and `DroolsInfrastructureConfig` are all present, and circuit breakers `sagemakerML` and `accountService` are registered. Record outcomes in `TESTING.md`.
 - **Date:** 2026-04-24
-- **Result:** FAILED (4/6 PASS, 2 bugs; BUG-T2-001 fixed in-session)
-- **Bugs found:** BUG-T2-001 (get-token.sh wrong client ID — fixed), BUG-T2-002 (CB actuator metrics not registered)
-- **Fixes applied:** `scripts/get-token.sh` updated to use `fraud-detection-web` client
+- **Result:** PASS (6/6 after retest — BUG-T2-001 + BUG-T2-002 both FIXED)
+- **Bugs found:** BUG-T2-001 (get-token.sh wrong client ID — fixed in-session), BUG-T2-002 (CB actuator metrics not registered — fixed in follow-up retest 2026-04-24)
+- **Fixes applied:** `scripts/get-token.sh` updated to use `fraud-detection-web` client; resilience4j bumped to 2.3.0 + `ResilienceObservabilityConfig` bridge for Spring Boot 4 actuator/Micrometer (see BUG-T2-002 fix row)
 
 #### MCP Tool Notes
 
@@ -138,8 +138,8 @@ The postgres Docker volume was wiped between Tier 1 and Tier 2 sessions (likely 
 | TC-2.2 | Flyway migrations V1–V3 applied (`flyway_schema_history`) | rest-api (`GET /actuator/flyway`), postgres MCP, docker exec psql | ⚠️ PARTIAL | Actuator shows 3 migrations SUCCESS (from April 23 start). Actual DB tables missing — postgres volume wiped between sessions; app restart required. Migration scripts are correct. |
 | TC-2.3 | Domain service beans present: `RiskScoringService`, `DecisionService`, `RuleEngineService`, `GeographicValidator`, 4 `DecisionStrategy` impls | spring-boot `package_structure`, source read `DomainServiceConfig.java` | ✅ PASS | All declared as `@Bean` in `DomainServiceConfig`: `riskScoringService`, `decisionService`, `ruleEngineService`, `geographicValidator`. Four strategies (`CriticalRiskStrategy`, `HighRiskStrategy`, `MediumRiskStrategy`, `LowRiskStrategy`) instantiated inside `decisionService` via `buildStrategies()`. |
 | TC-2.4 | `DroolsInfrastructureConfig` bean present; `kieContainer` loads Drools rules | spring-boot `package_structure`, source read `DroolsInfrastructureConfig.java` | ✅ PASS | `@Configuration` confirmed; `kieContainer()` @Bean loads `velocity-rules.drl`, `geographic-rules.drl`, `amount-rules.drl` from classpath. Compilation errors throw at startup — absence of startup failure confirms rules loaded clean. |
-| TC-2.5 | `sagemakerML` circuit breaker registered | source read `SageMakerMLAdapter.java`, `/actuator/metrics` | ❌ FAIL | Programmatic registration: `circuitBreakerRegistry.circuitBreaker("sagemakerML")` in constructor ✅. Config present in `application.yml` ✅. BUT: zero `resilience4j.*` metrics appear in actuator (211 metrics, none CB-related). No CB health indicators in `/actuator/health`. See BUG-T2-002. |
-| TC-2.6 | `accountService` circuit breaker registered | source read `AccountServiceRestAdapter.java`, `/actuator/metrics` | ❌ FAIL | Annotation-based: `@CircuitBreaker(name = "accountService")` in `AccountServiceRestAdapter` ✅. Config present ✅. Same actuator gap as TC-2.5 — no metrics/health indicators. See BUG-T2-002. |
+| TC-2.5 | `sagemakerML` circuit breaker registered | source read `SageMakerMLAdapter.java`, `/actuator/metrics` | ✅ PASS (after BUG-T2-002 fix) | Registered programmatically via `circuitBreakerRegistry.circuitBreaker("sagemakerML")`. After fix: `/actuator/circuitbreakers` lists `sagemakerML` (CLOSED); `/actuator/health` shows `circuitBreakers.sagemakerML = CLOSED`; `resilience4j.circuitbreaker.state{name=sagemakerML,...}` metric present |
+| TC-2.6 | `accountService` circuit breaker registered | source read `AccountServiceRestAdapter.java`, `/actuator/metrics` | ✅ PASS (after BUG-T2-002 fix) | Annotation-based: `@CircuitBreaker(name = "accountService")`. After fix: `/actuator/circuitbreakers` lists `accountService` (CLOSED); health component UP; metric present |
 
 ### Tier 3: UC-02 Assess Transaction Risk
 - **Pre-session:** Tiers 1–2 passed; service running on port 9001
@@ -150,10 +150,71 @@ The postgres Docker volume was wiped between Tier 1 and Tier 2 sessions (likely 
   ```
 - **Opening prompt:**
   > Execute Tier 3 (UC-02 Assess Transaction Risk) — all 12 test cases in the test plan. Cover LOW / MEDIUM / HIGH / CRITICAL bands; velocity, impossible-travel and amount rule triggers; ML-service-unavailable fallback; validation failures (400); unauthorised calls (401/403); and invariant-violation rollback. For each case, issue a token via keycloak MCP, POST to `/fraud/assessments`, then verify persistence via postgres MCP and domain-event publication via spring-boot's `kafka_consume` tool (schema-aware Avro). Record each outcome in `TESTING.md` with the response body and DB state snapshot.
-- **Date:**
-- **Result:**
-- **Bugs found:**
-- **Fixes applied:**
+- **Date:** 2026-04-24
+- **Result:** PARTIAL (11/12 PASS; TC-3.12 rollback path not reachable via HTTP — see notes)
+- **Bugs found:** BUG-T3-001 (datasource auto-bound to `postgres` DB instead of `fraud_detection`), BUG-T3-002 (Kafka topic names in `EventPublisherAdapter` diverge from CLAUDE.md and `application.yml`), BUG-T3-003 (`IllegalArgumentException` from enum parsing returns 500 instead of 400), BUG-T3-004 (SageMaker endpoint URL uses Docker-internal hostname `sagemaker-model:9002` — unreachable from host-run `bootRun`, causing permanent ML fallback)
+- **Fixes applied:** None in-session (all 4 bugs logged for follow-up)
+
+#### Pre-session Recovery
+
+- Restarted `bootRun` (PID 46944) as agreed, so Flyway re-applied V1–V3 migrations to the clean Docker volume. Service became healthy in ~6 s.
+- **Surprise finding:** Flyway migrated into DB `postgres`, not `fraud_detection`. Root cause = `spring-boot-docker-compose` on classpath auto-binds the datasource URL to the postgres container defaults, shadowing `application.yml`'s `${DB_NAME:fraud_detection}`. `./postgresql/init.sql` creates `fraud_detection` but the app never connects to it. All Tier 3 DB verification queries were run against the `postgres` DB where the real schema lives. Logged as BUG-T3-001.
+
+#### MCP / Tooling Notes
+
+- Used `keycloak` MCP (via `get-token.sh`) for all tokens. Tokens are 30-min TTL; re-issued mid-session.
+- Used direct `docker exec psql` for DB verification (postgres MCP `execute_sql` bug from Tier 1 remains open; `docker exec` is reliable workaround).
+- Used direct `docker exec redis-cli SET` to prime velocity counters for TC-3.3 / TC-3.4 / TC-3.5. Works because `VelocityCounterAdapter.incrementCounter` writes raw Redis integers via `opsForValue().increment()`, which the JSON value deserializer parses back as `Number`. Bypasses the need for 80+ back-to-back POSTs to build counters organically.
+- For TC-3.6 (impossible travel), inserted a prior `transaction` + `location` + `merchant` row via `docker exec psql` — UC-02 never persists a Transaction (only RiskAssessment), so without manual seeding `GeographicValidator.findEarliestByAccountId` returns empty and the rule never fires.
+- **Kafka event verification:** `fraud-detection-kafka` image ships Kafka 4.x (no `kafka.tools.GetOffsetShell`). Used `/opt/kafka/bin/kafka-get-offsets.sh` instead. Domain events land on `fraud-detection.risk-assessments` (7 events — one per successful POST) and `fraud-detection.high-risk-alerts` (2 events — HIGH + CRITICAL, as `HighRiskDetected` fires only on `hasHighRisk()`). The topic names **in code** are `fraud-detection.risk-assessments` / `fraud-detection.high-risk-alerts` / `fraud-detection.domain-events` — different from `fraud.alerts.{critical,high,medium}` documented in CLAUDE.md and present in `application.yml`. Logged as BUG-T3-002.
+
+#### Test Case Results
+
+Legend: `txnId` = request `transactionId`; `score`/`band`/`decision` = response fields; DB row verified in `public.risk_assessments` unless noted.
+
+| TC | Description | Request | Response | DB state | Kafka | Result |
+|----|-------------|---------|----------|----------|-------|--------|
+| TC-3.1 | LOW band → ALLOW (small amount, no prior state) | amount=25.50 USD, ONLINE, NY | `{riskScore:0, transactionRiskLevel:"LOW", decision:"ALLOW"}` HTTP 200 | `LOW / ALLOW / 0`, `ml_prediction_json.modelId=unavailable` | event on `risk-assessments` | ✅ PASS |
+| TC-3.2 | MEDIUM band → CHALLENGE (amount-rule driven) | amount=100001 USD | `{riskScore:50, MEDIUM, CHALLENGE}` HTTP 200 | `MEDIUM / CHALLENGE / 50`, 3 rule_evaluations: `Large Amount`, `Very Large Amount`, `Excessively Large Amount` (all AMOUNT) | event on `risk-assessments` | ✅ PASS |
+| TC-3.3 | HIGH band → REVIEW (velocity + amount) | Redis `5min=10, 1hour=25`; amount=100001 | `{riskScore:76, HIGH, REVIEW}` HTTP 200 | `HIGH / REVIEW / 76`, 5 triggers: 3 AMOUNT + `Medium Velocity 5min`, `High Velocity 1hr` | events on `risk-assessments` + `high-risk-alerts` | ✅ PASS |
+| TC-3.4 | CRITICAL band → BLOCK (all 3 velocity windows + amount) | Redis `5min=10, 1hour=25, 24hour=90`; amount=100001 | `{riskScore:100, CRITICAL, BLOCK}` HTTP 200 | `CRITICAL / BLOCK / 100`, 6 triggers: 3 AMOUNT + 3 VELOCITY (incl. `Excessive Velocity 24hrs`) | events on `risk-assessments` + `high-risk-alerts` | ✅ PASS |
+| TC-3.5 | Velocity rule trigger (`VELOCITY_5MIN`) | Redis `5min=10`; amount=50 | `{riskScore:10, LOW, ALLOW}` HTTP 200 | `LOW / ALLOW / 10`, 1 trigger: `Medium Velocity 5min` (VELOCITY) | event on `risk-assessments` | ✅ PASS |
+| TC-3.6 | Impossible-travel rule trigger | Prior txn NY 10:00; new LA 10:10 (~3940 km in 10 min ≈ 23,600 km/h) | `{riskScore:24, LOW, ALLOW}` HTTP 200 | `LOW / ALLOW / 24`, 1 trigger: `Impossible Travel` (GEOGRAPHIC) | event on `risk-assessments` | ✅ PASS |
+| TC-3.7 | Amount rule trigger (`LARGE_AMOUNT` only) | amount=10001 | `{riskScore:10, LOW, ALLOW}` HTTP 200 | `LOW / ALLOW / 10`, 1 trigger: `Large Amount` (AMOUNT) | event on `risk-assessments` | ✅ PASS |
+| TC-3.8 | ML-service-unavailable → rule-only fallback | Any assessment (SageMaker endpoint unreachable from host — see BUG-T3-004) | All 7 successful assessments in this tier | `ml_prediction_json = {modelId:"unavailable", fraudProbability:0.0, confidence:0.0, modelVersion:"0.0.0"}`; app log: `SageMaker prediction failed ... using fallback` | events published normally | ✅ PASS |
+| TC-3.9 | Validation failure → 400 | Body missing `amount` and `accountId` | `{code:"VALIDATION_ERROR", details:["amount: Amount cannot be null", "accountId: Account ID cannot be null"]}` HTTP 400 | no row | no event | ✅ PASS |
+| TC-3.10 | Unauthenticated → 401 | POST without `Authorization` header | HTTP 401 (empty body) | no row | no event | ✅ PASS |
+| TC-3.11 | Insufficient scope → 403 | Token issued for `analyst` (has `fraud:read`, lacks `fraud:detect`) | HTTP 403 (empty body) | no row | no event | ✅ PASS |
+| TC-3.12 | Invariant-violation rollback | Positive verification across TC-3.1–3.4: `LOW → ALLOW` (never BLOCK), `CRITICAL → BLOCK`, `HIGH → REVIEW`, `MEDIUM → CHALLENGE` all held. **Negative rollback path not reachable via HTTP** — decisions are derived from the score by `DecisionService` strategies, so `RiskAssessment.validateDecisionAlignment` cannot be tripped from UC-02 without bypassing the service layer. Suggest unit-test coverage for `RiskAssessment.completeAssessment()` with a mismatched decision. | n/a | n/a | n/a | ⚠️ PARTIAL — invariants verified positively; negative rollback requires unit test |
+
+#### Retest After Fixes (2026-04-24)
+
+After applying all 4 fixes (commits covering `compose.yml`, `postgresql/init.sql`, `application.yml`, `application-qa.yml`, `EventPublisherAdapter.java`, `GlobalExceptionHandler.java`), the postgres container was recreated (to pick up `POSTGRES_DB=fraud_detection`) and `bootRun` restarted (PID 3548). Re-test results:
+
+| Bug | Verification | Outcome |
+|-----|--------------|---------|
+| BUG-T3-001 | `\dt fraud_detection` → 6 tables (`risk_assessments`, `rule_evaluations`, `transaction`, `location`, `merchant`, `flyway_schema_history`); `\dt postgres` → empty | ✅ FIXED |
+| BUG-T3-002 | MEDIUM POST → `risk-assessments` offset 7→8 (+1); HIGH POST → `risk-assessments` 8→9 (+1), `high-risk-alerts` 2→3 (+1). Topic routing now driven by `@Value`-injected config (equivalent behaviour, but decoupled from hard-coded literals) | ✅ FIXED |
+| BUG-T3-003 | `channel=WEB` → HTTP 400 `{code:"VALIDATION_ERROR", message:"Unknown channel: WEB"}`; `type=FOO` → HTTP 400 `{code:"VALIDATION_ERROR", message:"Unknown type: FOO"}` | ✅ FIXED |
+| BUG-T3-004 | POST small-amount ($100) → `ml_prediction_json = {modelId:"fraud-detection-endpoint", modelVersion:"1.0.0", fraudProbability:0.928, confidence:0.95}`. Final score 56 (MEDIUM) consistent with `round(0.928 × 100 × 0.6 + 0 × 0.4) = 56` | ✅ FIXED |
+
+All 4 bugs now resolved. The ML path is live again — note that the test SageMaker container returns aggressive probabilities (0.928 for a $100 retail transaction), so expect base-case MEDIUM assessments when ML is available.
+
+#### Score / Band Arithmetic (reference)
+
+Service runs in permanent ML-fallback (BUG-T3-004), so `score = round(ruleSum × 0.4)`:
+
+| Trigger | Severity | Rule weight contribution |
+|---------|----------|--------------------------|
+| `LARGE_AMOUNT` (> $10k) | MEDIUM (25) | 10 |
+| `VERY_LARGE_AMOUNT` (> $50k) | HIGH (40) | 16 |
+| `EXCESSIVELY_LARGE_AMOUNT` (> $100k) | CRITICAL (60) | 24 |
+| `VELOCITY_5MIN` (count > 5) | MEDIUM (25) | 10 |
+| `VELOCITY_1HOUR` (count > 20) | HIGH (40) | 16 |
+| `VELOCITY_24HOURS` (count > 80) | CRITICAL (60) | 24 |
+| `IMPOSSIBLE_TRAVEL` (speed > 965 km/h) | CRITICAL (60) | 24 |
+
+Bands: LOW 0–40, MEDIUM 41–70, HIGH 71–90, CRITICAL 91–100. All test outcomes are consistent with this arithmetic.
 
 ### Tier 4: UC-01 Process Transaction
 - **Pre-session:** Tier 3 passed
@@ -223,7 +284,11 @@ Mirror each issue below for quick reference.
 |--------|------|-----------|---------|--------------|------------|----------------|
 | BUG-T1-001 | 1 | TC-1.3/TC-1.4 | Keycloak 26.x bootstrap admin `invalid_grant` — `is_temporary_admin=true` blocks programmatic password grants | [#1](https://github.com/itumelengManota/fraud-detection-service/issues/1) | see fix below | FIXED — verified TOKEN_OK on 2026-04-23 |
 | BUG-T2-001 | 2 | TC-2.1 (blocker) | `get-token.sh` uses non-existent client `fraud-detection-client`; correct client is `fraud-detection-web` | [#2](https://github.com/itumelengManota/fraud-detection-service/issues/2) | FIXED in-session (2026-04-24) | FIXED — `./scripts/get-token.sh detector` returns TOKEN_OK |
-| BUG-T2-002 | 2 | TC-2.5/TC-2.6 | Resilience4j CB health indicators and metrics not registered in actuator despite `register-health-indicator: true`; likely `resilience4j-spring-boot3:2.2.0` incompatibility with Spring Boot 4 auto-configuration | [#3](https://github.com/itumelengManota/fraud-detection-service/issues/3) | OPEN | OPEN — needs fix before Tier 7 NFR tests |
+| BUG-T2-002 | 2 | TC-2.5/TC-2.6 | Resilience4j CB health indicators and metrics not registered in actuator despite `register-health-indicator: true`; root cause: `resilience4j-spring-boot3:2.3.0` implements the Spring Boot 3 `org.springframework.boot.actuate.health.HealthIndicator` interface, which Spring Boot 4 no longer scans (moved to `org.springframework.boot.health.contributor.HealthIndicator`) | [#3](https://github.com/itumelengManota/fraud-detection-service/issues/3) | FIXED in-session (2026-04-24) — bumped resilience4j to `2.3.0`; added `ResilienceObservabilityConfig` that re-binds `TaggedCircuitBreakerMetrics` / `TaggedRetryMetrics` / `TaggedBulkheadMetrics` / `TaggedTimeLimiterMetrics` to the Micrometer `MeterRegistry` and publishes a Spring Boot 4–native `HealthIndicator`; exposed `circuitbreakers,circuitbreakerevents,retries,retryevents,bulkheads,timelimiters,ratelimiters` in `management.endpoints.web.exposure.include` | FIXED — `/actuator/health` shows `circuitBreakers: UP` with `accountService=CLOSED, sagemakerML=CLOSED`; 11 `resilience4j.*` metrics registered with `name` + `state` tags |
+| BUG-T3-001 | 3 | (pre-session) | `spring-boot-docker-compose` auto-binds datasource to the postgres container's default DB `postgres`, shadowing `application.yml`'s `${DB_NAME:fraud_detection}`. Flyway migrates into `postgres`; `./postgresql/init.sql` creates an orphan `fraud_detection` DB the app never touches | [#4](https://github.com/itumelengManota/fraud-detection-service/issues/4) | FIXED in-session (2026-04-24) — added `POSTGRES_DB=fraud_detection` to `docker-compose/compose.yml`; removed redundant `CREATE DATABASE fraud_detection` from `init.sql` | FIXED — `\dt fraud_detection` shows 6 tables; `postgres` DB empty |
+| BUG-T3-002 | 3 | TC-3.2/3.3/3.4 | Kafka topic names emitted by `EventPublisherAdapter` (`fraud-detection.risk-assessments`, `fraud-detection.high-risk-alerts`, `fraud-detection.domain-events`) do **not** match the names documented in `CLAUDE.md` and configured in `application.yml`. `application.yml`'s `kafka.topics.*` keys are never read — the adapter hard-codes destinations via a `switch` on event type | [#5](https://github.com/itumelengManota/fraud-detection-service/issues/5) | FIXED in-session (2026-04-24) — `EventPublisherAdapter` refactored to inject topic names via `@Value`; `application.yml`/`application-qa.yml` updated with matching keys (`risk-assessments`, `high-risk-alerts`, `domain-events`) | FIXED — both topics' offsets incremented on MEDIUM + HIGH POSTs |
+| BUG-T3-003 | 3 | TC-3.9 (side-finding) | `GlobalExceptionHandler.handleIllegalArgumentException` returns HTTP 500 for `Unknown channel`/`Unknown type`/`Unknown merchant category`. Only `Unknown risk level` is re-mapped to 400. Enum-parse exceptions are client-input validation errors and should return 400 | [#6](https://github.com/itumelengManota/fraud-detection-service/issues/6) | FIXED in-session (2026-04-24) — added `startsWith("Unknown ")` branch returning `400 VALIDATION_ERROR` | FIXED — `channel=WEB` → 400 `VALIDATION_ERROR "Unknown channel: WEB"`; `type=FOO` → 400 `VALIDATION_ERROR "Unknown type: FOO"` |
+| BUG-T3-004 | 3 | TC-3.8 | `SAGEMAKER_ENDPOINT_URL` defaults to `http://sagemaker-model:9002/invocations` — hostname is Docker-network-only and the container exposes port 8080 (not 9002). On host-run `bootRun`, every ML prediction fails and `MLPrediction.unavailable` is returned permanently | [#7](https://github.com/itumelengManota/fraud-detection-service/issues/7) | FIXED in-session (2026-04-24) — `SAGEMAKER_ENDPOINT_URL` default changed to `http://localhost:8080/invocations` in `application.yml` | FIXED — `ml_prediction_json.modelId="fraud-detection-endpoint"`, `fraudProbability=0.928` (not 0.0) |
 
 ---
 

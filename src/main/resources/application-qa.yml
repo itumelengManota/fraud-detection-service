@@ -119,9 +119,8 @@ kafka:
       name: transactions.normalized
       concurrency: 10
       group-id: ${spring.kafka.consumer.group-id}
-    fraud-alerts-critical: fraud.alerts.critical
-    fraud-alerts-high: fraud.alerts.high
-    fraud-alerts-medium: fraud.alerts.medium
+    risk-assessments: fraud-detection.risk-assessments
+    high-risk-alerts: fraud-detection.high-risk-alerts
     domain-events: fraud-detection.domain-events
 
 fraud-detection:
