@@ -14,6 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Instant;
 
@@ -66,6 +67,17 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
                              .body(buildBusinessRuleViolation(exception));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Invalid path/query parameter type: {} cannot be converted to {}", ex.getValue(), ex.getRequiredType());
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.builder()
+                        .code("INVALID_PARAMETER")
+                        .message("Invalid value '" + ex.getValue() + "' for parameter '" + ex.getName() + "'. Expected type: " + ex.getRequiredType().getSimpleName())
+                        .timestamp(Instant.now())
+                        .build());
     }
 
     @ExceptionHandler(Exception.class)
