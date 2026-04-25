@@ -60,7 +60,7 @@ See `.mcp.json` at the project root and `.claude/MCP_SETUP.md` for install/verif
 | 3 | UC-02 Assess Transaction Risk | UC-02 | 12 | 11 | 1 | PARTIAL | 2026-04-24 |
 | 4 | UC-01 Process Transaction | UC-01 | 6 | 6 | 0 | PASSED | 2026-04-24 |
 | 5 | UC-03 Get Risk Assessment | UC-03 | 5 | 5 | 0 | PASSED | 2026-04-25 |
-| 6 | UC-04 Find Risk-Leveled Assessments | UC-04 | 7 |  |  | NOT_TESTED |  |
+| 6 | UC-04 Find Risk-Leveled Assessments | UC-04 | 7 | 7 | 0 | PASSED | 2026-04-25 |
 | 7 | NFRs — Security, Resilience, Observability | (cross-cutting) | 6 |  |  | NOT_TESTED |  |
 | **Total** |  |  | **48** |  |  |  |  |
 
@@ -312,7 +312,7 @@ Retest ordering: harness-produce TC-4.1 happy → harness-replay TC-4.2 idempote
 | TC-5.5 | 400 — invalid UUID format | `GET /fraud/assessments/not-a-uuid` + analyst Bearer | *(initial)* HTTP 500 → *(after fix)* `{code:"INVALID_PARAMETER", message:"Invalid value 'not-a-uuid' for parameter 'transactionId'. Expected type: UUID"}` HTTP 400 | ✅ PASS (after fix) | Spring MVC throws `MethodArgumentTypeMismatchException` when path variable cannot be converted to `UUID`. No handler existed — fell to catch-all → 500. Fixed by adding `@ExceptionHandler(MethodArgumentTypeMismatchException.class)` in `GlobalExceptionHandler`. See BUG-T5-001 / GitHub #8. |
 
 ### Tier 6: UC-04 Find Risk-Leveled Assessments
-- **Pre-session:** Tier 3 passed (provides assessments to filter)
+- **Pre-session:** Tiers 1–5 passed; service running on port 9001; 3 risk_assessments rows from Tiers 3–4
 - **MCP servers used:** rest-api, keycloak, postgres
 - **Session command:**
   ```bash
@@ -320,10 +320,59 @@ Retest ordering: harness-produce TC-4.1 happy → harness-replay TC-4.2 idempote
   ```
 - **Opening prompt:**
   > Execute Tier 6 (UC-04 Find Risk-Leveled Assessments). Cover: no filters, filter by risk level, filter by fromDate, both filters, pagination correctness, invalid risk level → 400, future fromDate → 400. Verify result counts match direct SQL queries via postgres MCP. Record outcomes in `TESTING.md`.
-- **Date:**
-- **Result:**
-- **Bugs found:**
-- **Fixes applied:**
+- **Date:** 2026-04-25
+- **Result:** PASSED (7/7)
+- **Bugs found:** None
+- **Fixes applied:** None
+
+#### Pre-session State
+
+- Service (`bootRun`) healthy on port 9001; `/actuator/health` = UP.
+- `public.risk_assessments`: 3 rows —
+  - `cccccccc-cccc-cccc-cccc-cccccccccccc` → MEDIUM / CHALLENGE / 51 (assessment_time 2026-04-24T20:15:53Z — Tier 4 Kafka path)
+  - `2a008909-e609-4345-abc1-f6ea46dd8e77` → HIGH / REVIEW / 76 (assessment_time 2026-04-24T13:29:43Z — Tier 3 REST path)
+  - `2fd03fe8-3a8b-4183-8c6b-55c9c01d39e1` → MEDIUM / CHALLENGE / 56 (assessment_time 2026-04-24T13:28:36Z — Tier 3 REST path)
+- Tokens: analyst (`fraud:read` only) and detector (`fraud:detect` only, BUG-T5-002 fix held).
+
+#### Query Parameter Reference
+
+`GET /fraud/assessments` accepts `@ModelAttribute FindRiskLeveledAssessmentsQuery`:
+- `transactionRiskLevels` — `Set<String>` (multi-value; omit for all levels)
+- `fromDate` — `Instant` ISO-8601 (omit for no time filter; `@PastOrPresent` enforced)
+- Plus Spring `Pageable` params: `page` (0-indexed), `size`, `sort`
+
+#### SQL Cross-Check (postgres MCP)
+
+```sql
+SELECT
+  COUNT(*) AS total_count,                              -- 3
+  COUNT(CASE WHEN risk_level = 'HIGH' THEN 1 END),      -- 1
+  COUNT(CASE WHEN risk_level = 'MEDIUM' THEN 1 END),    -- 2
+  COUNT(CASE WHEN assessment_time >= '2026-04-24T15:00:00Z' THEN 1 END),  -- 1
+  COUNT(CASE WHEN risk_level = 'MEDIUM' AND assessment_time >= '2026-04-24T15:00:00Z' THEN 1 END) -- 1
+FROM fraud_detection.public.risk_assessments;
+```
+All counts match API `totalElements` in corresponding test cases.
+
+#### Test Case Results
+
+| TC | Description | Request | Response | DB cross-check | Result |
+|----|-------------|---------|----------|----------------|--------|
+| TC-6.1 | No filters — all assessments | `GET /fraud/assessments` + analyst Bearer | HTTP 200; `totalElements:3, totalPages:1`; content: MEDIUM/51, HIGH/76, MEDIUM/56 (descending by assessmentTime) | SQL total_count=3 ✓ | ✅ PASS |
+| TC-6.2 | Filter by `transactionRiskLevels=HIGH` | `GET /fraud/assessments?transactionRiskLevels=HIGH` + analyst | HTTP 200; `totalElements:1`; content: `2a008909` HIGH/REVIEW/76 | SQL high_count=1 ✓ | ✅ PASS |
+| TC-6.3 | Filter by `fromDate=2026-04-24T15:00:00Z` | `GET /fraud/assessments?fromDate=2026-04-24T15:00:00Z` + analyst | HTTP 200; `totalElements:1`; content: `cccccccc` MEDIUM/CHALLENGE/51 (assessment_time 20:15Z — the only row after 15:00Z) | SQL from_1500z_count=1 ✓ | ✅ PASS |
+| TC-6.4 | Both filters: `transactionRiskLevels=MEDIUM&fromDate=2026-04-24T15:00:00Z` | combined query + analyst | HTTP 200; `totalElements:1`; content: `cccccccc` MEDIUM/CHALLENGE/51 (only MEDIUM row ≥ 15:00Z) | SQL medium_from_1500z_count=1 ✓ | ✅ PASS |
+| TC-6.5 | Pagination correctness (size=2) | `page=0&size=2`: 2 items returned, `totalElements:3, totalPages:2`; `page=1&size=2`: 1 item returned, `totalElements:3, totalPages:2`. Order consistent with TC-6.1 (newest first). | HTTP 200 × 2 | SQL total_count=3 ✓; page boundaries correct | ✅ PASS |
+| TC-6.6 | Invalid risk level → 400 | `GET /fraud/assessments?transactionRiskLevels=EXTREME` + analyst | HTTP 400 `{"code":"INVALID_RISK_LEVEL","message":"Invalid transaction risk level. Valid values are: LOW, MEDIUM, HIGH, CRITICAL"}` | no DB call | ✅ PASS |
+| TC-6.7 | Future `fromDate` → 400 | `GET /fraud/assessments?fromDate=2030-01-01T00:00:00Z` + analyst | HTTP 400 `{"code":"VALIDATION_ERROR","details":["fromDate: fromDate cannot be in the future"]}` | no DB call | ✅ PASS |
+
+#### Findings / Notes
+
+- **Sort order:** All responses are ordered descending by `assessmentTime` (newest first) — consistent with the use-case contract ("ordered by assessment time descending").
+- **`transactionRiskLevels` binding:** Spring's `@ModelAttribute` on a `Set<String>` field correctly handles repeated params (`?transactionRiskLevels=HIGH&transactionRiskLevels=MEDIUM`) and single-value params.
+- **Validation path for invalid risk level:** `TransactionRiskLevel::fromString` throws `IllegalArgumentException("Unknown risk level: EXTREME")`. `GlobalExceptionHandler.handleIllegalArgumentException` catches it, matches `"Unknown risk level"` prefix, and returns 400 `INVALID_RISK_LEVEL`. Works correctly.
+- **Validation path for future `fromDate`:** `@PastOrPresent` on `FindRiskLeveledAssessmentsQuery.fromDate` fires on the `@ModelAttribute` binding. `@Validated` on the controller causes `ConstraintViolationException`, handled by `GlobalExceptionHandler.handleValidationException` → 400 `VALIDATION_ERROR` with detail message.
+- **No bugs found in this tier.** All 7 test cases passed on first run without any code changes.
 
 ### Tier 7: NFRs — Security, Resilience, Observability
 - **Pre-session:** Tiers 1–6 passed
