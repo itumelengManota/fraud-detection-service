@@ -46,8 +46,12 @@
       "serviceAccountsEnabled": true,
       "publicClient": false,
       "protocol": "openid-connect",
-      "redirectUris": ["*"],
-      "webOrigins": ["*"],
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
       "attributes": {
         "access.token.lifespan": "300"
       },
@@ -91,7 +95,9 @@
         }
       ],
       "clientRoles": {
-        "fraud-detection-service": ["fraud:detect", "fraud:read"]
+        "fraud-detection-service": [
+          "fraud:detect"
+        ]
       }
     },
     {
@@ -110,7 +116,9 @@
         }
       ],
       "clientRoles": {
-        "fraud-detection-service": ["fraud:read"]
+        "fraud-detection-service": [
+          "fraud:read"
+        ]
       }
     }
   ],
@@ -118,7 +126,10 @@
     "fraud-detection-service": [
       {
         "client": "test-client",
-        "roles": ["fraud:detect", "fraud:read"]
+        "roles": [
+          "fraud:detect",
+          "fraud:read"
+        ]
       }
     ]
   }

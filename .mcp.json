@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "uvx",
+      "args": [
+        "postgres-mcp",
+        "--access-mode=unrestricted"
+      ],
+      "env": {
+        "DATABASE_URI": "postgresql://postgres:postgres@localhost:5432/fraud_detection"
+      }
+    },
+    "spring-boot": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/Users/ignatiusitumelengmanota/git/spring-boot-mcp-server/build/libs/spring-boot-mcp-server-0.0.1-SNAPSHOT-all.jar",
+        "--project-dir",
+        "/Users/ignatiusitumelengmanota/git/fraud-detection-service",
+        "--actuator-url",
+        "http://localhost:9001/actuator"
+      ]
+    },
+    "grafana": {
+      "command": "uvx",
+      "args": [
+        "mcp-grafana"
+      ],
+      "env": {
+        "GRAFANA_URL": "http://localhost:3000",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${FRAUD_DETECTION_SERVICE__GRAFANA_SERVICE_ACCOUNT_TOKEN}"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-server-docker"
+      ],
+      "env": {
+        "ALLOWED_CONTAINERS": "fraud-detection-postgres,fraud-detection-redis,fraud-detection-kafka,fraud-detection-keycloak,fraud-detection-apicurio-registry,fraud-detection-apicurio-registry-ui,fraud-detection-kafka-ui,fraud-detection-mockoon,fraud-detection-model,fraud-detection-grafana-lgtm"
+      }
+    },
+    "keycloak": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "keycloak-mcp"
+      ],
+      "env": {
+        "KEYCLOAK_URL": "http://localhost:8180",
+        "KEYCLOAK_ADMIN": "admin",
+        "KEYCLOAK_ADMIN_PASSWORD": "admin"
+      }
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "rest-api": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "dkmaker-mcp-rest-api"
+      ],
+      "env": {
+        "REST_BASE_URL": "http://localhost:9001"
+      }
+    }
+  }
+}

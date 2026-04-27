@@ -88,8 +88,8 @@ public class SageMakerMLAdapter implements MLServicePort {
     public MLPrediction predict(Transaction transaction) {
         this.last24HoursTransactions = findLast24HoursTransactionsByAccountId(transaction.accountId());
 
-        return circuitBreaker.executeSupplier(() -> {
-            try {
+        try {
+            return circuitBreaker.executeSupplier(() -> {
                 log.debug("Invoking SageMaker endpoint: {} for transaction: {}", endpointName, transaction.id());
 
                 AccountProfile accountProfile = findAccountProfileByAccountId(transaction.accountId());
@@ -104,12 +104,11 @@ public class SageMakerMLAdapter implements MLServicePort {
                 }
 
                 return parsePrediction(responseBody);
-
-            } catch (Exception e) {
-                log.warn("SageMaker prediction failed for transaction: {}, using fallback", transaction.id(), e);
-                return fallbackPrediction();
-            }
-        });
+            });
+        } catch (Exception e) {
+            log.warn("SageMaker prediction failed for transaction: {}, using fallback", transaction.id(), e);
+            return fallbackPrediction();
+        }
     }
 
     /**

@@ -1006,7 +1006,7 @@ java -jar build/libs/fraud-detection-service-0.0.1-SNAPSHOT.jar
   '  |____| .__|_| |_|_| |_\__, | / / / /
  =========|_|==============|___/=/_/_/_/
 
- :: Spring Boot ::                (v4.0.1)
+ :: Spring Boot ::                (v4.0.2)
 
 2026-01-06T16:00:00.000Z  INFO 1 --- [           main] c.t.f.FraudDetectionServiceApplication  : Starting FraudDetectionServiceApplication
 2026-01-06T16:00:05.000Z  INFO 1 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 9001 (http)
@@ -1226,9 +1226,9 @@ docker logs fraud-detection-postgres
 ### Development Workflow
 
 1. **Make code changes**
-2. **Application auto-restarts** (DevTools)
+2. **Restart the application** — re-run `./gradlew bootRun` (Spring Boot DevTools is intentionally disabled in `build.gradle` because `RestartClassLoader` interacts badly with Apicurio-generated Avro classes on the Kafka listener thread; see BUG-T4-005)
 3. **Test via Swagger UI** or cURL
-4. **View logs** in console or Grafana
+4. **View logs** in console or Grafana (Loki — `{service_name="fraud-detection-service"}`)
 5. **Debug with IntelliJ/VS Code** (Remote debug port: 5005)
 
 ### Stopping the Application
@@ -1276,7 +1276,11 @@ aws:
   region: us-east-1
   sagemaker:
     local-mode: true
-    endpoint-url: http://sagemaker-model:8080/invocations
+    # Default for host-run `./gradlew bootRun` (matches `application.yml`).
+    # If running the service inside the same Docker network as the model,
+    # override to `http://sagemaker-model:8080/invocations` via
+    # `SAGEMAKER_ENDPOINT_URL`.
+    endpoint-url: http://localhost:8080/invocations
     api-call-timeout: 10s
 ```
 
@@ -1640,7 +1644,7 @@ The service uses **Keycloak** for OAuth2/OIDC authentication with proper separat
 | Username | Password | Role | Scopes |
 |----------|----------|------|--------|
 | `analyst` | `analyst123` | `fraud_analyst` | `fraud:read` |
-| `detector` | `detector123` | `fraud_detector` | `fraud:detect`, `fraud:read` |
+| `detector` | `detector123` | `fraud_detector` | `fraud:detect` |
 | `admin` | `admin123` | `fraud_admin` | `fraud:detect`, `fraud:read` |
 
 ### Scopes & Authorities
@@ -1941,83 +1945,58 @@ See [Authentication & Authorization](#authentication--authorization) section for
 | HIGH | 71-90 | REVIEW | Manual review by fraud analyst |
 | CRITICAL | 91-100 | BLOCK | Immediate transaction rejection |
 
-**Error Responses:**
+**Error Responses**
 
-**400 Bad Request** - Invalid request data:
+All errors are returned as `ErrorResponse` (`{code, message, details, timestamp}`) by `GlobalExceptionHandler`.
+
+**400 Bad Request** — Bean Validation failures (`@NotNull`, `@Valid`, etc.):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 400,
-  "error": "Bad Request",
+  "code": "VALIDATION_ERROR",
   "message": "Validation failed",
-  "path": "/fraud/assessments",
-  "errors": [
-    {
-      "field": "transactionId",
-      "message": "Transaction ID cannot be null"
-    },
-    {
-      "field": "amount",
-      "message": "Amount cannot be null"
-    }
-  ]
+  "details": [
+    "transactionId: Transaction ID cannot be null",
+    "amount: Amount cannot be null"
+  ],
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**401 Unauthorized** - Missing or invalid token:
+**400 Bad Request** — Unknown enum value (e.g. `channel=WEB`, `type=FOO`, `merchantCategory=...`) — `GlobalExceptionHandler.handleIllegalArgumentException` re-maps `IllegalArgumentException("Unknown <enum>: ...")` to 400 (BUG-T3-003 fix):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 401,
-  "error": "Unauthorized",
-  "message": "Full authentication is required to access this resource",
-  "path": "/fraud/assessments"
+  "code": "VALIDATION_ERROR",
+  "message": "Unknown channel: WEB",
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**403 Forbidden** - Insufficient permissions:
-```json
-{
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 403,
-  "error": "Forbidden",
-  "message": "Access Denied. Required scope: SCOPE_fraud:detect",
-  "path": "/fraud/assessments"
-}
-```
+**401 Unauthorized** — Missing or invalid token. Spring Security returns an empty body (resource server default).
 
-**422 Unprocessable Entity** - Business rule violation:
+**403 Forbidden** — Caller authenticated but missing the required scope. For `POST /fraud/assessments` the required scope is `SCOPE_fraud:detect`; the response body is empty (Spring Security default).
+
+**422 Unprocessable Entity** — Domain invariant violation (e.g. `CRITICAL` risk must map to `BLOCK`):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 422,
-  "error": "Unprocessable Entity",
+  "code": "INVARIANT_VIOLATION",
   "message": "Critical risk must result in BLOCK decision",
-  "path": "/fraud/assessments"
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**429 Too Many Requests** - Rate limit exceeded:
+**500 Internal Server Error** — Unexpected error:
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 429,
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded. Try again in 60 seconds.",
-  "path": "/fraud/assessments"
-}
-```
-
-**500 Internal Server Error** - Unexpected error:
-```json
-{
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 500,
-  "error": "Internal Server Error",
+  "code": "INTERNAL_SERVER_ERROR",
   "message": "An unexpected error occurred",
-  "path": "/fraud/assessments"
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
+
+> **Note:** the controller declares an `@ApiResponse(responseCode = "429", ...)` for documentation, but no rate-limiting filter is currently wired in the request pipeline. See the [Rate Limiting](#rate-limiting) section.
 
 ---
 
@@ -2048,24 +2027,33 @@ curl -X GET http://localhost:9001/fraud/assessments/550e8400-e29b-41d4-a716-4466
 }
 ```
 
-**Error Responses:**
+**Error Responses**
 
-**404 Not Found** - Assessment not found:
+**400 Bad Request** — Path variable cannot be parsed as a UUID (BUG-T5-001 fix; `MethodArgumentTypeMismatchException` is now mapped explicitly):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 404,
-  "error": "Not Found",
-  "message": "Risk assessment not found for transaction: 550e8400-e29b-41d4-a716-446655440000",
-  "path": "/fraud/assessments/550e8400-e29b-41d4-a716-446655440000"
+  "code": "INVALID_PARAMETER",
+  "message": "Invalid value 'not-a-uuid' for parameter 'transactionId'. Expected type: UUID",
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**401 Unauthorized** - Missing or invalid token (same as above)
+**404 Not Found** — Assessment not found:
+```json
+{
+  "code": "RISK_ASSESSMENT_NOT_FOUND",
+  "message": "Risk assessment not found for transaction ID: 550e8400-e29b-41d4-a716-446655440000",
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
+}
+```
 
-**403 Forbidden** - Insufficient permissions (requires `fraud:read` scope)
+**401 Unauthorized** — Missing or invalid token (empty body — Spring Security default)
 
-**500 Internal Server Error** - Unexpected error (same as above)
+**403 Forbidden** — Insufficient permissions (requires `fraud:read` scope; empty body)
+
+**500 Internal Server Error** — `ErrorResponse` with `code: "INTERNAL_SERVER_ERROR"`
 
 ---
 
@@ -2184,63 +2172,59 @@ curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH&
 | `riskScore` | Sort by risk score | `sort=riskScore,asc` |
 | `transactionRiskLevel` | Sort by risk level | `sort=transactionRiskLevel,desc` |
 
-**Error Responses:**
+**Error Responses**
 
-**400 Bad Request** - Invalid query parameters:
+**400 Bad Request** — Invalid risk level (e.g. `transactionRiskLevels=SUPER_HIGH`):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "Invalid risk level: SUPER_HIGH. Valid values: LOW, MEDIUM, HIGH, CRITICAL",
-  "path": "/fraud/assessments"
+  "code": "INVALID_RISK_LEVEL",
+  "message": "Invalid transaction risk level. Valid values are: LOW, MEDIUM, HIGH, CRITICAL",
+  "details": null,
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**400 Bad Request** - Invalid date:
+**400 Bad Request** — Future `fromDate` (`@PastOrPresent` violation):
 ```json
 {
-  "timestamp": "2024-12-17T10:00:00.000Z",
-  "status": 400,
-  "error": "Bad Request",
-  "message": "fromDate cannot be in the future",
-  "path": "/fraud/assessments"
+  "code": "VALIDATION_ERROR",
+  "message": "Validation failed",
+  "details": ["fromDate: fromDate cannot be in the future"],
+  "timestamp": "2026-04-25T10:00:00.000Z"
 }
 ```
 
-**401 Unauthorized** - Missing or invalid token (same as above)
+**401 Unauthorized** — Missing or invalid token (empty body)
 
-**403 Forbidden** - Insufficient permissions (requires `fraud:read` scope)
+**403 Forbidden** — Insufficient permissions (requires `fraud:read` scope; empty body)
 
 ---
 
 ### Public Endpoints
 
-These endpoints do not require authentication:
+These endpoints do not require authentication (matchers configured in `SecurityConfig`):
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /actuator/health` | Application health check |
-| `GET /actuator/health/liveness` | Kubernetes liveness probe |
-| `GET /actuator/health/readiness` | Kubernetes readiness probe |
+| `GET /actuator/health` | Application health check (status only for unauthenticated callers; `show-details: when-authorized` returns full component detail to JWT-authenticated callers) |
 | `GET /actuator/info` | Application information |
-| `GET /actuator/prometheus` | Prometheus metrics |
 | `GET /swagger-ui.html` | Swagger UI documentation |
 | `GET /swagger-ui/**` | Swagger UI resources |
-| `GET /v3/api-docs` | OpenAPI specification (JSON) |
-| `GET /v3/api-docs.yaml` | OpenAPI specification (YAML) |
+| `GET /v3/api-docs/**` | OpenAPI specification (JSON / YAML) |
+
+> Other actuator endpoints (`/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus`, `/actuator/metrics`, `/actuator/circuitbreakers`, `/actuator/flyway`, etc.) are exposed via `management.endpoints.web.exposure.include` but require authentication. Kubernetes probes against `/actuator/health/liveness` and `/actuator/health/readiness` therefore need either a service account token or a deployment-level allow-list.
 
 ---
 
 ### Rate Limiting
 
-The API implements rate limiting to prevent abuse:
-
-- **Assess Transaction**: 100 requests per minute per account
-- **Get Assessment**: 200 requests per minute per user
-- **Search Assessments**: 50 requests per minute per user
-
-When rate limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header indicating seconds to wait.
+> **Status: documented but not yet implemented.** The OpenAPI annotations on `FraudDetectionController` advertise a `429 Too Many Requests` response, but no rate-limiting filter is currently wired. Planned policy (to be enforced by a future filter or upstream gateway):
+>
+> - **Assess Transaction**: 100 requests per minute per account
+> - **Get Assessment**: 200 requests per minute per user
+> - **Search Assessments**: 50 requests per minute per user
+>
+> When implemented, the API will return `429 Too Many Requests` with a `Retry-After` header indicating seconds to wait.
 
 ---
 
@@ -2405,9 +2389,10 @@ PFCOUNT velocity:merchants:5min:ACC-12345
 **Mode**: KRaft (no Zookeeper)
 
 **Topics:**
-- `transactions.normalized` - Input transactions
-- `fraud-detection.risk-assessments` - Risk assessment results
-- `fraud-detection.high-risk-alerts` - High/critical risk alerts
+- `transactions.normalized` — Inbound. Consumed by `TransactionEventConsumer` (UC-01 trigger).
+- `fraud-detection.risk-assessments` — Outbound. `RiskAssessmentCompleted` events (one per processed transaction).
+- `fraud-detection.high-risk-alerts` — Outbound. `HighRiskDetected` events (only when risk is HIGH or CRITICAL).
+- `fraud-detection.domain-events` — Outbound. Fallback for domain event types not matched by `EventPublisherAdapter.determineTopicForEvent` (no events route here today; reserved for future event types).
 
 **Commands:**
 ```bash
@@ -2466,8 +2451,8 @@ curl http://localhost:8081/apis/registry/v2/groups/default/artifacts/Transaction
 **Admin Console**: http://localhost:8180/admin  
 **Admin Credentials**: `admin` / `admin`
 
-**Realm**: `fraud-detection`  
-**Import**: Auto-imported from `docker-compose/keycloak-config/realm-export.json`
+**Realm**: `fraud-detection`
+**Import**: Auto-imported from `docker-compose/keycloak-config/fraud-detection-realm.json` (with master-realm overrides in `master-realm.json`)
 
 #### Grafana LGTM Stack
 **Ports**: 3000 (Grafana), 4317/4318 (OTLP)  
@@ -2568,9 +2553,9 @@ echo $ACCESS_TOKEN
 ```
 
 Available test users:
-- `analyst` / `analyst123` - Read-only access (fraud:read)
-- `detector` / `detector123` - Detection access (fraud:detect, fraud:read)
-- `admin` / `admin123` - Full access (all permissions)
+- `analyst` / `analyst123` - Read-only access (`fraud:read` only — can call GET endpoints)
+- `detector` / `detector123` - Detection-only access (`fraud:detect` only — can call POST `/fraud/assessments`; **cannot** call GET endpoints, returns 403)
+- `admin` / `admin123` - Full access (`fraud:detect` + `fraud:read`)
 
 #### Test Scenario 1: Low-Risk Transaction
 
@@ -3956,9 +3941,15 @@ Access pre-built dashboards at http://localhost:3000:
    - Call success/failure rates
    - Retry attempts
 
-#### Distributed Tracing
+#### Distributed Tracing, Metrics, and Logs (OTLP → Grafana LGTM)
 
-OTLP tracing to Tempo via Grafana LGTM:
+The service exports the full observability triad over OTLP to the Grafana LGTM container (`grafana-lgtm`):
+
+| Signal | Backend | Default endpoint |
+|--------|---------|------------------|
+| Traces | Tempo | `http://localhost:4318/v1/traces` |
+| Metrics | Prometheus (Mimir) | OTLP HTTP via `micrometer-registry-otlp` |
+| Logs | Loki | `http://localhost:4318/v1/logs` |
 
 ```yaml
 management:
@@ -3970,10 +3961,18 @@ management:
       endpoint: http://localhost:4318/v1/traces
 ```
 
-View traces in Grafana:
-1. Navigate to **Explore**
-2. Select **Tempo** data source
-3. Search by trace ID or service name
+> **Logback → OTel bridge.** Spring Boot 4's `spring-boot-starter-opentelemetry` does **not** include the autoinstrumentation that wires Logback to the OTel SDK. This service therefore registers the bridge explicitly:
+>
+> - `build.gradle` declares `io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0` and `io.opentelemetry:opentelemetry-api-incubator`.
+> - `src/main/resources/logback-spring.xml` adds an `OpenTelemetryAppender` to the root logger alongside the console appender, preserving Spring Boot's `[appname,traceId,spanId]` MDC pattern.
+> - `OpenTelemetryLogBridgeConfig` calls `OpenTelemetryAppender.install(openTelemetry)` in a `@PostConstruct` so the appender is wired to the autoconfigured `OpenTelemetry` SDK bean at startup.
+>
+> Without this bridge the OTLP logging endpoint is silently ignored at runtime (see BUG-T7-002).
+
+View signals in Grafana (`http://localhost:3000`):
+1. **Traces** — Explore → **Tempo** → search by trace ID or `{resource.service.name="fraud-detection-service"}`
+2. **Metrics** — Explore → **Prometheus** → e.g. `http_server_requests_milliseconds_count{service_name="fraud-detection-service"}`, `resilience4j_circuitbreaker_state{name="sagemakerML"}`
+3. **Logs** — Explore → **Loki** → `{service_name="fraud-detection-service"}` (records carry structured `traceId`, `span_id`, `code_filepath`, `severity_text`, etc.; correlate with Tempo trace IDs 1:1)
 
 ### Performance Benchmarks
 

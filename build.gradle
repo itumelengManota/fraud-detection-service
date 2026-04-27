@@ -30,7 +30,7 @@ ext {
     mapstructVersion = '1.6.3'
     lombokMapstructBindingVersion = '0.2.0'
     droolsVersion = '10.1.0'
-    resilience4jVersion = '2.2.0'
+    resilience4jVersion = '2.3.0'
     apicurioVersion = '2.6.13.Final'
     springdocVersion = '3.0.0'
     uuidGeneratorVersion = '5.1.1'
@@ -40,6 +40,12 @@ ext {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-opentelemetry'
+    // OTel Logback bridge — exports log events through the OpenTelemetry SDK
+    // wired by spring-boot-starter-opentelemetry (BUG-T7-002 fix).
+    // The incubator API is required by opentelemetry-sdk-logs 1.55.0 to handle
+    // ExtendedAttributeKey types emitted by the appender.
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.11.0-alpha'
+    implementation 'io.opentelemetry:opentelemetry-api-incubator:1.55.0-alpha'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -90,7 +96,12 @@ dependencies {
     implementation 'software.amazon.awssdk:sts'
 
     compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    // DevTools disabled during Tier 4 e2e testing — RestartClassLoader splits
+    // class identity between Kafka consumer threads and listener method
+    // parameter types, causing "Cannot convert from TransactionAvro to
+    // TransactionAvro". Re-enable when no longer exercising the Kafka inbound
+    // path on a local dev JVM.
+    // developmentOnly 'org.springframework.boot:spring-boot-devtools'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
@@ -178,6 +189,18 @@ tasks.register('generateDroolsMetadata') {
 }
 
 processResources.finalizedBy generateDroolsMetadata
+
+// Tier 4 test harness — produce properly Apicurio-framed Avro messages to
+// transactions.normalized. Works around BUG-T4-001 (spring-boot MCP's
+// kafka_produce is not Apicurio-aware).
+tasks.register('sendTransaction', JavaExec) {
+    group = 'verification'
+    description = 'Publishes an Avro transaction to transactions.normalized via the TransactionProducerHarness.'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.twenty9ine.frauddetection.tools.TransactionProducerHarness'
+    standardOutput = System.out
+    errorOutput = System.err
+}
 
 tasks.named('test') {
     useJUnitPlatform()
@@ -279,6 +302,10 @@ tasks.named("bootBuildImage") {
 }
 
 tasks.named("bootRun") {
+    // Exclude DevTools from bootRun classpath to avoid RestartClassLoader
+    // splitting class identity between Kafka consumer threads and listener
+    // methods (causes "Cannot convert from TransactionAvro to TransactionAvro").
+    classpath = sourceSets.main.runtimeClasspath
     jvmArgs = [
             '-XX:+HeapDumpOnOutOfMemoryError',
             '-XX:HeapDumpPath=./heapdump.hprof',
