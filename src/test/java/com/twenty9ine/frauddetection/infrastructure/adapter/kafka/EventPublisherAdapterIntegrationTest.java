@@ -97,7 +97,12 @@ class EventPublisherAdapterIntegrationTest {
         kafkaTemplate = new KafkaTemplate<>(producerFactory);
 
         DomainEventToAvroMapper avroMapper = new DomainEventToAvroMapper();
-        eventPublisher = new EventPublisherAdapter(kafkaTemplate, avroMapper);
+        eventPublisher = new EventPublisherAdapter(
+                kafkaTemplate,
+                avroMapper,
+                "fraud-detection.risk-assessments",
+                "fraud-detection.high-risk-alerts",
+                "fraud-detection.domain-events");
 
         // Create test consumer
         testConsumer = createTestConsumer();

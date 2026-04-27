@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "description": "Compile Java after edits to catch errors immediately",
+            "command": "bash -lc 'if echo \"$CLAUDE_TOOL_PATH\" | grep -qE \"\\.java$\"; then cd \"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\" && ./gradlew compileJava --console=plain --warning-mode=none 2>&1 | tail -50; else exit 0; fi'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "description": "Block destructive commands (rm -rf, dd, mkfs, chmod 777 /) and any recursive removal under /",
+            "command": "bash -lc 'cmd=\"$CLAUDE_TOOL_INPUT\"; if echo \"$cmd\" | grep -qE \"rm +-rf? +/|rm +-rf? +~|rm +-rf? +\\$HOME|dd +if=|mkfs\\.|:\\(\\)\\{|chmod +-?R? +777 +/|chown +-?R? +root\"; then echo BLOCKED: destructive pattern: \"$cmd\"; exit 2; fi; exit 0'"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Reuse Spring Boot defaults so the existing logging.pattern.level
+         (with appname/traceId/spanId MDC fields) keeps working. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <!-- OpenTelemetry Logback appender — forwards log events to the OTel SDK
+         configured by spring-boot-starter-opentelemetry, which exports to
+         OTLP_LOGGING_ENDPOINT (set in application.yml). -->
+    <appender name="OTEL"
+              class="io.opentelemetry.instrumentation.logback.appender.v1_0.OpenTelemetryAppender">
+        <captureExperimentalAttributes>true</captureExperimentalAttributes>
+        <captureMdcAttributes>*</captureMdcAttributes>
+        <captureCodeAttributes>true</captureCodeAttributes>
+        <captureKeyValuePairAttributes>true</captureKeyValuePairAttributes>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="OTEL"/>
+    </root>
+
+    <logger name="com.twenty9ine.frauddetection" level="DEBUG"/>
+    <logger name="software.amazon.awssdk" level="DEBUG"/>
+    <logger name="org.springframework.kafka" level="INFO"/>
+    <logger name="org.apache.kafka" level="INFO"/>
+    <logger name="org.springframework.security" level="INFO"/>
+</configuration>

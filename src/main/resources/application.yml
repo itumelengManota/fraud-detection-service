@@ -22,8 +22,11 @@ spring:
       fetch-max-wait: 500ms
       heartbeat-interval: 10000
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        # Delegate to Apicurio Avro; ErrorHandlingDeserializer catches poison pills
+        # so DefaultErrorHandler can ack-skip instead of looping forever (BUG-T4-002).
+        spring.deserializer.value.delegate.class: io.apicurio.registry.serde.avro.AvroKafkaDeserializer
         # Apicurio Registry Configuration
         apicurio.registry.url: ${APICURIO_REGISTRY_URL:http://localhost:8081/apis/registry/v2}
         apicurio.registry.auto-register: true
@@ -51,7 +54,7 @@ spring:
     listener:
       ack-mode: manual
       concurrency: 1 # Match partitions for parallel processing
-      type: batch  # or 'single' for single-record processing
+      type: single  # TransactionEventConsumer.consume takes a single TransactionAvro — must match (BUG-T4-004)
       poll-timeout: 3000
       missing-topics-fatal: false
       immediate-stop: false
