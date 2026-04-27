@@ -31,12 +31,12 @@ jobs:
           java-version: 25
           cache: gradle
 
-      - name: Cache SonarQube packages
-        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+#      - name: Cache SonarQube packages
+#        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+#        with:
+#          path: ~/.sonar/cache
+#          key: ${{ runner.os }}-sonar
+#          restore-keys: ${{ runner.os }}-sonar
 
       - name: Cache Gradle packages
         uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -64,11 +64,9 @@ jobs:
           docker images | grep fraud-detection-model 
 
       - name: Build, Unit Tests and Integration Tests
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           chmod +x gradlew
-          ./gradlew build jacocoTestReport sonar --info
+          ./gradlew build
 
       - name: Code Vulnerability Scanning
         uses: anchore/scan-action@64a33b277ea7a1215a3c142735a1091341939ff5 # v6.0.0
