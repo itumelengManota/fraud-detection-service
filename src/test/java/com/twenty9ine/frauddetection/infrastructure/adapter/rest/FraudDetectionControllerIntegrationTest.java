@@ -364,7 +364,7 @@ class FraudDetectionControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should get assessment with fraud:detect scope")
+        @DisplayName("Should get assessment with fraud:read scope")
         void shouldGetAssessmentWithDetectScope() {
             AssessTransactionRiskCommand command = buildLowRiskCommand(TransactionId.generate());
 
@@ -380,7 +380,7 @@ class FraudDetectionControllerIntegrationTest {
 
             restTestClient.get()
                     .uri("/fraud/assessments/{transactionId}", transactionId)
-                    .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
+                    .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
@@ -686,7 +686,7 @@ class FraudDetectionControllerIntegrationTest {
         }
 
         @Test
-        @DisplayName("Should allow search with fraud:detect scope")
+        @DisplayName("Should allow search with fraud:read scope")
         void shouldAllowSearchWithDetectScope() {
             createAssessmentWithRiskLevel(TransactionRiskLevel.HIGH);
 
@@ -700,7 +700,7 @@ class FraudDetectionControllerIntegrationTest {
                             .queryParam("page", 0)
                             .queryParam("size", 10)
                             .build())
-                    .header(HttpHeaders.AUTHORIZATION, toBearerToken(detectorToken))
+                    .header(HttpHeaders.AUTHORIZATION, toBearerToken(analystToken))
                     .exchange()
                     .expectStatus().isOk()
                     .expectBody()
