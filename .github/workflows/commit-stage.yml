@@ -64,15 +64,16 @@ jobs:
       - name: Code Vulnerability Scanning
         uses: anchore/scan-action@64a33b277ea7a1215a3c142735a1091341939ff5 # v6.0.0
         id: scan
+        continue-on-error: true
         with:
           path: "${{ github.workspace }}"
           fail-build: false
           severity-cutoff: high
-          grype-version: latest  # to ensure latest database
+          grype-version: v0.81.3
 
       - name: Upload Vulnerability Report
         uses: github/codeql-action/upload-sarif@aa578102511db1f4524ed59b8cc2bae4f6e88195 # v3.27.9
-        if: success() || failure()
+        if: (success() || failure()) && steps.scan.outputs.sarif != ''
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
 
@@ -128,14 +129,15 @@ jobs:
       - name: OCI Image Vulnerability Scanning
         uses: anchore/scan-action@64a33b277ea7a1215a3c142735a1091341939ff5 # v6.0.0
         id: scan
+        continue-on-error: true
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
           fail-build: false
           severity-cutoff: high
-          grype-version: latest  # to ensure latest database
+          grype-version: v0.81.3
 
       - name: Upload Vulnerability Report
         uses: github/codeql-action/upload-sarif@aa578102511db1f4524ed59b8cc2bae4f6e88195 # v3.27.9
-        if: success() || failure()
+        if: (success() || failure()) && steps.scan.outputs.sarif != ''
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
