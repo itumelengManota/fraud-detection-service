@@ -69,9 +69,14 @@ if echo "$RESPONSE" | grep -q "access_token"; then
   echo "Bearer $ACCESS_TOKEN"
   echo ""
   
-  # Decode token (first part only to show claims)
+  # Decode token (payload only — middle JWT segment is base64url, may need padding)
   echo -e "${YELLOW}Token Claims:${NC}"
-  echo "$ACCESS_TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq '.' || echo "Unable to decode token"
+  payload=$(echo "$ACCESS_TOKEN" | cut -d. -f2)
+  pad=$(( (4 - ${#payload} % 4) % 4 ))
+  padding=$(printf '=%.0s' $(seq 1 $pad))
+  decoded=$(printf '%s%s' "$payload" "$padding" | tr '_-' '/+' | base64 -d 2>/dev/null || \
+            printf '%s%s' "$payload" "$padding" | tr '_-' '/+' | base64 -D 2>/dev/null)
+  echo "$decoded" | jq '.' 2>/dev/null || echo "Unable to decode token"
   echo ""
   
   # Export for use in other scripts

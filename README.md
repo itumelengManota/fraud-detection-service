@@ -752,7 +752,7 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 | Technology | Version | Purpose | Reasoning |
 |------------|---------|---------|-----------|
 | **Java** | 25 | Programming Language | Latest features, Virtual Threads for high concurrency, modern performance |
-| **Spring Boot** | 4.0.1 | Application Framework | Latest release, mature ecosystem, auto-configuration, production-ready features |
+| **Spring Boot** | 4.0.2 | Application Framework | Latest release, mature ecosystem, auto-configuration, production-ready features |
 | **PostgreSQL** | 16 | Relational Database | ACID compliance, JSONB support, excellent performance, proven reliability |
 | **Redis** | 7.4 | In-Memory Cache | Millisecond latency, atomic operations for velocity counters, HyperLogLog for cardinality |
 | **Apache Kafka** | 3.8.1 | Event Streaming | High-throughput, durable message queue, exactly-once semantics, KRaft mode (no Zookeeper) |
@@ -765,7 +765,7 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 | **AWS SageMaker** | SDK 2.28.11 | ML Inference | Managed ML endpoints, scalable, auto-scaling, production-grade monitoring |
 | **XGBoost Model** | Custom | Fraud Detection | Proven accuracy for fraud detection, interpretable, fast inference |
 | **Docker ML Model** | ghcr.io | Local Development | Containerized model for local testing, consistent environment, no AWS costs |
-| **Resilience4j** | 2.2.0 | Fault Tolerance | Circuit breaker for ML calls, retry logic, bulkhead pattern, time limiter |
+| **Resilience4j** | 2.3.0 | Fault Tolerance | Circuit breaker for ML calls, retry logic, bulkhead pattern, time limiter |
 
 ### Account Service Integration
 
@@ -792,13 +792,13 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 | **OpenTelemetry** | Latest | Distributed Tracing | Vendor-neutral telemetry, traces requests across services, performance analysis |
 | **Micrometer** | Latest | Metrics Collection | Vendor-neutral metrics facade, Prometheus format, rich metric types |
 | **Grafana LGTM** | Latest | Unified Observability | All-in-one stack: Logs (Loki), Traces (Tempo), Metrics (Prometheus), Grafana UI |
-| **Spring Boot Actuator** | 4.0.1 | Health & Metrics | Production-ready endpoints, health checks, metrics export, graceful shutdown |
+| **Spring Boot Actuator** | 4.0.2 | Health & Metrics | Production-ready endpoints, health checks, metrics export, graceful shutdown |
 
 ### Security
 
 | Technology | Version | Purpose | Reasoning                                                                     |
 |------------|---------|---------|-------------------------------------------------------------------------------|
-| **Keycloak** | 26.0.7 | Identity Provider | OAuth2/OIDC, fine-grained authorization, user management, realm import/export |
+| **Keycloak** | 26.5 | Identity Provider | OAuth2/OIDC, fine-grained authorization, user management, realm import/export |
 | **Spring Security** | 4.0.x | Application Security | OAuth2 Resource Server, method security, SASL/OAuth2 Bearer support           |
 | **Strimzi OAuth** | 0.17.1 | Kafka OAuth | OAuth support for Kafka producers/consumers, token-based authentication       |
 
@@ -807,7 +807,7 @@ A shared vocabulary between domain experts and developers for the Fraud Detectio
 | Technology | Version | Purpose | Reasoning |
 |------------|---------|---------|-----------|
 | **Apache Avro** | Latest | Event Serialization | Schema evolution, compact binary format, type safety, backward/forward compatibility |
-| **Apicurio Registry** | 2.6.13.Final | Schema Registry | Schema versioning, compatibility checks, centralized management, REST API, Web UI |
+| **Apicurio Registry** | 3.0.6 (server) / 2.6.13.Final (Avro serdes SDK) | Schema Registry | Schema versioning, compatibility checks, centralized management, REST API, Web UI |
 
 ### Testing
 
@@ -1059,24 +1059,37 @@ When running in development mode (`./gradlew bootRun`), you get:
 
 #### 1. Get an OAuth Token
 
+The fastest path is the helper script — it knows the correct client secret and caches the token at `/tmp/fraud-detection-token.txt`:
+
 ```bash
-export TOKEN=$(curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+# Default user is "detector" (also accepts "analyst" or "admin")
+./scripts/get-token.sh detector
+
+export FRAUD_DETECTION_TOKEN=$(cat /tmp/fraud-detection-token.txt)
+```
+
+Or call the token endpoint directly with the `fraud-detection-web` client (Resource Owner Password grant):
+
+```bash
+export FRAUD_DETECTION_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "username=detector" \
   -d "password=detector123" \
-  -d "scope=openid fraud-detection-scopes" | jq -r '.access_token')
+  -d "scope=openid profile email" | jq -r '.access_token')
 
-echo "Token: $TOKEN"
+echo "Token: $FRAUD_DETECTION_TOKEN"
 ```
+
+> The literal secret above is the value imported by `docker-compose/keycloak-config/fraud-detection-realm.json` for **local development only**. See [Authentication & Authorization](#authentication--authorization) for the full client/secret matrix and other grant flows.
 
 #### 2. Test Risk Assessment
 
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "00000000-0000-0000-0000-000000000001",
@@ -1087,7 +1100,7 @@ curl -X POST http://localhost:9001/fraud/assessments \
     "channel": "ONLINE",
     "merchantId": "MERCHANT-TEST",
     "merchantName": "Test Merchant",
-    "merchantCategory": "E-COMMERCE",
+    "merchantCategory": "RETAIL",
     "location": {
       "latitude": -26.2041,
       "longitude": 28.0473,
@@ -1119,7 +1132,7 @@ The transaction above uses `ACC-12345-1`, which maps to a Johannesburg location 
 **Test with far location:**
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "00000000-0000-0000-0000-000000000002",
@@ -1160,9 +1173,19 @@ curl -X POST http://localhost:9001/fraud/assessments \
 3. Explore → Loki (Logs) / Tempo (Traces) / Prometheus (Metrics)
 
 **Application Metrics:**
+
+The application exposes Micrometer metrics via `/actuator/metrics`. The Prometheus scrape endpoint is **not** enabled in this build (no Prometheus registry on the classpath, and `prometheus` is not in `management.endpoints.web.exposure.include`). Use `/actuator/metrics` instead, or scrape the OTLP exporter sidecar in the Grafana LGTM stack. Authenticated examples:
+
 ```bash
-curl http://localhost:9001/actuator/prometheus | grep sagemaker
+# Replace $FRAUD_DETECTION_TOKEN with a JWT from ./scripts/get-token.sh detector
+curl -s -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" http://localhost:9001/actuator/metrics \
+  | jq '.names[] | select(test("sagemaker|fraud|kafka"))'
+
+# Inspect a specific metric
+curl -s -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" http://localhost:9001/actuator/metrics/http.server.requests | jq
 ```
+
+For Prometheus scraping in production, add `io.micrometer:micrometer-registry-prometheus` and include `prometheus` in `management.endpoints.web.exposure.include`.
 
 ### Troubleshooting Setup
 
@@ -1615,29 +1638,33 @@ The service uses **Keycloak** for OAuth2/OIDC authentication with proper separat
 
 ### Pre-configured Clients
 
+The realm import (`docker-compose/keycloak-config/fraud-detection-realm.json`) creates three clients. The secrets below are the literal values used for **local development only** — production deployments inject secrets via environment variables (see `application-prod.yml`).
+
+| Client ID | Secret (local dev) | Grant flows enabled | Can issue tokens directly? |
+|-----------|--------------------|---------------------|----------------------------|
+| `fraud-detection-service` | `gNwAfvB22kO189Ds0YKm4ZLj8rVNNqRq` | None (resource server) | **No** — bearer-only, validates tokens issued to other audiences |
+| `fraud-detection-web` | `v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp` | Authorization Code (+ PKCE), Password | Yes — see Method 1 / Method 3 below |
+| `fraud-detection-kafka` | `gC2nmCpnuuMPhDP6C2WxKzFON8y5JB2O` | Client Credentials, Password (service account) | Yes — see Method 2 below |
+
 #### 1. **fraud-detection-service** (Resource Server)
-- **Type**: Bearer-only client
-- **Purpose**: Validates JWT tokens from both web and Kafka clients
-- **Secret**: `fraud-detection-secret`
-- **Features**: Token validation only, no user interaction
+- **Type**: Bearer-only confidential client
+- **Purpose**: Identifies the Spring Boot application as an OAuth2 resource server. Used to validate JWTs presented on `/fraud/**` requests; it appears as one of the accepted audiences in `application.yml` (`spring.security.oauth2.resourceserver.jwt.audiences`).
+- **Cannot be used to obtain a token** — `standardFlowEnabled`, `directAccessGrantsEnabled` and `serviceAccountsEnabled` are all `false`. Tokens are issued by the other two clients and validated by this one.
 
 #### 2. **fraud-detection-web** (Web Client)
 - **Type**: Confidential client
-- **Grant Types**: Authorization Code, Password (dev/test only)
-- **Purpose**: User authentication for Swagger UI and web applications
-- **Secret**: `fraud-detection-web-secret`
-- **Redirect URIs**: `http://localhost:9001/*`, `http://localhost:3000/*`
-- **Scopes**: openid, profile, email, fraud-detection-scopes
-- **Token Lifespan**: 30 minutes (with refresh)
+- **Grant flows enabled**: Authorization Code (with PKCE), Resource Owner Password (dev/test only)
+- **Purpose**: User-facing flows — Swagger UI login, future web SPAs, and direct cURL testing.
+- **Redirect URIs**: `http://localhost:9001/*`, `http://localhost:9001/swagger-ui/*`, `http://localhost:8080/*`, `http://localhost:3000/*`
+- **Default scopes**: `openid`, `profile`, `email`, `roles`, `fraud-detection-scopes`, `web-origins`
+- **Token lifespan**: 1800s (30 min), refresh enabled
 
 #### 3. **fraud-detection-kafka** (Service Client)
-- **Type**: Confidential client
-- **Grant Types**: Client Credentials ONLY
-- **Purpose**: Service-to-service authentication for Kafka broker
-- **Secret**: `fraud-detection-kafka-secret`
-- **Scopes**: kafka
-- **Service Account**: Enabled
-- **Token Lifespan**: 60 minutes (no refresh, auto-renewed)
+- **Type**: Confidential client with service account
+- **Grant flows enabled**: Client Credentials, Resource Owner Password
+- **Purpose**: Kafka broker SASL/OAUTHBEARER authentication. Producers and consumers in this service authenticate to the broker by presenting a JWT obtained via Client Credentials.
+- **Default scopes**: `kafka`, `roles`, `fraud-detection-scopes`, `service_account`
+- **Token lifespan**: 3600s (60 min), no refresh — clients re-authenticate on expiry.
 
 ### Pre-configured Users
 
@@ -1685,7 +1712,7 @@ spring:
           config: >
             org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required
             clientId='fraud-detection-kafka'
-            clientSecret='fraud-detection-kafka-secret'
+            clientSecret='gC2nmCpnuuMPhDP6C2WxKzFON8y5JB2O'
             scope='kafka'
             tokenEndpointUri='http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token';
 ```
@@ -1696,24 +1723,44 @@ springdoc:
   swagger-ui:
     oauth:
       client-id: fraud-detection-web
-      client-secret: fraud-detection-web-secret
+      client-secret: v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp
       use-pkce-with-authorization-code-grant: true
 ```
 
 ### Obtaining Access Tokens
 
-#### Method 1: Password Grant (for testing)
+> **Recap:** there are only **two clients** that can mint a token — `fraud-detection-web` (user-bound flows) and `fraud-detection-kafka` (service-to-service). The `fraud-detection-service` client cannot — it is the resource server that *consumes* tokens issued to either of those audiences.
+
+#### Quick Start: helper script
+
+```bash
+./scripts/get-token.sh detector   # or: analyst | admin
+```
+
+The script wraps the Resource Owner Password grant against `fraud-detection-web`, prints decoded claims, exports `$FRAUD_DETECTION_TOKEN`, and writes the raw JWT to `/tmp/fraud-detection-token.txt`. Override the defaults with `KEYCLOAK_URL`, `REALM`, `CLIENT_ID`, or `CLIENT_SECRET` env vars if needed.
+
+#### Method 1: Password Grant — `fraud-detection-web` (user tokens)
+
+Use this when you need a JWT bound to a specific user (e.g. for cURL testing of `/fraud/**` endpoints, where the granted scopes flow from the user's realm roles).
 
 ```bash
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "username=detector" \
   -d "password=detector123" \
-  -d "scope=openid fraud-detection-scopes"
+  -d "scope=openid profile email"
 ```
+
+Pick the user that matches the endpoint you want to call:
+
+| User | Password | Realm role | Effective `scope` claim | Endpoints granted |
+|------|----------|------------|-------------------------|-------------------|
+| `detector` | `detector123` | `fraud_detector` | `fraud:detect` | `POST /fraud/assessments` |
+| `analyst` | `analyst123` | `fraud_analyst` | `fraud:read` | `GET /fraud/assessments`, `GET /fraud/assessments/{id}` |
+| `admin` | `admin123` | `fraud_admin` (composite) | `fraud:detect fraud:read` | All `/fraud/**` endpoints |
 
 **Response:**
 ```json
@@ -1724,18 +1771,20 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
   "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
   "token_type": "Bearer",
   "id_token": "eyJhbGciOiJIUzI1NiIsInR5cCI...",
-  "scope": "openid fraud-detection-scopes"
+  "scope": "openid profile email fraud-detection-scopes"
 }
 ```
 
-#### Method 2: Client Credentials Grant (for service-to-service)
+#### Method 2: Client Credentials Grant — `fraud-detection-kafka` (service-to-service)
+
+Use this for headless service authentication, primarily for Kafka SASL/OAUTHBEARER. The token represents the client's service account, not a user.
 
 ```bash
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials" \
   -d "client_id=fraud-detection-kafka" \
-  -d "client_secret=fraud-detection-kafka-secret" \
+  -d "client_secret=gC2nmCpnuuMPhDP6C2WxKzFON8y5JB2O" \
   -d "scope=kafka"
 ```
 
@@ -1750,28 +1799,50 @@ curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connec
 }
 ```
 
-#### Method 3: Authorization Code Flow (for web applications)
+> Kafka tokens carry the `kafka` scope and the `service-account-fraud-detection-kafka` subject — they should **not** be used to call `/fraud/**` REST endpoints.
 
-1. Redirect user to authorization endpoint:
+#### Method 3: Authorization Code + PKCE — `fraud-detection-web` (browser apps)
+
+This is what Swagger UI uses. It is also the right flow for any future browser-based client.
+
+1. Redirect the user to the authorization endpoint:
 ```
 http://localhost:8180/realms/fraud-detection/protocol/openid-connect/auth?
   response_type=code&
   client_id=fraud-detection-web&
-  redirect_uri=http://localhost:9001/callback&
-  scope=fraud:detect fraud:read&
-  state=random-state-value
+  redirect_uri=http://localhost:9001/swagger-ui/oauth2-redirect.html&
+  scope=openid profile email&
+  code_challenge=<S256 PKCE challenge>&
+  code_challenge_method=S256&
+  state=<random>
 ```
 
-2. After user login, exchange code for token:
+2. After login, exchange the returned `code` for a token:
 ```bash
 curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "code=<authorization_code>" \
-  -d "redirect_uri=http://localhost:9001/callback"
+  -d "code_verifier=<PKCE verifier>" \
+  -d "redirect_uri=http://localhost:9001/swagger-ui/oauth2-redirect.html"
 ```
+
+#### Method 4: Refreshing a `fraud-detection-web` token
+
+`fraud-detection-web` tokens come with a refresh token (`expires_in: 1800`, refresh enabled). Exchange it for a new access token without re-prompting the user:
+
+```bash
+curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=refresh_token" \
+  -d "client_id=fraud-detection-web" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
+  -d "refresh_token=<refresh_token from Method 1 or 3>"
+```
+
+> `fraud-detection-kafka` does **not** issue refresh tokens — re-call Method 2 on expiry.
 
 ### Token Validation
 
@@ -1800,9 +1871,9 @@ GET /fraud/assessments/** → Requires SCOPE_fraud:read
 # Keycloak
 export JWT_ISSUER_URI=http://localhost:8180/realms/fraud-detection
 
-# Kafka OAuth
+# Kafka OAuth (local dev secret from realm import)
 export KAFKA_CLIENT_ID=fraud-detection-kafka
-export KAFKA_CLIENT_SECRET=fraud-detection-kafka-secret
+export KAFKA_CLIENT_SECRET=gC2nmCpnuuMPhDP6C2WxKzFON8y5JB2O
 ```
 
 #### Production
@@ -1836,10 +1907,10 @@ Tests use `application-test.yml` with Kafka OAuth disabled (PLAINTEXT).
 #### Swagger UI Testing
 1. Navigate to http://localhost:9001/swagger-ui.html
 2. Click "Authorize"
-3. Credentials:
-   - Client ID: fraud-detection-web
-   - Client Secret: fraud-detection-web-secret
-4. Login with: detector / detector123
+3. Credentials (the `fraud-detection-web` confidential client from the realm import):
+   - Client ID: `fraud-detection-web`
+   - Client Secret: `v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp`
+4. Login with one of the realm users — `detector` / `detector123` for `POST /fraud/assessments`, `analyst` / `analyst123` for `GET` endpoints, `admin` / `admin123` for both.
 
 ---
 ## API Reference
@@ -1878,7 +1949,7 @@ See [Authentication & Authorization](#authentication--authorization) section for
   "channel": "ONLINE",
   "merchantId": "MERCHANT-001",
   "merchantName": "Amazon",
-  "merchantCategory": "E-COMMERCE",
+  "merchantCategory": "ELECTRONICS",
   "location": {
     "latitude": 40.7128,
     "longitude": -74.0060,
@@ -1898,11 +1969,11 @@ See [Authentication & Authorization](#authentication--authorization) section for
 | `accountId` | String | Yes | Not null | Customer account identifier |
 | `amount` | BigDecimal | Yes | Not null | Transaction amount |
 | `currency` | String | Yes | Not null | ISO 4217 currency code (e.g., USD, EUR) |
-| `type` | String | Yes | Not blank | Transaction type (PURCHASE, WITHDRAWAL, TRANSFER, etc.) |
-| `channel` | String | Yes | Not blank | Transaction channel (ONLINE, POS, ATM, MOBILE) |
+| `type` | String | Yes | Not blank | Transaction type. Valid values: `PURCHASE`, `ATM_WITHDRAWAL`, `TRANSFER`, `PAYMENT`, `REFUND` (case-insensitive; spaces normalised to `_`) |
+| `channel` | String | Yes | Not blank | Transaction channel. Valid values: `CARD`, `ONLINE`, `MOBILE`, `POS`, `ATM` (case-insensitive) |
 | `merchantId` | String | No | - | Merchant identifier |
 | `merchantName` | String | No | - | Merchant business name |
-| `merchantCategory` | String | No | - | Merchant category code |
+| `merchantCategory` | String | No | - | Merchant category code. Valid values: `GROCERY`, `RESTAURANT`, `GAS`, `RETAIL`, `ENTERTAINMENT`, `ELECTRONICS`, `JEWELRY`, `CRYPTO`, `GIFT_CARDS`, `GAMBLING` (case-insensitive) |
 | `location` | Object | No | Valid | Transaction location details |
 | `location.latitude` | Double | Yes* | Not null | GPS latitude coordinate |
 | `location.longitude` | Double | Yes* | Not null | GPS longitude coordinate |
@@ -2012,7 +2083,7 @@ All errors are returned as `ErrorResponse` (`{code, message, details, timestamp}
 **Example Request:**
 ```bash
 curl -X GET http://localhost:9001/fraud/assessments/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 **Response** (200 OK):
@@ -2067,39 +2138,42 @@ curl -X GET http://localhost:9001/fraud/assessments/550e8400-e29b-41d4-a716-4466
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `transactionRiskLevels` | String[] | No | All levels | Filter by risk levels (LOW, MEDIUM, HIGH, CRITICAL) |
+| `transactionRiskLevels` | String[] | No | All levels | Filter by risk levels. Accepts comma-separated (`?transactionRiskLevels=HIGH,CRITICAL`) or repeated (`?transactionRiskLevels=HIGH&transactionRiskLevels=CRITICAL`). Invalid values return `400 INVALID_RISK_LEVEL`. |
 | `fromDate` | ISO-8601 | No | No filter | Filter assessments after this timestamp |
 | `page` | Integer | No | 0 | Page number (0-indexed) |
-| `size` | Integer | No | 20 | Page size (max 100) |
-| `sort` | String | No | assessmentTime,desc | Sort specification (field,direction) |
+| `size` | Integer | No | 20 | Page size (no hard cap is enforced; the underlying SQL `LIMIT` is whatever you pass) |
+| `sort` | String | No | assessmentTime,desc | Sort specification (`field,direction`) |
 
 **Example Requests:**
 
 1. **Get all assessments (paginated):**
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments?page=0&size=20" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 2. **Filter by risk level:**
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 3. **Filter by date:**
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments?fromDate=2024-12-01T00:00:00Z&page=0&size=20" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 4. **Combined filters with custom sort:**
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH&fromDate=2024-12-01T00:00:00Z&page=0&size=10&sort=riskScore,desc" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 **Response** (200 OK):
+
+The application is configured with `spring.data.web.pageable.serialization-mode=VIA_DTO` (Spring Boot 3.3+ default), so the JSON shape is the streamlined `PagedModel` form — `content` plus a small `page` metadata object. The legacy `pageable`/`sort`/`first`/`last` siblings are NOT emitted.
+
 ```json
 {
   "content": [
@@ -2112,7 +2186,7 @@ curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH&
       "assessmentTime": "2024-12-17T10:00:01.234Z"
     },
     {
-      "assessmentId": "8d1e7789-8526-51ef-b958-f18gd2g01bf8",
+      "assessmentId": "019df712-2683-737e-9bcf-b0e8be31e854",
       "transactionId": "661f9511-f39c-52e5-b827-557766551111",
       "riskScore": 92,
       "transactionRiskLevel": "CRITICAL",
@@ -2120,31 +2194,12 @@ curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH&
       "assessmentTime": "2024-12-17T09:55:30.123Z"
     }
   ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 20,
-    "sort": {
-      "sorted": true,
-      "unsorted": false,
-      "empty": false
-    },
-    "offset": 0,
-    "paged": true,
-    "unpaged": false
-  },
-  "totalElements": 150,
-  "totalPages": 8,
-  "last": false,
-  "first": true,
-  "size": 20,
-  "number": 0,
-  "sort": {
-    "sorted": true,
-    "unsorted": false,
-    "empty": false
-  },
-  "numberOfElements": 20,
-  "empty": false
+  "page": {
+    "size": 20,
+    "number": 0,
+    "totalElements": 150,
+    "totalPages": 8
+  }
 }
 ```
 
@@ -2152,17 +2207,11 @@ curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH&
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `content` | Array | List of risk assessments for current page |
-| `pageable.pageNumber` | Integer | Current page number (0-indexed) |
-| `pageable.pageSize` | Integer | Number of items per page |
-| `totalElements` | Long | Total number of assessments matching filters |
-| `totalPages` | Integer | Total number of pages |
-| `last` | Boolean | Whether this is the last page |
-| `first` | Boolean | Whether this is the first page |
-| `size` | Integer | Page size |
-| `number` | Integer | Current page number |
-| `numberOfElements` | Integer | Number of elements in current page |
-| `empty` | Boolean | Whether the page is empty |
+| `content` | Array | List of risk assessments for current page (each item is a `RiskAssessmentDto`) |
+| `page.size` | Integer | Page size used for this response |
+| `page.number` | Integer | Current page number (0-indexed) |
+| `page.totalElements` | Long | Total number of assessments matching filters |
+| `page.totalPages` | Integer | Total number of pages |
 
 **Sorting Options:**
 
@@ -2212,7 +2261,7 @@ These endpoints do not require authentication (matchers configured in `SecurityC
 | `GET /swagger-ui/**` | Swagger UI resources |
 | `GET /v3/api-docs/**` | OpenAPI specification (JSON / YAML) |
 
-> Other actuator endpoints (`/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/prometheus`, `/actuator/metrics`, `/actuator/circuitbreakers`, `/actuator/flyway`, etc.) are exposed via `management.endpoints.web.exposure.include` but require authentication. Kubernetes probes against `/actuator/health/liveness` and `/actuator/health/readiness` therefore need either a service account token or a deployment-level allow-list.
+> Other actuator endpoints (`/actuator/health/liveness`, `/actuator/health/readiness`, `/actuator/metrics`, `/actuator/circuitbreakers`, `/actuator/flyway`, `/actuator/loggers`, `/actuator/env`, plus the Resilience4j endpoints `/actuator/retries`, `/actuator/retryevents`, `/actuator/bulkheads`, `/actuator/timelimiters`, `/actuator/ratelimiters`, `/actuator/circuitbreakerevents`) are exposed via `management.endpoints.web.exposure.include` but require authentication. Kubernetes probes against `/actuator/health/liveness` and `/actuator/health/readiness` therefore need either a service account token or a deployment-level allow-list. The `prometheus`, `heapdump`, and `caches` endpoints are **not** wired up in this build — calls to them currently return 500 from the global exception handler.
 
 ---
 
@@ -2233,19 +2282,19 @@ These endpoints do not require authentication (matchers configured in `SecurityC
 **Complete workflow example:**
 
 ```bash
-# 1. Get access token
-export TOKEN=$(curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+# 1. Get access token (or run: ./scripts/get-token.sh detector)
+export FRAUD_DETECTION_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "username=detector" \
   -d "password=detector123" \
-  -d "scope=openid fraud-detection-scopes" | jq -r '.access_token')
+  -d "scope=openid profile email" | jq -r '.access_token')
 
 # 2. Assess a transaction
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440000",
@@ -2256,7 +2305,7 @@ curl -X POST http://localhost:9001/fraud/assessments \
     "channel": "ONLINE",
     "merchantId": "MERCHANT-001",
     "merchantName": "Amazon",
-    "merchantCategory": "E-COMMERCE",
+    "merchantCategory": "ELECTRONICS",
     "location": {
       "latitude": 40.7128,
       "longitude": -74.0060,
@@ -2269,11 +2318,11 @@ curl -X POST http://localhost:9001/fraud/assessments \
 
 # 3. Get the assessment
 curl -X GET http://localhost:9001/fraud/assessments/550e8400-e29b-41d4-a716-446655440000 \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 
 # 4. Search high-risk assessments
 curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 ---
@@ -2286,8 +2335,8 @@ To use Swagger UI:
 1. Click "Authorize" button
 2. Enter credentials:
    - Client ID: `fraud-detection-web`
-   - Client Secret: `fraud-detection-web-secret`
-3. Login with: `detector` / `detector123`
+   - Client Secret: `v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp`
+3. Login with one of the realm users (e.g. `detector` / `detector123` for `POST /fraud/assessments`, or `analyst` / `analyst123` for the `GET` endpoints)
 4. Try out the endpoints interactively
 
 ---
@@ -2445,7 +2494,7 @@ curl http://localhost:8081/apis/registry/v2/groups/default/artifacts/Transaction
 
 #### Keycloak
 **Port**: 8180  
-**Image**: `quay.io/keycloak/keycloak:26.0.7`  
+**Image**: `quay.io/keycloak/keycloak:26.5`  
 **Mode**: Development (start-dev)
 
 **Admin Console**: http://localhost:8180/admin  
@@ -2541,15 +2590,15 @@ Integration tests use Testcontainers to spin up:
 First, obtain an access token from Keycloak:
 
 ```bash
-export ACCESS_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+export FRAUD_DETECTION_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "username=detector" \
   -d "password=detector123" \
   -d "grant_type=password" | jq -r '.access_token')
 
-echo $ACCESS_TOKEN
+echo $FRAUD_DETECTION_TOKEN
 ```
 
 Available test users:
@@ -2563,7 +2612,7 @@ A normal transaction that should be allowed:
 
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440001",
@@ -2604,7 +2653,7 @@ Test with a valid account profile from the mock Account Service:
 
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440002",
@@ -2635,7 +2684,7 @@ A large amount transaction that should trigger a challenge:
 
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440003",
@@ -2678,7 +2727,7 @@ Submit multiple rapid transactions to trigger velocity rules:
 # Submit 6 transactions within 5 minutes
 for i in {1..6}; do
   curl -X POST http://localhost:9001/fraud/assessments \
-    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{
       \"transactionId\": \"550e8400-e29b-41d4-a716-44665544000$i\",
@@ -2723,7 +2772,7 @@ First, create a transaction in Johannesburg:
 
 ```bash
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440010",
@@ -2752,7 +2801,7 @@ Wait 2 seconds, then create a transaction in New York (impossible to travel that
 sleep 2
 
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "transactionId": "550e8400-e29b-41d4-a716-446655440011",
@@ -2792,89 +2841,49 @@ Expected response:
 Get a specific assessment:
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments/550e8400-e29b-41d4-a716-446655440001" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 Search high-risk assessments:
 ```bash
 curl -X GET "http://localhost:9001/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=20" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 Search by date range:
 ```bash
 YESTERDAY=$(date -u -d '1 day ago' +"%Y-%m-%dT%H:%M:%SZ")
 curl -X GET "http://localhost:9001/fraud/assessments?fromDate=$YESTERDAY&page=0&size=20" \
-  -H "Authorization: Bearer $ACCESS_TOKEN"
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN"
 ```
 
 ### Testing with Postman
 
-#### Import Collection
+> **Note:** No Postman collection ships with this repository today. Use the cURL examples above (or the bundled `scripts/test-api.sh` and Swagger UI at `http://localhost:9001/swagger-ui.html`) for interactive API testing. If you'd like to roll your own collection, the section below lists suggested environment variables and request scenarios.
 
-1. Download the Postman collection from the repository:
-   - `postman/Fraud-Detection-API.postman_collection.json`
-   - `postman/Fraud-Detection-Environments.postman_environment.json`
+#### Suggested environment variables
 
-2. Import into Postman:
-   - Click **Import** in Postman
-   - Select both files
-   - Choose the **Local** environment
+| Variable | Value |
+|----------|-------|
+| `baseUrl` | `http://localhost:9001` |
+| `keycloakUrl` | `http://localhost:8180` |
+| `realm` | `fraud-detection` |
+| `clientId` | `fraud-detection-web` |
+| `clientSecret` | `v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp` (local dev only — see [Authentication & Authorization](#authentication--authorization)) |
+| `username` | `detector` |
+| `password` | `detector123` |
+| `accessToken` | populate from a "Get Access Token" pre-request to the Keycloak `/realms/fraud-detection/protocol/openid-connect/token` endpoint |
 
-#### Configure Environment
+#### Suggested request scenarios
 
-The environment includes:
-- `baseUrl`: http://localhost:9001
-- `keycloakUrl`: http://localhost:8180
-- `realm`: fraud-detection
-- `clientId`: fraud-detection-web
-- `clientSecret`: fraud-detection-web-secret
-- `username`: detector
-- `password`: detector123
-
-#### Authentication Setup
-
-The collection includes an **Authorization** folder with:
-1. **Get Access Token** - Obtains JWT token from Keycloak
-2. **Refresh Token** - Refreshes expired tokens
-
-Run "Get Access Token" first to populate the `accessToken` environment variable.
-
-#### Available Test Scenarios
-
-The collection includes pre-configured requests for:
-
-1. **Assessment - Low Risk**: Normal transaction
-2. **Assessment - Medium Risk**: Large amount ($15,000)
-3. **Assessment - High Risk**: Velocity testing
-4. **Assessment - Critical Risk**: Impossible travel
-5. **Assessment - Account Integration**: Tests with mock account service
-6. **Query Assessment by ID**: Retrieves specific assessment
-7. **Query High-Risk Assessments**: Filters by risk level
-8. **Query by Date Range**: Time-based filtering
-
-#### Collection Variables
-
-Each request uses variables for easy customization:
-- `{{transactionId}}` - Auto-generated UUID
-- `{{accountId}}` - Test account identifier
-- `{{amount}}` - Transaction amount
-- `{{timestamp}}` - Current ISO timestamp
-
-#### Running Tests
-
-1. Select a request from the collection
-2. Click **Send**
-3. View the response in the **Response** panel
-4. Check the **Test Results** tab for automated assertions
-
-#### Automated Tests
-
-Each request includes test scripts that verify:
-- HTTP status codes (200, 404, etc.)
-- Response structure and required fields
-- Risk score calculations
-- Decision alignment with risk levels
+1. **Assessment — Low Risk**: Normal Johannesburg-to-Johannesburg transaction (`riskScore` ≈ 17).
+2. **Assessment — Medium Risk**: Large-amount purchase that triggers `LARGE_AMOUNT` rule.
+3. **Assessment — High Risk**: Repeated transactions on the same account inside the velocity window.
+4. **Assessment — Critical Risk**: Two transactions whose required travel speed exceeds 965 km/h (impossible travel).
+5. **Assessment — Account Integration**: Use an `accountId` configured in `docker-compose/mockoon/data.json` so the GeographicValidator gets a known last-known location.
+6. **Query Assessment by ID**: `GET /fraud/assessments/{transactionId}` (analyst or admin).
+7. **Query High-Risk Assessments**: `GET /fraud/assessments?transactionRiskLevels=HIGH,CRITICAL`.
+8. **Query by Date Range**: `GET /fraud/assessments?fromDate=…`.
 - Response time thresholds
 
 Example test script:
@@ -3319,7 +3328,7 @@ Manages Avro schemas for Kafka messages.
 **Keycloak Authentication**:
 ```yaml
 keycloak:
-  image: quay.io/keycloak/keycloak:26.0.7
+  image: quay.io/keycloak/keycloak:26.5
   command:
     - start-dev
     - --import-realm
@@ -4193,12 +4202,13 @@ open http://localhost:8180
 
 2. **Client secrets mismatch**:
    ```yaml
-   # Verify in application.yml
+   # Verify in application.yml — must match the realm import
+   # (docker-compose/keycloak-config/fraud-detection-realm.json)
    springdoc:
      swagger-ui:
        oauth:
          client-id: fraud-detection-web
-         client-secret: fraud-detection-web-secret  # Must match Keycloak
+         client-secret: v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp
    ```
 
 3. **JWT validation failures**:
@@ -4637,19 +4647,19 @@ docker exec fraud-detection-redis redis-cli INFO memory | grep used_memory_human
 **Verify token**:
 ```bash
 # Get a fresh token
-export ACCESS_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
+export FRAUD_DETECTION_TOKEN=$(curl -s -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "client_id=fraud-detection-web" \
-  -d "client_secret=fraud-detection-web-secret" \
+  -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
   -d "username=detector" \
   -d "password=detector123" \
   -d "grant_type=password" | jq -r '.access_token')
 
 # Decode token to check claims
-echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+echo $FRAUD_DETECTION_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .
 
 # Check expiration
-echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
+echo $FRAUD_DETECTION_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
 ```
 
 **Common Issues**:
@@ -4663,7 +4673,7 @@ echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
 2. **Wrong audience**:
    ```bash
    # Check token audience
-   echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .aud
+   echo $FRAUD_DETECTION_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .aud
    # Should include: "fraud-detection-service"
    ```
 
@@ -4687,7 +4697,7 @@ echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq .exp
 **Check token permissions**:
 ```bash
 # View token scopes and roles
-echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq '.scope, .resource_access'
+echo $FRAUD_DETECTION_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq '.scope, .resource_access'
 ```
 
 **Required authorities**:
@@ -4702,10 +4712,10 @@ echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d 2>/dev/null | jq '.scope, .resource
    # detector - READ + DETECT
    # admin - ALL permissions
    
-   # Get token for detector user
+   # Get token for detector user (or run: ./scripts/get-token.sh detector)
    curl -X POST http://localhost:8180/realms/fraud-detection/protocol/openid-connect/token \
      -d "client_id=fraud-detection-web" \
-     -d "client_secret=fraud-detection-web-secret" \
+     -d "client_secret=v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp" \
      -d "username=detector" \
      -d "password=detector123" \
      -d "grant_type=password"
@@ -4730,7 +4740,7 @@ springdoc:
   swagger-ui:
     oauth:
       client-id: fraud-detection-web
-      client-secret: fraud-detection-web-secret
+      client-secret: v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp
       use-pkce-with-authorization-code-grant: true
     oauth2-redirect-url: http://localhost:9001/swagger-ui/oauth2-redirect.html
 ```
@@ -4750,7 +4760,7 @@ springdoc:
 
 # Or use cURL for testing instead
 curl -X POST http://localhost:9001/fraud/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Authorization: Bearer $FRAUD_DETECTION_TOKEN" \
   -H "Content-Type: application/json" \
   -d @test-transaction.json
 ```
