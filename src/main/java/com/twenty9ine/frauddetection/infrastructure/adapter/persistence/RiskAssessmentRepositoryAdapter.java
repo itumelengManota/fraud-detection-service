@@ -34,6 +34,19 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                             .orElseGet(() -> mapper.toDomain(jdbcRepository.save(newRiskAssessment)));
     }
 
+    @Override
+    public Optional<RiskAssessment> findByTransactionId(TransactionId transactionId) {
+        return jdbcRepository.findByTransactionId(transactionId.toUUID())
+                             .map(mapper::toDomain);
+    }
+
+    @Override
+    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
+        Page<RiskAssessmentEntity> page = findByRiskLevelsSince(since, toRiskLevelStrings(levels), toSpringPageable(pageRequest));
+
+        return toPagedResult(toRiskAssessments(page), page);
+    }
+
     private static RiskAssessmentEntity synchronise(RiskAssessmentEntity existingRiskAssessment, RiskAssessmentEntity newRiskAssessment) {
         return RiskAssessmentEntity.builder().id(existingRiskAssessment.getId())
                 .transactionId(existingRiskAssessment.getTransactionId())
@@ -47,19 +60,6 @@ public class RiskAssessmentRepositoryAdapter implements RiskAssessmentRepository
                 .revision(existingRiskAssessment.getRevision())
                 .ruleEvaluations(newRiskAssessment.getRuleEvaluations())
                 .build();
-    }
-
-    @Override
-    public Optional<RiskAssessment> findByTransactionId(TransactionId transactionId) {
-        return jdbcRepository.findByTransactionId(transactionId.toUUID())
-                             .map(mapper::toDomain);
-    }
-
-    @Override
-    public PagedResult<RiskAssessment> findByRiskLevelSince(Set<TransactionRiskLevel> levels, Instant since, PageRequest pageRequest) {
-        Page<RiskAssessmentEntity> page = findByRiskLevelsSince(since, toRiskLevelStrings(levels), toSpringPageable(pageRequest));
-
-        return toPagedResult(toRiskAssessments(page), page);
     }
 
     private Page<RiskAssessmentEntity> findByRiskLevelsSince(Instant since, Set<String> riskLevelStrings, Pageable pageable) {
