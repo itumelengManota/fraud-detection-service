@@ -1,0 +1,1485 @@
+{
+  "info": {
+    "_postman_id": "8b1c4f4e-3a90-49a2-9d73-4e6b1c0ed5a1",
+    "name": "Fraud Detection API",
+    "description": "Comprehensive Postman collection for the Twenty9ine Fraud Detection Service.\n\n**Folder run order**\n\n1. **Authentication** — issue tokens for `detector`, `analyst`, `admin`, and the `fraud-detection-kafka` service client. Stores tokens in environment variables (`detectorToken`, `analystToken`, `adminToken`, `kafkaToken`, `refreshToken`). **Run this folder first** — every other folder depends on those variables.\n2. **Authorization Matrix** — exhaustively asserts the 401/403/200 grid for every `/fraud/**` endpoint × {no token, detector, analyst, admin}.\n3. **Risk Assessment Scenarios** — the eight scenarios suggested in the README (Low/Medium/High/Critical, Mockoon-driven account integration, Get-by-ID round-trip, search by risk levels, search by date range).\n4. **Validation & Errors** — documented 400/404 paths (`VALIDATION_ERROR`, `INVALID_RISK_LEVEL`, `RISK_ASSESSMENT_NOT_FOUND`).\n5. **Actuator** — public probes (`/health`, `/info`) and the auth-protected operational endpoints; also asserts that `/actuator/{prometheus,heapdump,caches}` are *not* wired up in this build.\n\nEvery request includes `pm.test(...)` assertions. Use the *Local* environment shipped alongside this file (`Fraud-Detection-Local.postman_environment.json`).\n\nCredentials and secrets in the environment file are the literal values from `docker-compose/keycloak-config/fraud-detection-realm.json` for **local development only**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Token grants for each Keycloak client + the documented negative cases.",
+      "item": [
+        {
+          "name": "Get Token — detector (password grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token issued', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.test('expires_in == 1800 (web client)', () => pm.expect(json.expires_in).to.eql(1800));",
+                  "pm.test('refresh_token issued (web client)', () => pm.expect(json.refresh_token).to.be.a('string'));",
+                  "pm.test('scope includes fraud-detection-scopes', () => pm.expect(json.scope).to.include('fraud-detection-scopes'));",
+                  "pm.environment.set('detectorToken', json.access_token);",
+                  "pm.environment.set('refreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{webClientId}}" },
+                { "key": "client_secret", "value": "{{webClientSecret}}" },
+                { "key": "username", "value": "{{detectorUsername}}" },
+                { "key": "password", "value": "{{detectorPassword}}" },
+                { "key": "scope", "value": "openid profile email" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Issues a JWT for `detector` (granted realm role `fraud_detector` → resource_access role `fraud:detect` → SCOPE_fraud:detect → `POST /fraud/assessments` only). Stores the token as `{{detectorToken}}` and the refresh token as `{{refreshToken}}`."
+          }
+        },
+        {
+          "name": "Get Token — analyst (password grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token issued', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.environment.set('analystToken', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{webClientId}}" },
+                { "key": "client_secret", "value": "{{webClientSecret}}" },
+                { "key": "username", "value": "{{analystUsername}}" },
+                { "key": "password", "value": "{{analystPassword}}" },
+                { "key": "scope", "value": "openid profile email" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Issues a JWT for `analyst` (realm role `fraud_analyst` → SCOPE_fraud:read → `GET /fraud/assessments**` only). Stored as `{{analystToken}}`."
+          }
+        },
+        {
+          "name": "Get Token — admin (password grant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token issued', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.environment.set('adminToken', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{webClientId}}" },
+                { "key": "client_secret", "value": "{{webClientSecret}}" },
+                { "key": "username", "value": "{{adminUsername}}" },
+                { "key": "password", "value": "{{adminPassword}}" },
+                { "key": "scope", "value": "openid profile email" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Issues a JWT for `admin` (composite role `fraud_admin` → both `fraud:detect` and `fraud:read`). Stored as `{{adminToken}}`."
+          }
+        },
+        {
+          "name": "Get Token — Kafka service (client_credentials)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('access_token issued', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.test('expires_in == 3600 (kafka client)', () => pm.expect(json.expires_in).to.eql(3600));",
+                  "pm.test('no refresh_token (client_credentials)', () => pm.expect(json.refresh_token).to.be.undefined);",
+                  "pm.test('scope includes kafka', () => pm.expect(json.scope).to.include('kafka'));",
+                  "pm.environment.set('kafkaToken', json.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "client_id", "value": "{{kafkaClientId}}" },
+                { "key": "client_secret", "value": "{{kafkaClientSecret}}" },
+                { "key": "scope", "value": "kafka" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Service-account token used by Kafka producers/consumers for SASL/OAUTHBEARER. Lives 1 hour; the kafka client does not issue refresh tokens. The token's audience is `account` (NOT `fraud-detection-service`), so it cannot be used to call `/fraud/**` endpoints — see the negative test below."
+          }
+        },
+        {
+          "name": "Refresh Token (web client)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('new access_token issued', () => pm.expect(json.access_token).to.be.a('string'));",
+                  "pm.test('new refresh_token issued', () => pm.expect(json.refresh_token).to.be.a('string'));",
+                  "pm.environment.set('detectorToken', json.access_token);",
+                  "pm.environment.set('refreshToken', json.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "refresh_token" },
+                { "key": "client_id", "value": "{{webClientId}}" },
+                { "key": "client_secret", "value": "{{webClientSecret}}" },
+                { "key": "refresh_token", "value": "{{refreshToken}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Exchanges the stored refresh token for a fresh access token. Requires `Get Token — detector` (or one of the other web-client grants) to have populated `{{refreshToken}}` first. Updates `{{detectorToken}}` and `{{refreshToken}}` with the new pair."
+          }
+        },
+        {
+          "name": "❌ Negative — wrong client secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('error == unauthorized_client', () => pm.expect(pm.response.json().error).to.eql('unauthorized_client'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{webClientId}}" },
+                { "key": "client_secret", "value": "definitely-not-the-right-secret" },
+                { "key": "username", "value": "{{detectorUsername}}" },
+                { "key": "password", "value": "{{detectorPassword}}" },
+                { "key": "scope", "value": "openid profile email" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Sanity check that Keycloak rejects a wrong client secret with `unauthorized_client`. This is the failure the original README's placeholder secret produced."
+          }
+        },
+        {
+          "name": "❌ Negative — fraud-detection-service password grant (resource-server-only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error == unauthorized_client', () => pm.expect(pm.response.json().error).to.eql('unauthorized_client'));",
+                  "pm.test('error_description mentions direct access grants', () => pm.expect(pm.response.json().error_description).to.include('direct access grants'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{serviceClientId}}" },
+                { "key": "client_secret", "value": "{{serviceClientSecret}}" },
+                { "key": "username", "value": "{{detectorUsername}}" },
+                { "key": "password", "value": "{{detectorPassword}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "`fraud-detection-service` is a resource server — `directAccessGrantsEnabled=false`. Verifies Keycloak refuses the password grant with `unauthorized_client: Client not allowed for direct access grants`."
+          }
+        },
+        {
+          "name": "❌ Negative — fraud-detection-service client_credentials (no service account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('error == unauthorized_client', () => pm.expect(pm.response.json().error).to.eql('unauthorized_client'));",
+                  "pm.test('error_description mentions service account', () => pm.expect(pm.response.json().error_description).to.include('service account'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials" },
+                { "key": "client_id", "value": "{{serviceClientId}}" },
+                { "key": "client_secret", "value": "{{serviceClientSecret}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "`fraud-detection-service` also has `serviceAccountsEnabled=false`, so client_credentials is also rejected: `Client not enabled to retrieve service account`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authorization Matrix",
+      "description": "Asserts the 401/403/200 grid for every `/fraud/**` endpoint × {no token, detector, analyst, admin}. Run **Authentication** first.",
+      "item": [
+        {
+          "name": "POST /fraud/assessments — no token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"transactionId\":\"{{$guid}}\",\"accountId\":\"{{mockoonAccountId}}\",\"amount\":100.00,\"currency\":\"USD\",\"type\":\"PURCHASE\",\"channel\":\"ONLINE\",\"merchantCategory\":\"RETAIL\",\"location\":{\"latitude\":-26.2041,\"longitude\":28.0473,\"country\":\"ZA\",\"city\":\"Johannesburg\",\"timestamp\":\"{{$isoTimestamp}}\"},\"deviceId\":\"DEVICE-PM\",\"transactionTimestamp\":\"{{$isoTimestamp}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "POST /fraud/assessments — analyst (fraud:read only) → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"transactionId\":\"{{$guid}}\",\"accountId\":\"{{mockoonAccountId}}\",\"amount\":100.00,\"currency\":\"USD\",\"type\":\"PURCHASE\",\"channel\":\"ONLINE\",\"merchantCategory\":\"RETAIL\",\"location\":{\"latitude\":-26.2041,\"longitude\":28.0473,\"country\":\"ZA\",\"city\":\"Johannesburg\",\"timestamp\":\"{{$isoTimestamp}}\"},\"deviceId\":\"DEVICE-PM\",\"transactionTimestamp\":\"{{$isoTimestamp}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "POST /fraud/assessments — detector (fraud:detect) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Response includes assessmentId', () => pm.expect(json.assessmentId).to.be.a('string'));",
+                  "pm.test('Response includes decision', () => pm.expect(json.decision).to.be.a('string'));",
+                  "pm.test('Response includes transactionRiskLevel', () => pm.expect(json.transactionRiskLevel).to.be.a('string'));",
+                  "pm.test('riskScore is in 0..100', () => { const s = json.riskScore; pm.expect(s).to.be.at.least(0); pm.expect(s).to.be.at.most(100); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"transactionId\":\"{{$guid}}\",\"accountId\":\"{{mockoonAccountId}}\",\"amount\":100.00,\"currency\":\"USD\",\"type\":\"PURCHASE\",\"channel\":\"ONLINE\",\"merchantCategory\":\"RETAIL\",\"location\":{\"latitude\":-26.2041,\"longitude\":28.0473,\"country\":\"ZA\",\"city\":\"Johannesburg\",\"timestamp\":\"{{$isoTimestamp}}\"},\"deviceId\":\"DEVICE-PM\",\"transactionTimestamp\":\"{{$isoTimestamp}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "POST /fraud/assessments — admin (composite) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"transactionId\":\"{{$guid}}\",\"accountId\":\"{{mockoonAccountId}}\",\"amount\":100.00,\"currency\":\"USD\",\"type\":\"PURCHASE\",\"channel\":\"ONLINE\",\"merchantCategory\":\"RETAIL\",\"location\":{\"latitude\":-26.2041,\"longitude\":28.0473,\"country\":\"ZA\",\"city\":\"Johannesburg\",\"timestamp\":\"{{$isoTimestamp}}\"},\"deviceId\":\"DEVICE-PM\",\"transactionTimestamp\":\"{{$isoTimestamp}}\"}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments/{id} — no token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/00000000-0000-0000-0000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "00000000-0000-0000-0000-000000000001"]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments/{id} — detector (no fraud:read) → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/00000000-0000-0000-0000-000000000001",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "00000000-0000-0000-0000-000000000001"]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments/{id} — analyst (fraud:read) → 200/404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Authorised (200 if found, 404 if not)', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/{{lastAssessmentTransactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "{{lastAssessmentTransactionId}}"]
+            },
+            "description": "Uses `lastAssessmentTransactionId` populated by the Risk Assessment Scenarios folder. If you run this folder before that one, expect 404 (still proves authorization passes through to the controller)."
+          }
+        },
+        {
+          "name": "GET /fraud/assessments/{id} — admin → 200/404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Authorised (200 if found, 404 if not)', () => pm.expect(pm.response.code).to.be.oneOf([200, 404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/{{lastAssessmentTransactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "{{lastAssessmentTransactionId}}"]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments — no token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments — detector → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments — analyst → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Top-level shape: content + page', () => { pm.expect(json).to.have.property('content'); pm.expect(json).to.have.property('page'); });",
+                  "pm.test('No legacy pageable field (PagedModel mode)', () => pm.expect(json).to.not.have.property('pageable'));",
+                  "pm.test('page metadata complete', () => { pm.expect(json.page).to.have.all.keys('size','number','totalElements','totalPages'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments — admin → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /fraud/assessments — kafka token (wrong audience) → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401 (audience does not include fraud-detection-service)', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{kafkaToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            },
+            "description": "The kafka client_credentials token's audience is `account` only; the resource server's AudienceValidator rejects it for `/fraud/**`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Risk Assessment Scenarios",
+      "description": "The eight scenarios suggested in the README. Most use `detector` for POST and the chained Get-by-ID uses `analyst`.",
+      "item": [
+        {
+          "name": "1. Low Risk — Johannesburg → Johannesburg",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('txId', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Decision = ALLOW', () => pm.expect(json.decision).to.eql('ALLOW'));",
+                  "pm.test('RiskLevel = LOW', () => pm.expect(json.transactionRiskLevel).to.eql('LOW'));",
+                  "pm.environment.set('lastAssessmentTransactionId', json.transactionId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{txId}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"MERCHANT-LOCAL\",\n  \"merchantName\": \"Local Merchant\",\n  \"merchantCategory\": \"RETAIL\",\n  \"location\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\",\n    \"timestamp\": \"{{$isoTimestamp}}\"\n  },\n  \"deviceId\": \"DEVICE-LOW-001\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "Same-city transaction with a small amount. Expect LOW risk → ALLOW."
+          }
+        },
+        {
+          "name": "2. Medium Risk — Large Amount",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Decision is ALLOW or CHALLENGE (depending on rules)', () => pm.expect(json.decision).to.be.oneOf(['ALLOW','CHALLENGE','REVIEW','BLOCK']));",
+                  "pm.test('RiskLevel set', () => pm.expect(json.transactionRiskLevel).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 15000.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"MERCHANT-001\",\n  \"merchantName\": \"Amazon\",\n  \"merchantCategory\": \"ELECTRONICS\",\n  \"location\": {\n    \"latitude\": 40.7128,\n    \"longitude\": -74.0060,\n    \"country\": \"US\",\n    \"city\": \"New York\"\n  },\n  \"deviceId\": \"DEVICE-LARGE-001\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "Large-amount purchase that exercises the LARGE_AMOUNT Drools rule. Exact decision depends on rule weights and ML availability."
+          }
+        },
+        {
+          "name": "3. High Risk — Velocity (run 5x)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('velocityAccount', 'ACC-VELOCITY-' + Math.floor(Math.random()*1000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{velocityAccount}}\",\n  \"amount\": 500.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"MERCHANT-VEL\",\n  \"merchantName\": \"Velocity Test\",\n  \"merchantCategory\": \"ELECTRONICS\",\n  \"location\": {\n    \"latitude\": -26.2041,\n    \"longitude\": 28.0473,\n    \"country\": \"ZA\",\n    \"city\": \"Johannesburg\"\n  },\n  \"deviceId\": \"DEVICE-VEL\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "Re-run this request several times in quick succession against the same `{{velocityAccount}}` to trigger the VELOCITY_5MIN rule. Risk level rises with each repeat."
+          }
+        },
+        {
+          "name": "4. Critical Risk — Impossible Travel",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Decision present', () => pm.expect(json.decision).to.be.a('string'));",
+                  "pm.test('RiskLevel present', () => pm.expect(json.transactionRiskLevel).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"ACC-IMPOSSIBLE-001\",\n  \"amount\": 250.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"MERCHANT-TOKYO\",\n  \"merchantName\": \"Tokyo Store\",\n  \"merchantCategory\": \"ELECTRONICS\",\n  \"location\": {\n    \"latitude\": 35.6762,\n    \"longitude\": 139.6503,\n    \"country\": \"JP\",\n    \"city\": \"Tokyo\",\n    \"timestamp\": \"{{$isoTimestamp}}\"\n  },\n  \"deviceId\": \"DEVICE-IMP\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "Account `ACC-IMPOSSIBLE-001`'s last-known location (per Mockoon) is Johannesburg, ZA. Posting a Tokyo-located transaction with `transactionTimestamp = now` requires >965 km/h — triggering the IMPOSSIBLE_TRAVEL rule."
+          }
+        },
+        {
+          "name": "5. Account Integration — Mockoon (Johannesburg account)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Account-aware scoring returned', () => pm.expect(json.riskScore).to.be.a('number'));",
+                  "pm.environment.set('lastAssessmentTransactionId', json.transactionId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 200.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"MERCHANT-LOCAL-2\",\n  \"merchantName\": \"Sandton Mall\",\n  \"merchantCategory\": \"RETAIL\",\n  \"location\": {\n    \"latitude\": -26.1076,\n    \"longitude\": 28.0567,\n    \"country\": \"ZA\",\n    \"city\": \"Sandton\",\n    \"timestamp\": \"{{$isoTimestamp}}\"\n  },\n  \"deviceId\": \"DEVICE-INT\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "Calls `AccountServiceRestAdapter` against the Mockoon mock at :3001. The transaction location is close to the account's home, so distance-based risk stays low."
+          }
+        },
+        {
+          "name": "6. Get Assessment by ID (analyst)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 (assumes scenario 1 or 5 ran first)', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Returned id matches lastAssessmentTransactionId', () => pm.expect(json.transactionId).to.eql(pm.environment.get('lastAssessmentTransactionId')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/{{lastAssessmentTransactionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "{{lastAssessmentTransactionId}}"]
+            },
+            "description": "Round-trip read of the most-recently-created assessment. Run after scenario 1 or 5."
+          }
+        },
+        {
+          "name": "7. Search HIGH+CRITICAL (analyst)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Every result is HIGH or CRITICAL', () => json.content.forEach(a => pm.expect(['HIGH','CRITICAL']).to.include(a.transactionRiskLevel)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?transactionRiskLevels=HIGH,CRITICAL&page=0&size=10&sort=assessmentTime,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "transactionRiskLevels", "value": "HIGH,CRITICAL" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "assessmentTime,desc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Search by Date Range (analyst)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Default to 1 day ago if user hasn't overridden the variable.",
+                  "if (!pm.variables.get('fromDate')) {",
+                  "    const oneDayAgo = new Date(Date.now() - 24*60*60*1000).toISOString();",
+                  "    pm.variables.set('fromDate', oneDayAgo);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?fromDate={{fromDate}}&page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            },
+            "description": "Filters by `assessmentTime >= fromDate`. Default `fromDate` = now − 24h."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation & Errors",
+      "description": "Documented 400/404 paths.",
+      "item": [
+        {
+          "name": "400 — invalid merchantCategory",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code = VALIDATION_ERROR', () => pm.expect(pm.response.json().code).to.eql('VALIDATION_ERROR'));",
+                  "pm.test('message references MerchantCategory', () => pm.expect(pm.response.json().message).to.match(/MerchantCategory/));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantId\": \"M\",\n  \"merchantName\": \"M\",\n  \"merchantCategory\": \"E-COMMERCE\",\n  \"location\": {\n    \"latitude\": -26.2041, \"longitude\": 28.0473, \"country\": \"ZA\", \"city\": \"Johannesburg\"\n  },\n  \"deviceId\": \"D\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "400 — invalid type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('message references type', () => pm.expect(pm.response.json().message).to.match(/type/i));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"type\": \"WITHDRAWAL\",\n  \"channel\": \"ONLINE\",\n  \"merchantCategory\": \"RETAIL\",\n  \"location\": { \"latitude\": -26.2041, \"longitude\": 28.0473, \"country\": \"ZA\", \"city\": \"Johannesburg\" },\n  \"deviceId\": \"D\",\n  \"transactionTimestamp\": \"{{$isoTimestamp}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            },
+            "description": "`WITHDRAWAL` is not a valid TransactionType — the real value is `ATM_WITHDRAWAL`."
+          }
+        },
+        {
+          "name": "400 — invalid risk level filter (INVALID_RISK_LEVEL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code = INVALID_RISK_LEVEL', () => pm.expect(pm.response.json().code).to.eql('INVALID_RISK_LEVEL'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments?transactionRiskLevels=GLORIOUS&page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"],
+              "query": [
+                { "key": "transactionRiskLevels", "value": "GLORIOUS" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 — missing required field (transactionTimestamp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transactionId\": \"{{$guid}}\",\n  \"accountId\": \"{{mockoonAccountId}}\",\n  \"amount\": 100.00,\n  \"currency\": \"USD\",\n  \"type\": \"PURCHASE\",\n  \"channel\": \"ONLINE\",\n  \"merchantCategory\": \"RETAIL\",\n  \"location\": { \"latitude\": -26.2041, \"longitude\": 28.0473, \"country\": \"ZA\", \"city\": \"Johannesburg\" },\n  \"deviceId\": \"D\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments"]
+            }
+          }
+        },
+        {
+          "name": "404 — RISK_ASSESSMENT_NOT_FOUND",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('code = RISK_ASSESSMENT_NOT_FOUND', () => pm.expect(pm.response.json().code).to.eql('RISK_ASSESSMENT_NOT_FOUND'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/00000000-0000-0000-0000-deadbeef0000",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "00000000-0000-0000-0000-deadbeef0000"]
+            }
+          }
+        },
+        {
+          "name": "400 — malformed UUID path",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('code = INVALID_PARAMETER', () => pm.expect(pm.response.json().code).to.eql('INVALID_PARAMETER'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{analystToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/fraud/assessments/not-a-uuid",
+              "host": ["{{baseUrl}}"],
+              "path": ["fraud", "assessments", "not-a-uuid"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Actuator",
+      "description": "Health/info are public; everything else requires a valid JWT. The READMEs note that prometheus/heapdump/caches are NOT actually wired up — the last three requests assert the resulting 5xx.",
+      "item": [
+        {
+          "name": "Public — /actuator/health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status == UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Public — /actuator/info",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/info",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "info"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/health/liveness (no token → 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health/liveness",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health", "liveness"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/health/readiness (with token → 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health/readiness",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health", "readiness"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/metrics (with token → 200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response has names array', () => pm.expect(pm.response.json().names).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "metrics"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/flyway",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/flyway",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "flyway"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/circuitbreakers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/circuitbreakers",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "circuitbreakers"]
+            }
+          }
+        },
+        {
+          "name": "Auth — /actuator/loggers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/loggers",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "loggers"]
+            }
+          }
+        },
+        {
+          "name": "❌ Not wired — /actuator/prometheus → 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Not exposed (5xx via global handler, or 404)', () => pm.expect([404, 500]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "prometheus"]
+            },
+            "description": "Documented as NOT wired up. Add `io.micrometer:micrometer-registry-prometheus` and include `prometheus` in `management.endpoints.web.exposure.include` to enable."
+          }
+        },
+        {
+          "name": "❌ Not wired — /actuator/heapdump → 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Not wired (5xx or 404)', () => pm.expect([404, 500]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/heapdump",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "heapdump"]
+            }
+          }
+        },
+        {
+          "name": "❌ Not wired — /actuator/caches → 500",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Not wired (5xx or 404)', () => pm.expect([404, 500]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{detectorToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/caches",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "caches"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:9001",
+      "type": "string"
+    },
+    {
+      "key": "keycloakUrl",
+      "value": "http://localhost:8180",
+      "type": "string"
+    },
+    {
+      "key": "realm",
+      "value": "fraud-detection",
+      "type": "string"
+    }
+  ]
+}

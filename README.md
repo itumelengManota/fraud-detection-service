@@ -2859,54 +2859,69 @@ curl -X GET "http://localhost:9001/fraud/assessments?fromDate=$YESTERDAY&page=0&
 
 ### Testing with Postman
 
-> **Note:** No Postman collection ships with this repository today. Use the cURL examples above (or the bundled `scripts/test-api.sh` and Swagger UI at `http://localhost:9001/swagger-ui.html`) for interactive API testing. If you'd like to roll your own collection, the section below lists suggested environment variables and request scenarios.
+A ready-to-import Postman collection ships under [`postman/`](./postman/):
 
-#### Suggested environment variables
+| File | Purpose |
+|------|---------|
+| `postman/Fraud-Detection-API.postman_collection.json` | The collection: 46 requests across 5 folders, each with `pm.test(...)` assertions. |
+| `postman/Fraud-Detection-Local.postman_environment.json` | The *Local* environment: base URLs, all three Keycloak client IDs/secrets, all three test users, and runtime slots that the auth requests populate (`detectorToken`, `analystToken`, `adminToken`, `kafkaToken`, `refreshToken`, `lastAssessmentTransactionId`). |
 
-| Variable | Value |
-|----------|-------|
+#### Importing
+
+1. In Postman, click **Import** → drag both files in.
+2. Pick **Fraud Detection — Local** as the active environment.
+3. Make sure the stack is up (`docker compose -f docker-compose/compose.yml up -d`) and the service is running on `:9001` (`./gradlew bootRun`).
+
+#### Run order
+
+The collection is designed to be run **top-to-bottom** with the Postman Runner:
+
+1. **Authentication (8 requests)** — issues access tokens for `detector`, `analyst`, `admin`, and the `fraud-detection-kafka` service client; exchanges the refresh token; and exercises the documented *negative* cases (wrong client secret, `fraud-detection-service` cannot mint tokens via either grant). Tokens are written to environment variables that every other folder consumes — **run this folder first**.
+2. **Authorization Matrix (13 requests)** — exhaustive grid of `POST /fraud/assessments`, `GET /fraud/assessments/{id}`, `GET /fraud/assessments` × {no token, detector, analyst, admin, kafka token cross-audience}. Asserts 401 / 403 / 200 per cell.
+3. **Risk Assessment Scenarios (8 requests)** — the eight scenarios:
+    1. Low Risk (Johannesburg → Johannesburg) — also stores its `transactionId` for the Get-by-ID round-trip.
+    2. Medium Risk (large amount).
+    3. High Risk (velocity — re-run several times against the same generated account to climb the band).
+    4. Critical Risk (impossible travel — a Tokyo transaction on a Mockoon account whose last-known location is Johannesburg).
+    5. Account Integration via Mockoon (uses `{{mockoonAccountId}}`).
+    6. Get Assessment by ID (analyst, chained from scenario 1/5).
+    7. Search HIGH+CRITICAL.
+    8. Search by Date Range (defaults `fromDate` to `now − 24h` via a pre-request script).
+4. **Validation & Errors (6 requests)** — the documented 400/404 paths: `VALIDATION_ERROR` on bad enum values (`merchantCategory=E-COMMERCE`, `type=WITHDRAWAL`), `INVALID_RISK_LEVEL` on bad query filter, missing required field, `RISK_ASSESSMENT_NOT_FOUND`, and `INVALID_PARAMETER` on a malformed UUID path.
+5. **Actuator (11 requests)** — public probes (`/health`, `/info`), the auth-protected endpoints (`/health/{liveness,readiness}`, `/metrics`, `/flyway`, `/circuitbreakers`, `/loggers`), and three negative checks confirming `/actuator/{prometheus,heapdump,caches}` are *not* wired up.
+
+Every request includes assertions covering status code, response shape, and (for the auth flows) the specific error codes and audience claims documented elsewhere in this README. The collection treats the README's contracts as a test spec — if the API changes, these tests fail loudly.
+
+#### Environment variables
+
+| Variable | Used for |
+|----------|----------|
 | `baseUrl` | `http://localhost:9001` |
 | `keycloakUrl` | `http://localhost:8180` |
 | `realm` | `fraud-detection` |
-| `clientId` | `fraud-detection-web` |
-| `clientSecret` | `v7tcA1Ku4mARrZwO6tuC3g36CmqZn8xp` (local dev only — see [Authentication & Authorization](#authentication--authorization)) |
-| `username` | `detector` |
-| `password` | `detector123` |
-| `accessToken` | populate from a "Get Access Token" pre-request to the Keycloak `/realms/fraud-detection/protocol/openid-connect/token` endpoint |
+| `webClientId` / `webClientSecret` | `fraud-detection-web` confidential client used by all user-facing flows. |
+| `kafkaClientId` / `kafkaClientSecret` | `fraud-detection-kafka` service client (client_credentials grant). |
+| `serviceClientId` / `serviceClientSecret` | `fraud-detection-service` resource server — used only by the negative tests proving it cannot mint tokens. |
+| `detectorUsername` / `detectorPassword` | `detector` / `detector123` — granted `fraud:detect`. |
+| `analystUsername` / `analystPassword` | `analyst` / `analyst123` — granted `fraud:read`. |
+| `adminUsername` / `adminPassword` | `admin` / `admin123` — granted both. |
+| `detectorToken` / `analystToken` / `adminToken` / `kafkaToken` / `refreshToken` | Populated at runtime by the **Authentication** folder; consumed by every authenticated request. |
+| `lastAssessmentTransactionId` | Populated by Risk Assessment scenarios 1 and 5; consumed by the Get-by-ID requests in Authorization Matrix and Risk Assessment Scenarios. |
+| `mockoonAccountId` | Default `ACC-12345-1` — an account the Mockoon mock returns a Johannesburg location for. |
 
-#### Suggested request scenarios
+> All secrets in the environment file are the literal values from `docker-compose/keycloak-config/fraud-detection-realm.json` for **local development only**. Do not check production secrets into this file.
 
-1. **Assessment — Low Risk**: Normal Johannesburg-to-Johannesburg transaction (`riskScore` ≈ 17).
-2. **Assessment — Medium Risk**: Large-amount purchase that triggers `LARGE_AMOUNT` rule.
-3. **Assessment — High Risk**: Repeated transactions on the same account inside the velocity window.
-4. **Assessment — Critical Risk**: Two transactions whose required travel speed exceeds 965 km/h (impossible travel).
-5. **Assessment — Account Integration**: Use an `accountId` configured in `docker-compose/mockoon/data.json` so the GeographicValidator gets a known last-known location.
-6. **Query Assessment by ID**: `GET /fraud/assessments/{transactionId}` (analyst or admin).
-7. **Query High-Risk Assessments**: `GET /fraud/assessments?transactionRiskLevels=HIGH,CRITICAL`.
-8. **Query by Date Range**: `GET /fraud/assessments?fromDate=…`.
-- Response time thresholds
+#### Running headlessly
 
-Example test script:
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
+The collection runs cleanly under [Newman](https://www.npmjs.com/package/newman):
 
-pm.test("Response has required fields", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property('assessmentId');
-    pm.expect(jsonData).to.have.property('transactionId');
-    pm.expect(jsonData).to.have.property('riskScore');
-    pm.expect(jsonData).to.have.property('transactionRiskLevel');
-    pm.expect(jsonData).to.have.property('decision');
-});
-
-pm.test("Risk score is valid", function () {
-    const jsonData = pm.response.json();
-    pm.expect(jsonData.riskScore).to.be.at.least(0);
-    pm.expect(jsonData.riskScore).to.be.at.most(100);
-});
+```bash
+npx newman run postman/Fraud-Detection-API.postman_collection.json \
+  -e postman/Fraud-Detection-Local.postman_environment.json \
+  --reporters cli,json --reporter-json-export newman-report.json
 ```
+
+A typical Newman run reports ~46 passing requests with ~120 individual assertions when the full local stack is up.
 
 ### Testing with Kafka UI
 
